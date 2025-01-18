@@ -1,13 +1,10 @@
 import React from 'react';
-import Navbar from './components/Navbar';
+import SearchBar from './components/SearchBar';
 
 function App() {
   return (
-    <div className="bg-gray-100">
-      <Navbar />
-      <div className="container mx-auto p-4">
-        {/* Main content */}
-      </div>
+    <div>
+      <SearchBar />
     </div>
   );
 }
