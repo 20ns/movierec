@@ -1,13 +1,15 @@
 import React from 'react';
 import Navbar from './components/Navbar';
 
-const App = () => {
-    return (
-        <div>
-            <Navbar />
-            <h1>Welcome to the Movie Recommendation App</h1>
-        </div>
-    );
-};
+function App() {
+  return (
+    <div className="App flex flex-col items-center justify-center min-h-screen">
+      <Navbar />
+      <div className="w-full max-w-6xl p-4">
+        {/* Main content */}
+      </div>
+    </div>
+  );
+}
 
 export default App;
