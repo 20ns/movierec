@@ -10,7 +10,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: #808080;
+  background-color: #f0f0f0;
   margin: 0;
   padding: 0;
 }
@@ -34,40 +34,31 @@ body {
 }
 
 .search-results .result-item {
-  flex: 0 0 25%;
-  margin: 10px;
-  background-color: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  box-sizing: border-box;
-  transition: transform 0.3s ease-in-out;
-}
-
-.search-results .result-item.small-card {
   flex: 0 0 20%;
   margin: 10px;
   background-color: white;
-  border-radius: 8px;
+  border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  box-sizing: border-box;
-  transition: transform 0.3s ease-in-out;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
 }
 
 .search-results .result-item:hover {
   transform: scale(1.05);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
 }
 
 .search-results .result-item img {
   width: 100%;
   height: auto;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .search-results .result-item h2 {
   font-size: 1.25rem;
   margin: 10px 0;
   padding: 0 10px;
+  color: #333;
 }
 
 .search-results .result-item p {
