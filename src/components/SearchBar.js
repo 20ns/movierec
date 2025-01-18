@@ -10,58 +10,78 @@ const SearchBar = () => {
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTrailer, setSelectedTrailer] = useState(null);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (query.trim() === '') return;
+const handleSearch = async (e) => {
+  e.preventDefault();
+  if (query.trim() === '') return;
 
-    setIsLoading(true);
-    setError(null);
-    
-    const apiKey = process.env.REACT_APP_TMDB_API_KEY;
-    
-    if (!apiKey) {
-      setError('API key is missing. Please check your environment variables.');
-      setIsLoading(false);
-      return;
-    }
+  setIsLoading(true);
+  setError(null);
 
-    try {
-      const response = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
-        params: {
-          api_key: apiKey,
-          query: query,
-          include_adult: false,
-          language: 'en-US',
-          page: 1
-        }
-      });
+  const apiKey = process.env.REACT_APP_TMDB_API_KEY;
 
-      if (!response.data.results) {
-        throw new Error('No results found in API response');
+  if (!apiKey) {
+    setError('API key is missing. Please check your environment variables.');
+    setIsLoading(false);
+    return;
+  }
+
+  try {
+    const response = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
+      params: {
+        api_key: apiKey,
+        query: query,
+        include_adult: false,
+        language: 'en-US',
+        page: 1
       }
+    });
 
-      const filteredResults = response.data.results
-        .filter(result => result.genre_ids && result.genre_ids.length > 0)
-        .sort((a, b) => {
-          const aScore = (a.vote_average || 0) + (a.popularity || 0);
-          const bScore = (b.vote_average || 0) + (b.popularity || 0);
-          return bScore - aScore;
-        })
-        .slice(0, 3);
-
-      setResults(filteredResults);
-    } catch (error) {
-      setError(error.response?.data?.status_message || error.message || 'An error occurred while searching');
-    } finally {
-      setIsLoading(false);
+    if (!response.data.results) {
+      throw new Error('No results found in API response');
     }
-  };
+
+    const filteredResults = response.data.results
+      .filter(result => result.genre_ids && result.genre_ids.length > 0)
+      .sort((a, b) => {
+        const aScore = (a.vote_average || 0) + (a.popularity || 0);
+        const bScore = (b.vote_average || 0) + (b.popularity || 0);
+        return bScore - aScore;
+      })
+      .slice(0, 3);
+
+    setResults(filteredResults);
+  } catch (error) {
+    setError(error.response?.data?.status_message || error.message || 'An error occurred while searching');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const handleResultClick = async (result) => {
+  try {
+    const response = await axios.get(`https://api.themoviedb.org/3/${result.media_type}/${result.id}/videos`, {
+      params: {
+        api_key: process.env.REACT_APP_TMDB_API_KEY,
+      },
+    });
+
+    const trailer = response.data.results.find(video => video.type === 'Trailer');
+    if (trailer) {
+      setSelectedTrailer(trailer.key);
+    } else {
+      setError('No trailer found for this result.');
+    }
+  } catch (error) {
+    setError('Error fetching trailer.');
+  }
+};
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-4">
-      <motion.form 
-        onSubmit={handleSearch} 
+      <motion.form
+        onSubmit={handleSearch}
         className="mb-6"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -92,7 +112,7 @@ const SearchBar = () => {
         </div>
       )}
 
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -111,17 +131,18 @@ const SearchBar = () => {
               key={result.id}
               className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-500"
               whileHover={{ y: -4 }}
+              onClick={() => handleResultClick(result)}
             >
               <div className="relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                <motion.img 
-                  src={`https://image.tmdb.org/t/p/w500${result.poster_path}`} 
+                <motion.img
+                  src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
                   alt={result.title || result.name}
                   className="w-full h-48 object-cover"
                   whileHover={{ scale: 1.1 }}
                   transition={{ duration: 0.3 }}
                 />
-                <motion.div 
+                <motion.div
                   className="absolute top-2 right-2 z-20"
                   whileHover={{ scale: 1.05 }}
                 >
@@ -130,7 +151,7 @@ const SearchBar = () => {
                   </span>
                 </motion.div>
               </div>
-              
+
               <div className="p-4">
                 <h2 className="text-lg font-bold text-gray-800 mb-1 line-clamp-1">
                   {result.title || result.name}
@@ -138,9 +159,9 @@ const SearchBar = () => {
                 <p className="text-sm text-gray-600 line-clamp-2 mb-3">
                   {result.overview}
                 </p>
-                
+
                 <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                  <motion.div 
+                  <motion.div
                     className="flex items-center space-x-1"
                     whileHover={{ scale: 1.1 }}
                   >
@@ -149,8 +170,8 @@ const SearchBar = () => {
                       {result.vote_average ? result.vote_average.toFixed(1) : 'N/A'}
                     </span>
                   </motion.div>
-                  
-                  <motion.div 
+
+                  <motion.div
                     className="flex items-center space-x-1"
                     whileHover={{ scale: 1.1 }}
                   >
@@ -159,8 +180,8 @@ const SearchBar = () => {
                       {new Date(result.release_date || result.first_air_date).getFullYear()}
                     </span>
                   </motion.div>
-                  
-                  <motion.div 
+
+                  <motion.div
                     className="flex items-center space-x-1"
                     whileHover={{ scale: 1.1 }}
                   >
@@ -175,6 +196,20 @@ const SearchBar = () => {
           ))
         )}
       </motion.div>
+
+      {selectedTrailer && (
+        <div className="mt-8">
+          <iframe
+            width="560"
+            height="315"
+            src={`https://www.youtube.com/embed/${selectedTrailer}`}
+            title="Trailer"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        </div>
+      )}
     </div>
   );
 };
