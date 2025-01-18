@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { StarIcon, CalendarIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import Skeleton from 'react-loading-skeleton';
@@ -13,71 +13,78 @@ const SearchBar = () => {
   const [error, setError] = useState(null);
   const [selectedTrailer, setSelectedTrailer] = useState(null);
 
-const handleSearch = async (e) => {
-  e.preventDefault();
-  if (query.trim() === '') return;
-
-  setIsLoading(true);
-  setError(null);
-
-  const apiKey = process.env.REACT_APP_TMDB_API_KEY;
-
-  if (!apiKey) {
-    setError('API key is missing. Please check your environment variables.');
-    setIsLoading(false);
-    return;
-  }
-
-  try {
-    const response = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
-      params: {
-        api_key: apiKey,
-        query: query,
-        include_adult: false,
-        language: 'en-US',
-        page: 1
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (query.trim() !== '') {
+        handleSearch();
       }
-    });
+    }, 300);
 
-    if (!response.data.results) {
-      throw new Error('No results found in API response');
+    return () => clearTimeout(debounce);
+  }, [query]);
+
+  const handleSearch = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const apiKey = process.env.REACT_APP_TMDB_API_KEY;
+
+    if (!apiKey) {
+      setError('API key is missing. Please check your environment variables.');
+      setIsLoading(false);
+      return;
     }
 
-    const filteredResults = response.data.results
-      .filter(result => result.genre_ids && result.genre_ids.length > 0 && result.title.toLowerCase() !== query.toLowerCase())
-      .sort((a, b) => {
-        const aScore = (a.vote_average || 0) + (a.popularity || 0);
-        const bScore = (b.vote_average || 0) + (b.popularity || 0);
-        return bScore - aScore;
-      })
-      .slice(0, 3);
+    try {
+      const response = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
+        params: {
+          api_key: apiKey,
+          query: query,
+          include_adult: false,
+          language: 'en-US',
+          page: 1
+        }
+      });
 
-    setResults(filteredResults);
-  } catch (error) {
-    setError(error.response?.data?.status_message || error.message || 'An error occurred while searching');
-  } finally {
-    setIsLoading(false);
-  }
-};
+      if (!response.data.results) {
+        throw new Error('No results found in API response');
+      }
 
-const handleResultClick = async (result) => {
-  try {
-    const response = await axios.get(`https://api.themoviedb.org/3/${result.media_type}/${result.id}/videos`, {
-      params: {
-        api_key: process.env.REACT_APP_TMDB_API_KEY,
-      },
-    });
+const filteredResults = response.data.results
+  .filter(result => result.genre_ids && result.genre_ids.length > 0 && result.title && result.title.toLowerCase() !== query.toLowerCase())
+  .sort((a, b) => {
+    const aScore = (a.vote_average || 0) + (a.popularity || 0);
+    const bScore = (b.vote_average || 0) + (b.popularity || 0);
+    return bScore - aScore;
+  })
+  .slice(0, 3);
 
-    const trailer = response.data.results.find(video => video.type === 'Trailer');
-    if (trailer) {
-      setSelectedTrailer(trailer.key);
-    } else {
-      setError('No trailer found for this result.');
+      setResults(filteredResults);
+    } catch (error) {
+      setError(error.response?.data?.status_message || error.message || 'An error occurred while searching');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    setError('Error fetching trailer.');
-  }
-};
+  };
+
+  const handleResultClick = async (result) => {
+    try {
+      const response = await axios.get(`https://api.themoviedb.org/3/${result.media_type}/${result.id}/videos`, {
+        params: {
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+        },
+      });
+
+      const trailer = response.data.results.find(video => video.type === 'Trailer');
+      if (trailer) {
+        setSelectedTrailer(trailer.key);
+      } else {
+        setError('No trailer found for this result.');
+      }
+    } catch (error) {
+      setError('Error fetching trailer.');
+    }
+  };
 
   const handleCloseModal = () => {
     setSelectedTrailer(null);
@@ -86,7 +93,10 @@ const handleResultClick = async (result) => {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-4">
       <motion.form
-        onSubmit={handleSearch}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSearch();
+        }}
         className="mb-6"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
