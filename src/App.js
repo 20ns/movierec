@@ -3,9 +3,9 @@ import Navbar from './components/Navbar';
 
 function App() {
   return (
-    <div className="App flex flex-col items-center justify-center min-h-screen">
+    <div className="bg-gray-100">
       <Navbar />
-      <div className="w-full max-w-6xl p-4">
+      <div className="container mx-auto p-4">
         {/* Main content */}
       </div>
     </div>

@@ -3,12 +3,7 @@
 @tailwind utilities;
 
 body {
-  background: linear-gradient(135deg, #ff7e5f, #feb47b);
-  color: white;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   font-family: 'Arial', sans-serif;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out;
 }

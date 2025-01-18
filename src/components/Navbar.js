@@ -3,7 +3,7 @@ import SearchBar from './SearchBar';
 
 const Navbar = () => {
   return (
-    <nav>
+    <nav className="bg-gray-800 text-white p-4 shadow-md flex justify-center">
       <SearchBar />
       {/* Navbar content */}
     </nav>

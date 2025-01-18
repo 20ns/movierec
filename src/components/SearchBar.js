@@ -45,36 +45,36 @@ const SearchBar = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <div className={`search-bar ${isSearching ? 'fixed top-0 left-0 w-full bg-white shadow-md z-10' : 'flex items-center justify-center mb-8'}`}>
-        <form onSubmit={handleSearch} className="flex w-full max-w-2xl mx-auto p-4 bg-white rounded-full shadow-lg overflow-hidden transform transition-transform duration-300 hover:scale-105">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className={`transition-all duration-500 ${isSearching ? 'fixed top-0 left-0 w-full bg-white shadow-md z-10' : 'mb-8'}`}>
+        <form onSubmit={handleSearch} className="flex max-w-2xl mx-auto p-2 rounded-full shadow-lg overflow-hidden transform transition-transform duration-300 hover:scale-105 bg-white">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for movies or TV shows..."
-            className="flex-1 px-6 py-4 border-none focus:outline-none bg-gray-100 text-gray-800"
+            className="flex-grow px-4 py-2 focus:outline-none bg-transparent text-gray-800"
           />
           <button
             type="submit"
-            className="px-8 py-4 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full focus:outline-none transition-colors duration-300"
           >
             Search
           </button>
         </form>
       </div>
       {recommendations.length > 0 && (
-        <div className="recommendations mt-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 p-4">
+        <div className="mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
             {recommendations.map((recommendation) => (
-              <div key={recommendation.id} className="recommendation p-4 bg-white rounded-2xl shadow-xl overflow-hidden transform transition-transform duration-300 hover:scale-105">
+              <div key={recommendation.id} className="bg-white rounded-lg shadow-md overflow-hidden transform transition-transform duration-300 hover:scale-105">
                 <img
                   src={`https://image.tmdb.org/t/p/w500${recommendation.poster_path}`}
                   alt={recommendation.title || recommendation.name}
-                  className="w-full h-96 object-cover rounded-t-2xl transition-transform duration-300 transform hover:scale-110"
+                  className="w-full h-80 object-cover rounded-t-lg transition-transform duration-300 transform hover:scale-110"
                 />
-                <div className="p-6">
-                  <h3 className="text-2xl font-bold text-gray-900">{recommendation.title || recommendation.name}</h3>
+                <div className="p-4">
+                  <h3 className="font-bold text-xl mb-2">{recommendation.title || recommendation.name}</h3>
                 </div>
               </div>
             ))}
