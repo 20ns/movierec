@@ -4,6 +4,7 @@ import { StarIcon, CalendarIcon, ChartBarIcon } from '@heroicons/react/24/solid'
 import Skeleton from 'react-loading-skeleton';
 import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
+import TrailerModal from './TrailerModal';
 
 const SearchBar = () => {
   const [query, setQuery] = useState('');
@@ -43,7 +44,7 @@ const handleSearch = async (e) => {
     }
 
     const filteredResults = response.data.results
-      .filter(result => result.genre_ids && result.genre_ids.length > 0)
+      .filter(result => result.genre_ids && result.genre_ids.length > 0 && result.title.toLowerCase() !== query.toLowerCase())
       .sort((a, b) => {
         const aScore = (a.vote_average || 0) + (a.popularity || 0);
         const bScore = (b.vote_average || 0) + (b.popularity || 0);
@@ -77,6 +78,10 @@ const handleResultClick = async (result) => {
     setError('Error fetching trailer.');
   }
 };
+
+  const handleCloseModal = () => {
+    setSelectedTrailer(null);
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-4">
@@ -198,17 +203,7 @@ const handleResultClick = async (result) => {
       </motion.div>
 
       {selectedTrailer && (
-        <div className="mt-8">
-          <iframe
-            width="560"
-            height="315"
-            src={`https://www.youtube.com/embed/${selectedTrailer}`}
-            title="Trailer"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          ></iframe>
-        </div>
+        <TrailerModal trailerKey={selectedTrailer} onClose={handleCloseModal} />
       )}
     </div>
   );
