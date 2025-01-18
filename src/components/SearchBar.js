@@ -6,24 +6,24 @@ const SearchBar = () => {
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (query.trim() === '') return;
+const handleSearch = async (e) => {
+  e.preventDefault();
+  if (query.trim() === '') return;
 
-    setIsSearching(true);
+  setIsSearching(true);
 
-    try {
-      const response = await axios.get('https://api.themoviedb.org/3/search/multi', {
-        params: {
-          api_key: 'b484a8d608caf759d5d575db3ec03bbc',
-          query: query,
-        },
-      });
-      setResults(response.data.results);
-    } catch (error) {
-      console.error('Error fetching search results:', error);
-    }
-  };
+  try {
+    const response = await axios.get('https://api.themoviedb.org/3/search/multi', {
+      params: {
+        api_key: process.env.REACT_APP_TMDB_API_KEY,
+        query: query,
+      },
+    });
+    setResults(response.data.results);
+  } catch (error) {
+    console.error('Error fetching search results:', error);
+  }
+};
 
   return (
     <div>
@@ -44,17 +44,20 @@ const SearchBar = () => {
           </button>
         </form>
       </div>
-      <div className={`search-results ${isSearching ? 'mt-24' : 'mt-8'} grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-4`}>
-        {results.slice(0, 3).map((result) => (
-          <div key={result.id} className="search-result p-4 border rounded-lg shadow-md bg-white transform transition-transform duration-300 hover:scale-105">
-            <img
-              src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
-              alt={result.title || result.name}
-              className="w-full h-48 object-cover rounded-lg"
-            />
-          </div>
-        ))}
+<div className={`search-results ${isSearching ? 'mt-24' : 'mt-8'} grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-4`}>
+  {results.filter(result => result.poster_path).slice(0, 3).map((result) => (
+    <div key={result.id} className="search-result p-4 bg-white rounded-lg shadow-lg overflow-hidden transform transition-transform duration-300 hover:scale-105">
+      <img
+        src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
+        alt={result.title || result.name}
+        className="w-full h-64 object-cover rounded-t-lg transition-transform duration-300 transform hover:scale-110"
+      />
+      <div className="p-4">
+        <h3 className="text-xl font-bold text-gray-900">{result.title || result.name}</h3>
       </div>
+    </div>
+  ))}
+</div>
     </div>
   );
 };
