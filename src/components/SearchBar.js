@@ -185,6 +185,7 @@ const filteredResults = response.data.results
                       {result.vote_average ? result.vote_average.toFixed(1) : 'N/A'}
                     </span>
                   </motion.div>
+                  
 
                   <motion.div
                     className="flex items-center space-x-1"
