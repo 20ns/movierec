@@ -8,5 +8,5 @@ function App() {
     </div>
   );
 }
-export App;
+
 export default App;
