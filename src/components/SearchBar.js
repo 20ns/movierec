@@ -92,18 +92,18 @@ const SearchBar = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full max-w-7xl mx-auto px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative mb-12"
+        className="relative mb-16"
       >
         <motion.form
           onSubmit={(e) => {
             e.preventDefault();
             handleSearch();
           }}
-          className="relative max-w-4xl mx-auto"
+          className="relative max-w-5xl mx-auto"
           animate={{
             scale: isFocused ? 1.02 : 1,
             boxShadow: isFocused 
@@ -115,7 +115,7 @@ const SearchBar = () => {
           <div className="flex items-center bg-white/90 backdrop-blur-sm rounded-full border-2 border-blue-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-200/50 transition-all duration-300">
             {/* Search Icon */}
             <motion.div
-              className="pl-4 text-gray-400"
+              className="pl-6 text-gray-400"
               animate={{ 
                 scale: isLoading ? [1, 1.2, 1] : 1,
                 rotate: isLoading ? 360 : 0 
@@ -126,7 +126,7 @@ const SearchBar = () => {
                 ease: "linear"
               }}
             >
-              <MagnifyingGlassIcon className="w-6 h-6" />
+              <MagnifyingGlassIcon className="w-8 h-8" />
             </motion.div>
             
             {/* Input Field */}
@@ -137,16 +137,16 @@ const SearchBar = () => {
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               placeholder="Search for movies or TV shows..."
-              className="flex-grow pl-4 pr-4 py-4 text-lg bg-transparent focus:outline-none"
+              className="flex-grow pl-6 pr-4 py-6 text-xl bg-transparent focus:outline-none"
             />
             
             {/* Search Button */}
-            <div className="pr-2">
+            <div className="pr-3">
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="px-8 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-full hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="px-10 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-lg font-semibold rounded-full hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
                 Search
               </motion.button>
@@ -160,7 +160,7 @@ const SearchBar = () => {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-red-500 text-center"
+              className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-red-500 text-center text-lg"
             >
               {error}
             </motion.div>
