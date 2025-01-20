@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { StarIcon, CalendarIcon, ChartBarIcon } from '@heroicons/react/24/solid';
+import { motion, AnimatePresence } from 'framer-motion';
+import { StarIcon, CalendarIcon, ChartBarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import Skeleton from 'react-loading-skeleton';
 import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -12,6 +12,7 @@ const SearchBar = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTrailer, setSelectedTrailer] = useState(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -50,14 +51,14 @@ const SearchBar = () => {
         throw new Error('No results found in API response');
       }
 
-const filteredResults = response.data.results
-  .filter(result => result.genre_ids && result.genre_ids.length > 0 && result.title && result.title.toLowerCase() !== query.toLowerCase())
-  .sort((a, b) => {
-    const aScore = (a.vote_average || 0) + (a.popularity || 0);
-    const bScore = (b.vote_average || 0) + (b.popularity || 0);
-    return bScore - aScore;
-  })
-  .slice(0, 3);
+      const filteredResults = response.data.results
+        .filter(result => result.genre_ids && result.genre_ids.length > 0 && result.title && result.title.toLowerCase() !== query.toLowerCase())
+        .sort((a, b) => {
+          const aScore = (a.vote_average || 0) + (a.popularity || 0);
+          const bScore = (b.vote_average || 0) + (b.popularity || 0);
+          return bScore - aScore;
+        })
+        .slice(0, 3);
 
       setResults(filteredResults);
     } catch (error) {
@@ -91,46 +92,87 @@ const filteredResults = response.data.results
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-4">
-      <motion.form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSearch();
-        }}
-        className="mb-6"
+    <div className="w-full max-w-7xl mx-auto px-4 py-8">
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        className="relative mb-12"
       >
-        <div className="relative flex w-full max-w-2xl mx-auto">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for movies or TV shows..."
-            className="w-full px-4 py-2 text-base rounded-l-lg border-2 border-r-0 border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all duration-300 bg-white/80 backdrop-blur-sm"
-          />
-          <motion.button
-            type="submit"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-r-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            Search
-          </motion.button>
-        </div>
-      </motion.form>
+        <motion.form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch();
+          }}
+          className="relative max-w-4xl mx-auto"
+          animate={{
+            scale: isFocused ? 1.02 : 1,
+            boxShadow: isFocused 
+              ? '0 8px 30px rgba(0, 0, 0, 0.12)' 
+              : '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="flex items-center bg-white/90 backdrop-blur-sm rounded-full border-2 border-blue-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-200/50 transition-all duration-300">
+            {/* Search Icon */}
+            <motion.div
+              className="pl-4 text-gray-400"
+              animate={{ 
+                scale: isLoading ? [1, 1.2, 1] : 1,
+                rotate: isLoading ? 360 : 0 
+              }}
+              transition={{ 
+                duration: 1,
+                repeat: isLoading ? Infinity : 0,
+                ease: "linear"
+              }}
+            >
+              <MagnifyingGlassIcon className="w-6 h-6" />
+            </motion.div>
+            
+            {/* Input Field */}
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder="Search for movies or TV shows..."
+              className="flex-grow pl-4 pr-4 py-4 text-lg bg-transparent focus:outline-none"
+            />
+            
+            {/* Search Button */}
+            <div className="pr-2">
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-8 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-full hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                Search
+              </motion.button>
+            </div>
+          </div>
+        </motion.form>
 
-      {error && (
-        <div className="text-red-500 text-center mb-4">
-          {error}
-        </div>
-      )}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-red-500 text-center"
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       <motion.div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
       >
         {isLoading ? (
           Array(3).fill(0).map((_, index) => (
@@ -185,7 +227,6 @@ const filteredResults = response.data.results
                       {result.vote_average ? result.vote_average.toFixed(1) : 'N/A'}
                     </span>
                   </motion.div>
-                  
 
                   <motion.div
                     className="flex items-center space-x-1"
