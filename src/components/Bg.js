@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import '../index.css';
 
-const DynamicBackground = () => {
+const Bg = () => {
   useEffect(() => {
     const canvas = document.getElementById('backgroundCanvas');
     const ctx = canvas.getContext('2d');
-    const colors = ['#ff6f61', '#6a5acd', '#48c9b0'];
+    const colors = ['#3A3B3C', '#4F4E6F', '#354B47', '#505A5A']; // Subdued dark tones
     const circles = [];
 
     // Set canvas size
@@ -35,7 +35,7 @@ const DynamicBackground = () => {
         this.x += this.speed.x;
         this.y += this.speed.y;
 
-        // Bounce back on edges
+        // Keep circles near the edges
         if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
           this.speed.x *= -1;
         }
@@ -47,13 +47,13 @@ const DynamicBackground = () => {
       }
     }
 
-    // Initialize circles
-    for (let i = 0; i < 3; i++) {
-      const radius = 100 + Math.random() * 50; // Random radius
-      const x = Math.random() * (canvas.width - radius * 2) + radius;
-      const y = Math.random() * (canvas.height - radius * 2) + radius;
+    // Initialize circles closer to the edges
+    for (let i = 0; i < 4; i++) {
+      const radius = 80 + Math.random() * 50; // Varying radii
+      let x = Math.random() < 0.5 ? radius + 50 : canvas.width - radius - 50; // Near left or right edges
+      let y = Math.random() < 0.5 ? radius + 50 : canvas.height - radius - 50; // Near top or bottom edges
       const color = colors[i % colors.length];
-      const speed = { x: (Math.random() - 0.5) * 2, y: (Math.random() - 0.5) * 2 };
+      const speed = { x: (Math.random() - 0.5) * 0.2, y: (Math.random() - 0.5) * 0.2 }; // Slow movement
       circles.push(new Circle(x, y, radius, color, speed));
     }
 
@@ -82,4 +82,4 @@ const DynamicBackground = () => {
   return <canvas id="backgroundCanvas"></canvas>;
 };
 
-export default DynamicBackground;
+export default Bg;
