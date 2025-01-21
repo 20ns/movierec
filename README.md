@@ -17,6 +17,9 @@ This project is deployed on Netlify. You can access the live version of the webs
 
 - [React](https://reactjs.org/) - The web framework used
 - [Tailwind CSS](https://tailwindcss.com/) - For styling
+- [Babel](https://babeljs.io/) - For JavaScript transpilation
+- [PostCSS](https://postcss.org/) - For CSS transformations
+- [Webpack](https://webpack.js.org/) - For module bundling
 - [Netlify](https://www.netlify.com/) - For deployment
 
 ## Acknowledgments
