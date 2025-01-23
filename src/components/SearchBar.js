@@ -29,8 +29,8 @@ const SearchBar = () => {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100 } }
+    hidden: { opacity: 0, scale: 0.9 },
+    show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100 } }
   };
 
   // Fetch suggestions with debounce
@@ -152,21 +152,26 @@ const SearchBar = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-12 relative z-10">
-      <div className="relative">
+    <div className="w-full h-screen max-w-7xl mx-auto px-4 relative z-10 flex flex-col">
+      <motion.div
+        className="flex-grow flex items-center justify-center"
+        animate={{
+          paddingTop: hasSearched ? '2rem' : '0',
+          paddingBottom: hasSearched ? '2rem' : '0',
+        }}
+        transition={{ type: 'spring', stiffness: 300 }}
+      >
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ 
-            opacity: 1, 
-            y: hasSearched ? -100 : 0,
-            marginBottom: hasSearched ? '2rem' : '4rem' 
+          className="w-full max-w-3xl"
+          animate={{
+            y: hasSearched ? 40 : 0,
+            scale: hasSearched ? 0.95 : 1,
           }}
           transition={{ type: 'spring', stiffness: 300 }}
-          className="relative"
         >
           <motion.form
             onSubmit={handleSearch}
-            className="relative max-w-5xl mx-auto"
+            className="relative"
             animate={{
               scale: isFocused ? 1.02 : 1,
               boxShadow: isFocused 
@@ -220,7 +225,7 @@ const SearchBar = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute left-0 right-0 mt-2 max-w-5xl mx-auto z-50"
+                className="absolute left-0 right-0 mt-2 z-50"
               >
                 <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden border border-indigo-50">
                   {suggestions.map((suggestion, index) => (
@@ -264,120 +269,118 @@ const SearchBar = () => {
             )}
           </AnimatePresence>
         </motion.div>
+      </motion.div>
 
-        <AnimatePresence mode='wait'>
-          {hasSearched && (
-            <motion.div
-              key="results"
-              variants={containerVariants}
-              initial="hidden"
-              animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            >
-              {isLoading ? (
-                Array(3).fill(0).map((_, index) => (
-                  <motion.div
-                    key={`skeleton-${index}`}
-                    variants={itemVariants}
-                    className="bg-white rounded-2xl overflow-hidden shadow-lg p-4 hover:shadow-xl transition-shadow duration-300"
-                  >
-                    <Skeleton height={280} className="rounded-xl" />
-                    <Skeleton height={28} width={180} className="mt-4" />
-                    <Skeleton count={2} className="mt-2" />
-                    <div className="mt-4 flex justify-between">
-                      <Skeleton width={60} height={24} />
-                      <Skeleton width={80} height={24} />
-                      <Skeleton width={60} height={24} />
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                results.map((result, index) => (
-                  <motion.div
-                    key={result.id}
-                    variants={itemVariants}
-                    className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative"
-                    whileHover={{ y: -8 }}
-                    onClick={() => handleResultClick(result)}
-                    layout
-                  >
-                    <div className="relative overflow-hidden h-72">
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                      <motion.img
-                        src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
-                        alt={result.title || result.name}
-                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <motion.div
-                        className="absolute top-3 right-3 z-20"
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        <span className="bg-indigo-500/90 text-white px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
-                          {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
+      <AnimatePresence mode='wait'>
+        {hasSearched ? (
+          <motion.div
+            key="results"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow h-[50vh] overflow-hidden px-4 pb-8"
+          >
+            {isLoading ? (
+              Array(3).fill(0).map((_, index) => (
+                <motion.div
+                  key={`skeleton-${index}`}
+                  variants={itemVariants}
+                  className="bg-white rounded-2xl overflow-hidden shadow-lg p-4 hover:shadow-xl transition-shadow duration-300 h-full"
+                >
+                  <Skeleton height="25vh" className="rounded-xl" />
+                  <Skeleton height={28} width={180} className="mt-4" />
+                  <Skeleton count={2} className="mt-2" />
+                  <div className="mt-4 flex justify-between">
+                    <Skeleton width={60} height={24} />
+                    <Skeleton width={80} height={24} />
+                    <Skeleton width={60} height={24} />
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              results.map((result) => (
+                <motion.div
+                  key={result.id}
+                  variants={itemVariants}
+                  className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative h-full flex flex-col"
+                  whileHover={{ scale: 1.02 }}
+                  onClick={() => handleResultClick(result)}
+                  layout
+                >
+                  <div className="relative overflow-hidden h-[25vh] flex-shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+                    <motion.img
+                      src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
+                      alt={result.title || result.name}
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                    <motion.div
+                      className="absolute top-3 right-3 z-20"
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <span className="bg-indigo-500/90 text-white px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
+                        {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
+                      </span>
+                    </motion.div>
+                  </div>
+
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h2 className="text-lg font-bold text-gray-800 mb-2 line-clamp-1">
+                      {result.title || result.name}
+                    </h2>
+                    <p className="text-gray-600 line-clamp-3 mb-4 text-sm leading-relaxed flex-grow">
+                      {result.overview}
+                    </p>
+
+                    <div className="border-t border-gray-100 pt-3 flex items-center justify-between space-x-2">
+                      <div className="flex items-center space-x-2">
+                        <StarIcon className="w-5 h-5 text-amber-400" />
+                        <span className="font-medium text-gray-700 text-sm">
+                          {result.vote_average?.toFixed(1) || 'N/A'}
                         </span>
-                      </motion.div>
-                    </div>
+                      </div>
 
-                    <div className="p-5">
-                      <h2 className="text-xl font-bold text-gray-800 mb-2 line-clamp-1">
-                        {result.title || result.name}
-                      </h2>
-                      <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
-                        {result.overview}
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        <CalendarIcon className="w-5 h-5 text-gray-400" />
+                        <span className="text-gray-600 text-sm">
+                          {new Date(result.release_date || result.first_air_date).getFullYear()}
+                        </span>
+                      </div>
 
-                      <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <StarIcon className="w-5 h-5 text-amber-400" />
-                          <span className="font-medium text-gray-700">
-                            {result.vote_average?.toFixed(1) || 'N/A'}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <CalendarIcon className="w-5 h-5 text-gray-400" />
-                          <span className="text-gray-600">
-                            {new Date(result.release_date || result.first_air_date).getFullYear()}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <ChartBarIcon className="w-5 h-5 text-gray-400" />
-                          <span className="text-gray-600">
-                            {Math.round(result.popularity)}
-                          </span>
-                        </div>
+                      <div className="flex items-center space-x-2">
+                        <ChartBarIcon className="w-5 h-5 text-gray-400" />
+                        <span className="text-gray-600 text-sm">
+                          {Math.round(result.popularity)}
+                        </span>
                       </div>
                     </div>
-                  </motion.div>
-                ))
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {!hasSearched && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="text-center py-20 absolute left-0 right-0"
-            >
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="text-center py-8 flex-grow flex items-center justify-center"
+          >
+            <div className="max-w-md">
               <div className="text-indigo-400/50 text-6xl mb-4">🎬</div>
               <h3 className="text-2xl font-semibold text-gray-500 mb-2">
                 Search for Movies & TV Shows
               </h3>
-              <p className="text-gray-400 max-w-md mx-auto">
-                Start typing to discover your next favorite movie or TV show. Press search to see results.
+              <p className="text-gray-400">
+                Enter a title and press search to discover your next favorite movie or TV show
               </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {selectedTrailer && (
         <TrailerModal trailerKey={selectedTrailer} onClose={handleCloseModal} />
