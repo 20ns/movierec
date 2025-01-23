@@ -5,6 +5,7 @@ import Skeleton from 'react-loading-skeleton';
 import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
 import TrailerModal from './TrailerModal';
+import { EventEmitter } from '../events';
 
 const SearchBar = () => {
   const [query, setQuery] = useState('');
@@ -32,6 +33,65 @@ const SearchBar = () => {
     hidden: { opacity: 0, scale: 0.9 },
     show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100 } }
   };
+
+  // Genre-based color mapping
+  const genreColors = {
+    28: '#dc2626',   // Action
+    12: '#16a34a',   // Adventure
+    16: '#eab308',   // Animation
+    35: '#a855f7',   // Comedy
+    80: '#64748b',   // Crime
+    18: '#2563eb',   // Drama
+    10751: '#0d9488', // Family
+    14: '#9333ea',   // Fantasy
+    27: '#475569',   // Horror
+    9648: '#4f46e5', // Mystery
+    10749: '#db2777', // Romance
+    878: '#0891b2',  // Science Fiction
+    default: '#4f46e5' // Indigo
+  };
+
+  const getGenreColor = (genreIds = []) => {
+    const firstGenre = genreIds[0] || 'default';
+    return genreColors[firstGenre] || genreColors.default;
+  };
+
+  // --- getDominantColor function (from the first file, commented out for now) ---
+  // const getDominantColor = (imgUrl, callback) => {
+  //   const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
+  //   const img = new Image();
+  //   img.crossOrigin = "Anonymous";
+
+  //   img.onload = () => {
+  //     const canvas = document.createElement('canvas');
+  //     const ctx = canvas.getContext('2d');
+  //     canvas.width = 50;
+  //     canvas.height = 50;
+
+  //     ctx.drawImage(img, 0, 0, 50, 50);
+  //     const imageData = ctx.getImageData(20, 20, 10, 10).data;
+  //     const colorCounts = {};
+
+  //     for (let i = 0; i < imageData.length; i += 4) {
+  //       const r = imageData[i];
+  //       const g = imageData[i + 1];
+  //       const b = imageData[i + 2];
+  //       const key = `${r},${g},${b}`;
+  //       colorCounts[key] = (colorCounts[key] || 0) + 1;
+  //     }
+
+  //     const dominant = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0];
+  //     callback(`rgb(${dominant})`);
+  //   };
+
+  //   img.onerror = () => {
+  //     callback('#4f46e5'); // Fallback color
+  //   };
+
+  //   img.src = proxyUrl;
+  // };
+  // --- End of getDominantColor function ---
+
 
   // Fetch suggestions with debounce
   useEffect(() => {
@@ -174,8 +234,8 @@ const SearchBar = () => {
             className="relative"
             animate={{
               scale: isFocused ? 1.02 : 1,
-              boxShadow: isFocused 
-                ? '0 8px 30px rgba(98, 102, 241, 0.2)' 
+              boxShadow: isFocused
+                ? '0 8px 30px rgba(98, 102, 241, 0.2)'
                 : '0 4px 6px rgba(0, 0, 0, 0.1)'
             }}
             transition={{ type: 'spring', stiffness: 300 }}
@@ -183,11 +243,11 @@ const SearchBar = () => {
             <div className="flex items-center bg-gradient-to-r from-indigo-50 to-blue-50 backdrop-blur-xl rounded-full border-2 border-indigo-100 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-200/50 transition-all duration-300 shadow-lg">
               <motion.div
                 className="pl-6 text-indigo-400"
-                animate={{ 
+                animate={{
                   scale: isLoading ? [1, 1.2, 1] : 1,
-                  rotate: isLoading ? 360 : 0 
+                  rotate: isLoading ? 360 : 0
                 }}
-                transition={{ 
+                transition={{
                   duration: 1,
                   repeat: isLoading ? Infinity : 0,
                   ease: "linear"
@@ -195,7 +255,7 @@ const SearchBar = () => {
               >
                 <MagnifyingGlassIcon className="w-8 h-8" />
               </motion.div>
-              
+
               <input
                 type="text"
                 value={query}
@@ -205,7 +265,7 @@ const SearchBar = () => {
                 placeholder="Search for movies or TV shows..."
                 className="flex-grow pl-6 pr-4 py-6 text-xl bg-transparent focus:outline-none placeholder-indigo-300 text-indigo-600 font-medium"
               />
-              
+
               <div className="pr-3">
                 <motion.button
                   type="submit"
@@ -258,7 +318,7 @@ const SearchBar = () => {
 
           <AnimatePresence>
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -316,6 +376,13 @@ const SearchBar = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
+                      onMouseEnter={() => {
+                        const color = getGenreColor(result.genre_ids);
+                        EventEmitter.emit('accentColor', color);
+                      }}
+                      onMouseLeave={() => {
+                        EventEmitter.emit('accentColor', null);
+                      }}
                     />
                     <motion.div
                       className="absolute top-3 right-3 z-20"

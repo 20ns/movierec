@@ -1,37 +1,51 @@
 import React, { useEffect, useRef } from 'react';
-import '../index.css';
+import { EventEmitter } from '../events';
 
-const EnhancedDarkBackground = () => {
+const Bg = () => {
   const canvasRef = useRef(null);
   const circles = useRef([]);
   const mousePos = useRef({ x: null, y: null });
+  const targetColor = useRef(null);
+  const currentColor = useRef({ r: 10, g: 10, b: 10 });
+
+  useEffect(() => {
+    const handleAccentColor = (color) => {
+      if (!color) {
+        targetColor.current = null;
+        return;
+      }
+      
+      const rgb = color.match(/\d+/g).map(Number);
+      targetColor.current = {
+        r: rgb[0],
+        g: rgb[1],
+        b: rgb[2]
+      };
+    };
+
+    EventEmitter.on('accentColor', handleAccentColor);
+    
+    return () => {
+      EventEmitter.events.accentColor = 
+        EventEmitter.events.accentColor?.filter(cb => cb !== handleAccentColor);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    // Set canvas size
     const setCanvasSize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
     setCanvasSize();
 
-    // Darker color palette with increased contrast
-    const colors = [
-      'rgba(35, 65, 90, 0.5)',    // Deep ocean blue
-      'rgba(60, 30, 60, 0.5)',    // Royal purple
-      'rgba(150, 40, 40, 0.5)',   // Crimson
-      'rgba(40, 80, 60, 0.5)',    // Emerald
-      'rgba(80, 50, 30, 0.5)'     // Bronze
-    ];
-
     class Circle {
       constructor() {
-        this.radius = 60 + Math.random() * 60; // Increased base size
+        this.radius = 60 + Math.random() * 60;
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
-        this.color = colors[Math.floor(Math.random() * colors.length)];
         this.dx = (Math.random() - 0.5) * 0.4;
         this.dy = (Math.random() - 0.5) * 0.4;
         this.baseSize = this.radius;
@@ -41,28 +55,25 @@ const EnhancedDarkBackground = () => {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         
-        // Enhanced gradient fill
         const gradient = ctx.createRadialGradient(
           this.x, this.y, this.radius * 0.3,
           this.x, this.y, this.radius
         );
-        gradient.addColorStop(0, this.color);
+        gradient.addColorStop(0, `rgba(255,255,255,0.1)`);
         gradient.addColorStop(1, 'rgba(0,0,0,0)');
         
         ctx.fillStyle = gradient;
-        ctx.filter = 'blur(30px)'; // Increased blur for smoother edges
+        ctx.filter = 'blur(30px)';
         ctx.fill();
       }
 
       update() {
-        // Mouse interaction
         if (mousePos.current.x && mousePos.current.y) {
           const dx = mousePos.current.x - this.x;
           const dy = mousePos.current.y - this.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          // Stronger repel effect for larger circles
-          if (distance < 200) { // Increased interaction radius
+          if (distance < 200) {
             const force = (200 - distance) / 50;
             this.dx -= (dx / distance) * force;
             this.dy -= (dy / distance) * force;
@@ -72,7 +83,6 @@ const EnhancedDarkBackground = () => {
           }
         }
 
-        // Wall collision with size consideration
         if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
           this.dx *= -1;
         }
@@ -80,7 +90,6 @@ const EnhancedDarkBackground = () => {
           this.dy *= -1;
         }
 
-        // Adjusted friction for smoother movement
         this.dx *= 0.97;
         this.dy *= 0.97;
 
@@ -91,24 +100,34 @@ const EnhancedDarkBackground = () => {
       }
     }
 
-    // Initialize more circles
     const init = () => {
       circles.current = [];
-      for (let i = 0; i < 15; i++) { // Increased quantity (from 8 to 15)
+      for (let i = 0; i < 15; i++) {
         circles.current.push(new Circle());
       }
     };
 
-    // Animation loop
     const animate = () => {
-      ctx.fillStyle = '#0a0a0a';
+      // Color transition
+      if (targetColor.current) {
+        currentColor.current.r += (targetColor.current.r - currentColor.current.r) * 0.1;
+        currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.1;
+        currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.1;
+      } else {
+        currentColor.current.r += (10 - currentColor.current.r) * 0.1;
+        currentColor.current.g += (10 - currentColor.current.g) * 0.1;
+        currentColor.current.b += (10 - currentColor.current.b) * 0.1;
+      }
+
+      ctx.fillStyle = `rgb(${Math.round(currentColor.current.r)}, 
+                          ${Math.round(currentColor.current.g)}, 
+                          ${Math.round(currentColor.current.b)})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       circles.current.forEach(circle => circle.update());
       requestAnimationFrame(animate);
     };
 
-    // Event handlers
     const handleResize = () => {
       setCanvasSize();
       init();
@@ -148,4 +167,4 @@ const EnhancedDarkBackground = () => {
   );
 };
 
-export default EnhancedDarkBackground;
+export default Bg;
