@@ -1,3 +1,4 @@
+// Bg.js
 import React, { useEffect, useRef } from 'react';
 import { EventEmitter } from '../events';
 
@@ -10,23 +11,26 @@ const Bg = () => {
 
   useEffect(() => {
     const handleAccentColor = (color) => {
+      console.log("Received accentColor:", color); // ADD THIS LOG
+
       if (!color) {
         targetColor.current = null;
         return;
       }
-      
-      const rgb = color.match(/\d+/g).map(Number);
+
+      // Directly parse RGB string from SearchBar
+      const rgbValues = color.substring(4, color.length-1).replace(/\s/g, '').split(',');
       targetColor.current = {
-        r: rgb[0],
-        g: rgb[1],
-        b: rgb[2]
+        r: parseInt(rgbValues[0]),
+        g: parseInt(rgbValues[1]),
+        b: parseInt(rgbValues[2])
       };
     };
 
     EventEmitter.on('accentColor', handleAccentColor);
-    
+
     return () => {
-      EventEmitter.events.accentColor = 
+      EventEmitter.events.accentColor =
         EventEmitter.events.accentColor?.filter(cb => cb !== handleAccentColor);
     };
   }, []);
@@ -34,7 +38,7 @@ const Bg = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     const setCanvasSize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -54,14 +58,14 @@ const Bg = () => {
       draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        
+
         const gradient = ctx.createRadialGradient(
           this.x, this.y, this.radius * 0.3,
           this.x, this.y, this.radius
         );
         gradient.addColorStop(0, `rgba(255,255,255,0.1)`);
         gradient.addColorStop(1, 'rgba(0,0,0,0)');
-        
+
         ctx.fillStyle = gradient;
         ctx.filter = 'blur(30px)';
         ctx.fill();
@@ -72,7 +76,7 @@ const Bg = () => {
           const dx = mousePos.current.x - this.x;
           const dy = mousePos.current.y - this.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          
+
           if (distance < 200) {
             const force = (200 - distance) / 50;
             this.dx -= (dx / distance) * force;
@@ -95,7 +99,7 @@ const Bg = () => {
 
         this.x += this.dx;
         this.y += this.dy;
-        
+
         this.draw();
       }
     }
@@ -119,11 +123,11 @@ const Bg = () => {
         currentColor.current.b += (10 - currentColor.current.b) * 0.1;
       }
 
-      ctx.fillStyle = `rgb(${Math.round(currentColor.current.r)}, 
-                          ${Math.round(currentColor.current.g)}, 
+      ctx.fillStyle = `rgb(${Math.round(currentColor.current.r)},
+                          ${Math.round(currentColor.current.g)},
                           ${Math.round(currentColor.current.b)})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
+
       circles.current.forEach(circle => circle.update());
       requestAnimationFrame(animate);
     };
@@ -142,7 +146,7 @@ const Bg = () => {
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
-    
+
     init();
     animate();
 
@@ -153,7 +157,7 @@ const Bg = () => {
   }, []);
 
   return (
-    <canvas 
+    <canvas
       ref={canvasRef}
       style={{
         position: 'fixed',

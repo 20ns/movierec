@@ -1,3 +1,4 @@
+// events.js
 export const EventEmitter = {
     events: {},
     emit(event, data) {

@@ -1,3 +1,4 @@
+// SearchBar.js
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StarIcon, CalendarIcon, ChartBarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
@@ -6,6 +7,15 @@ import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
 import TrailerModal from './TrailerModal';
 import { EventEmitter } from '../events';
+
+// Helper function to convert hex color to RGB string
+const hexToRgb = (hex) => {
+  hex = hex.replace("#", "");
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+  return `rgb(${r}, ${g}, ${b})`;
+};
 
 const SearchBar = () => {
   const [query, setQuery] = useState('');
@@ -53,44 +63,11 @@ const SearchBar = () => {
 
   const getGenreColor = (genreIds = []) => {
     const firstGenre = genreIds[0] || 'default';
-    return genreColors[firstGenre] || genreColors.default;
+    const hexColor = genreColors[firstGenre] || genreColors.default;
+    const rgbColor = hexToRgb(hexColor); // Convert hex to RGB string
+    console.log("Emitting accentColor:", rgbColor); // ADD THIS LOG
+    return rgbColor;
   };
-
-  // --- getDominantColor function (from the first file, commented out for now) ---
-  // const getDominantColor = (imgUrl, callback) => {
-  //   const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
-  //   const img = new Image();
-  //   img.crossOrigin = "Anonymous";
-
-  //   img.onload = () => {
-  //     const canvas = document.createElement('canvas');
-  //     const ctx = canvas.getContext('2d');
-  //     canvas.width = 50;
-  //     canvas.height = 50;
-
-  //     ctx.drawImage(img, 0, 0, 50, 50);
-  //     const imageData = ctx.getImageData(20, 20, 10, 10).data;
-  //     const colorCounts = {};
-
-  //     for (let i = 0; i < imageData.length; i += 4) {
-  //       const r = imageData[i];
-  //       const g = imageData[i + 1];
-  //       const b = imageData[i + 2];
-  //       const key = `${r},${g},${b}`;
-  //       colorCounts[key] = (colorCounts[key] || 0) + 1;
-  //     }
-
-  //     const dominant = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0];
-  //     callback(`rgb(${dominant})`);
-  //   };
-
-  //   img.onerror = () => {
-  //     callback('#4f46e5'); // Fallback color
-  //   };
-
-  //   img.src = proxyUrl;
-  // };
-  // --- End of getDominantColor function ---
 
 
   // Fetch suggestions with debounce
@@ -382,6 +359,7 @@ const SearchBar = () => {
                       }}
                       onMouseLeave={() => {
                         EventEmitter.emit('accentColor', null);
+                        console.log("Emitting accentColor: null"); // ADD THIS LOG
                       }}
                     />
                     <motion.div
