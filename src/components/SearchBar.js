@@ -340,9 +340,16 @@ const SearchBar = () => {
                   key={result.id}
                   variants={itemVariants}
                   className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative h-full flex flex-col"
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.01, rotate: 2 }} // Modified motion here - added rotation and reduced scale
                   onClick={() => handleResultClick(result)}
                   layout
+                  onMouseEnter={() => {
+                    const color = getGenreColor(result.genre_ids);
+                    EventEmitter.emit('accentColor', color);
+                  }}
+                  onMouseLeave={() => {
+                    EventEmitter.emit('accentColor', null);
+                  }}
                 >
                   <div className="relative overflow-hidden h-[25vh] flex-shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />

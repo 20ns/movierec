@@ -1,5 +1,5 @@
 // Bg.js
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { EventEmitter } from '../events';
 
 const Bg = () => {
@@ -9,31 +9,26 @@ const Bg = () => {
   const targetColor = useRef(null);
   const currentColor = useRef({ r: 10, g: 10, b: 10 });
 
-  useEffect(() => {
-    const handleAccentColor = (color) => {
-      console.log("Received accentColor:", color); // ADD THIS LOG
-
-      if (!color) {
-        targetColor.current = null;
-        return;
-      }
-
-      // Directly parse RGB string from SearchBar
-      const rgbValues = color.substring(4, color.length-1).replace(/\s/g, '').split(',');
-      targetColor.current = {
-        r: parseInt(rgbValues[0]),
-        g: parseInt(rgbValues[1]),
-        b: parseInt(rgbValues[2])
-      };
-    };
-
-    EventEmitter.on('accentColor', handleAccentColor);
-
-    return () => {
-      EventEmitter.events.accentColor =
-        EventEmitter.events.accentColor?.filter(cb => cb !== handleAccentColor);
+  const handleAccentColor = useCallback((color) => {
+    console.log("Received accentColor:", color);
+    if (!color) {
+      targetColor.current = null;
+      return;
+    }
+    const rgbValues = color.substring(4, color.length - 1).replace(/\s/g, '').split(',');
+    targetColor.current = {
+      r: parseInt(rgbValues[0]),
+      g: parseInt(rgbValues[1]),
+      b: parseInt(rgbValues[2])
     };
   }, []);
+
+  useEffect(() => {
+    EventEmitter.on('accentColor', handleAccentColor);
+    return () => {
+      EventEmitter.off('accentColor', handleAccentColor);
+    };
+  }, [handleAccentColor]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
