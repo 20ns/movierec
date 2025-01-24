@@ -44,29 +44,39 @@ const SearchBar = () => {
     show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100 } }
   };
 
-  // Genre-based color mapping
-  const genreColors = {
-    28: '#dc2626',   // Action
-    12: '#16a34a',   // Adventure
-    16: '#eab308',   // Animation
-    35: '#a855f7',   // Comedy
-    80: '#64748b',   // Crime
-    18: '#2563eb',   // Drama
-    10751: '#0d9488', // Family
-    14: '#9333ea',   // Fantasy
-    27: '#475569',   // Horror
-    9648: '#4f46e5', // Mystery
-    10749: '#db2777', // Romance
-    878: '#0891b2',  // Science Fiction
-    default: '#4f46e5' // Indigo
-  };
+
+const genreColors = {
+  28: '#B91C1C',   // Darker Action (Red)
+  12: '#166534',   // Darker Adventure (Green)
+  16: '#854D0E',   // Darker Animation (Amber)
+  35: '#6D28D9',   // Darker Comedy (Purple)
+  80: '#334155',   // Darker Crime (Slate)
+  18: '#1D4ED8',   // Darker Drama (Blue)
+  10751: '#0F766E', // Darker Family (Teal)
+  14: '#6B21A8',   // Darker Fantasy (Purple)
+  27: '#431407',   // Darker Horror (Brown)
+  9648: '#3730A3', // Darker Mystery (Indigo)
+  10749: '#831843', // Darker Romance (Rose)
+  878: '#075985',  // Darker Science Fiction (Cyan)
+  default: '#312E81' // Dark Indigo
+};
 
   const getGenreColor = (genreIds = []) => {
     const firstGenre = genreIds[0] || 'default';
     const hexColor = genreColors[firstGenre] || genreColors.default;
-    const rgbColor = hexToRgb(hexColor); // Convert hex to RGB string
-    console.log("Emitting accentColor:", rgbColor); // ADD THIS LOG
-    return rgbColor;
+    
+    // Convert hex to RGB and darken it
+    const rgbValues = hexColor.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i
+      ,(m, r, g, b) => '#' + r + r + g + g + b + b)
+      .substring(1).match(/.{2}/g)
+      .map(x => parseInt(x, 16));
+  
+    // Darken the color by 30% and ensure minimum darkness
+    const darkened = rgbValues.map(c => 
+      Math.max(20, Math.min(60, Math.round(c * 0.3)))
+    );
+  
+    return `rgb(${darkened.join(',')})`;
   };
 
 

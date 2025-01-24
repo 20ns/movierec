@@ -7,19 +7,27 @@ const Bg = () => {
   const circles = useRef([]);
   const mousePos = useRef({ x: null, y: null });
   const targetColor = useRef(null);
-  const currentColor = useRef({ r: 10, g: 10, b: 10 });
+  const currentColor = useRef({ r: 20, g: 20, b: 20 }); // Base dark color
 
   const handleAccentColor = useCallback((color) => {
-    console.log("Received accentColor:", color);
     if (!color) {
       targetColor.current = null;
       return;
     }
-    const rgbValues = color.substring(4, color.length - 1).replace(/\s/g, '').split(',');
+
+    // Add extra validation and parsing
+    const rgbString = color.replace(/[^\d,]/g, '');
+    const rgbValues = rgbString.split(',').map(Number);
+
+    if (rgbValues.length !== 3 || rgbValues.some(isNaN)) {
+      console.error('Invalid color format:', color);
+      return;
+    }
+
     targetColor.current = {
-      r: parseInt(rgbValues[0]),
-      g: parseInt(rgbValues[1]),
-      b: parseInt(rgbValues[2])
+      r: rgbValues[0],
+      g: rgbValues[1],
+      b: rgbValues[2]
     };
   }, []);
 
@@ -107,16 +115,22 @@ const Bg = () => {
     };
 
     const animate = () => {
-      // Color transition
+      // Smooth color transition with damping
       if (targetColor.current) {
-        currentColor.current.r += (targetColor.current.r - currentColor.current.r) * 0.1;
-        currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.1;
-        currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.1;
+        currentColor.current.r += (targetColor.current.r - currentColor.current.r) * 0.08;
+        currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.08;
+        currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.08;
       } else {
-        currentColor.current.r += (10 - currentColor.current.r) * 0.1;
-        currentColor.current.g += (10 - currentColor.current.g) * 0.1;
-        currentColor.current.b += (10 - currentColor.current.b) * 0.1;
+        // Return to base dark color (slightly slower)
+        currentColor.current.r += (20 - currentColor.current.r) * 0.05;
+        currentColor.current.g += (20 - currentColor.current.g) * 0.05;
+        currentColor.current.b += (20 - currentColor.current.b) * 0.05;
       }
+
+      // Clamp values to ensure darkness
+      currentColor.current.r = Math.max(10, Math.min(80, currentColor.current.r));
+      currentColor.current.g = Math.max(10, Math.min(80, currentColor.current.g));
+      currentColor.current.b = Math.max(10, Math.min(80, currentColor.current.b));
 
       ctx.fillStyle = `rgb(${Math.round(currentColor.current.r)},
                           ${Math.round(currentColor.current.g)},
