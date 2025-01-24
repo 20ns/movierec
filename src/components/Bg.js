@@ -117,20 +117,20 @@ const Bg = () => {
     const animate = () => {
       // Smooth color transition with damping
       if (targetColor.current) {
-        currentColor.current.r += (targetColor.current.r - currentColor.current.r) * 0.08;
-        currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.08;
-        currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.08;
+        currentColor.current.r += (targetColor.current.r - currentColor.current.r) * 0.05;
+        currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.05;
+        currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.05;
       } else {
         // Return to base dark color (slightly slower)
-        currentColor.current.r += (20 - currentColor.current.r) * 0.05;
-        currentColor.current.g += (20 - currentColor.current.g) * 0.05;
-        currentColor.current.b += (20 - currentColor.current.b) * 0.05;
+        currentColor.current.r += (20 - currentColor.current.r) * 0.03;
+        currentColor.current.g += (20 - currentColor.current.g) * 0.03;
+        currentColor.current.b += (20 - currentColor.current.b) * 0.03;
       }
 
       // Clamp values to ensure darkness
-      currentColor.current.r = Math.max(10, Math.min(80, currentColor.current.r));
-      currentColor.current.g = Math.max(10, Math.min(80, currentColor.current.g));
-      currentColor.current.b = Math.max(10, Math.min(80, currentColor.current.b));
+      currentColor.current.r = Math.max(10, Math.min(50, currentColor.current.r));
+      currentColor.current.g = Math.max(10, Math.min(50, currentColor.current.g));
+      currentColor.current.b = Math.max(10, Math.min(50, currentColor.current.b));
 
       ctx.fillStyle = `rgb(${Math.round(currentColor.current.r)},
                           ${Math.round(currentColor.current.g)},

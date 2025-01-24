@@ -44,40 +44,42 @@ const SearchBar = () => {
     show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100 } }
   };
 
-
 const genreColors = {
-  28: '#B91C1C',   // Darker Action (Red)
-  12: '#166534',   // Darker Adventure (Green)
-  16: '#854D0E',   // Darker Animation (Amber)
-  35: '#6D28D9',   // Darker Comedy (Purple)
-  80: '#334155',   // Darker Crime (Slate)
-  18: '#1D4ED8',   // Darker Drama (Blue)
-  10751: '#0F766E', // Darker Family (Teal)
-  14: '#6B21A8',   // Darker Fantasy (Purple)
-  27: '#431407',   // Darker Horror (Brown)
-  9648: '#3730A3', // Darker Mystery (Indigo)
-  10749: '#831843', // Darker Romance (Rose)
-  878: '#075985',  // Darker Science Fiction (Cyan)
-  default: '#312E81' // Dark Indigo
+  28: '#7f1d1d',   // Dark muted red
+  12: '#14532d',   // Dark forest green
+  16: '#713f12',   // Muted amber
+  35: '#4c1d95',   // Deep purple
+  80: '#1e293b',   // Dark slate
+  18: '#1e3a8a',   // Navy blue
+  10751: '#134e4a', // Dark teal
+  14: '#581c87',   // Muted purple
+  27: '#3c1513',   // Dark brown
+  9648: '#312e81', // Deep indigo
+  10749: '#831843', // Dark rose
+  878: '#0c4a6e',  // Deep cyan
+  default: '#1e1b4b' // Very dark indigo
 };
 
-  const getGenreColor = (genreIds = []) => {
-    const firstGenre = genreIds[0] || 'default';
-    const hexColor = genreColors[firstGenre] || genreColors.default;
-    
-    // Convert hex to RGB and darken it
-    const rgbValues = hexColor.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i
-      ,(m, r, g, b) => '#' + r + r + g + g + b + b)
-      .substring(1).match(/.{2}/g)
-      .map(x => parseInt(x, 16));
+// SearchBar.js
+const getGenreColor = (genreIds = []) => {
+  const firstGenre = genreIds[0] || 'default';
+  const hexColor = genreColors[firstGenre] || genreColors.default;
   
-    // Darken the color by 30% and ensure minimum darkness
-    const darkened = rgbValues.map(c => 
-      Math.max(20, Math.min(60, Math.round(c * 0.3)))
-    );
-  
-    return `rgb(${darkened.join(',')})`;
-  };
+  // Convert hex to RGB and create subtle tint
+  const rgbValues = hexColor.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i
+    ,(m, r, g, b) => '#' + r + r + g + g + b + b)
+    .substring(1).match(/.{2}/g)
+    .map(x => parseInt(x, 16));
+
+  // Blend with dark base color (rgb(20,20,20)) using 10% of original color
+  const baseDark = [20, 20, 20];
+  const tintStrength = 0.1; // 10% of original color
+  const darkened = rgbValues.map((c, i) => 
+    Math.round(baseDark[i] * (1 - tintStrength) + c * tintStrength)
+  );
+
+  return `rgb(${darkened.join(',')})`;
+};
 
 
   // Fetch suggestions with debounce
