@@ -44,6 +44,7 @@ const SearchBar = () => {
     show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100 } }
   };
 
+
 const genreColors = {
   28: '#7f1d1d',   // Dark muted red
   12: '#14532d',   // Dark forest green
@@ -64,7 +65,7 @@ const genreColors = {
 const getGenreColor = (genreIds = []) => {
   const firstGenre = genreIds[0] || 'default';
   const hexColor = genreColors[firstGenre] || genreColors.default;
-  
+
   // Convert hex to RGB and create subtle tint
   const rgbValues = hexColor.replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i
     ,(m, r, g, b) => '#' + r + r + g + g + b + b)
@@ -74,7 +75,7 @@ const getGenreColor = (genreIds = []) => {
   // Blend with dark base color (rgb(20,20,20)) using 10% of original color
   const baseDark = [20, 20, 20];
   const tintStrength = 0.1; // 10% of original color
-  const darkened = rgbValues.map((c, i) => 
+  const darkened = rgbValues.map((c, i) =>
     Math.round(baseDark[i] * (1 - tintStrength) + c * tintStrength)
   );
 
@@ -274,9 +275,9 @@ const getGenreColor = (genreIds = []) => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute left-0 right-0 mt-2 z-50"
+                className="absolute left-0 right-0 mt-2 z-[100]"
               >
-                <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden border border-indigo-50">
+                <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl overflow-hidden border border-indigo-[110]">
                   {suggestions.map((suggestion, index) => (
                     <motion.div
                       key={suggestion.id}

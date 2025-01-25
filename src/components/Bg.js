@@ -121,7 +121,7 @@ const Bg = () => {
         currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.05;
         currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.05;
       } else {
-        // Return to base dark color (slightly slower)
+        // Return to base dark color 
         currentColor.current.r += (20 - currentColor.current.r) * 0.03;
         currentColor.current.g += (20 - currentColor.current.g) * 0.03;
         currentColor.current.b += (20 - currentColor.current.b) * 0.03;
