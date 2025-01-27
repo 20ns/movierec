@@ -43,6 +43,8 @@ body {
   max-width: 1200px;
   margin: 20px auto;
   flex-wrap: nowrap;
+  position: relative; /* Add this */
+  z-index: 1000;      /* Add this, or use a smaller value than suggestions */
 }
 
 .search-results .result-item {
