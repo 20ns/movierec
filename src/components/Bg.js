@@ -7,7 +7,7 @@ const Bg = () => {
   const circles = useRef([]);
   const mousePos = useRef({ x: null, y: null });
   const targetColor = useRef(null);
-  const currentColor = useRef({ r: 20, g: 20, b: 20 }); // Base dark color
+  const currentColor = useRef({ r: 20, g: 20, b: 20 });
 
   const handleAccentColor = useCallback((color) => {
     if (!color) {
@@ -15,7 +15,6 @@ const Bg = () => {
       return;
     }
 
-    // Add extra validation and parsing
     const rgbString = color.replace(/[^\d,]/g, '');
     const rgbValues = rgbString.split(',').map(Number);
 
@@ -115,19 +114,16 @@ const Bg = () => {
     };
 
     const animate = () => {
-      // Smooth color transition with damping
       if (targetColor.current) {
         currentColor.current.r += (targetColor.current.r - currentColor.current.r) * 0.05;
         currentColor.current.g += (targetColor.current.g - currentColor.current.g) * 0.05;
         currentColor.current.b += (targetColor.current.b - currentColor.current.b) * 0.05;
       } else {
-        // Return to base dark color 
         currentColor.current.r += (20 - currentColor.current.r) * 0.03;
         currentColor.current.g += (20 - currentColor.current.g) * 0.03;
         currentColor.current.b += (20 - currentColor.current.b) * 0.03;
       }
 
-      // Clamp values to ensure darkness
       currentColor.current.r = Math.max(10, Math.min(50, currentColor.current.r));
       currentColor.current.g = Math.max(10, Math.min(50, currentColor.current.g));
       currentColor.current.b = Math.max(10, Math.min(50, currentColor.current.b));
