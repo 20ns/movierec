@@ -81,3 +81,22 @@ body {
   margin: 5px 0;
   padding: 0 10px;
 }
+
+.tuning-select-container-improved {
+  @apply relative inline-block; /* To position dropdown arrow */
+}
+
+.tuning-select-improved {
+  @apply absolute inset-0 w-full h-full opacity-0 cursor-pointer; /* Invisible select, covers button */
+}
+
+.tuning-select-value-improved {
+  @apply inline-flex items-center justify-between px-4 py-2 bg-white rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:z-10 transition-colors duration-200;
+  min-width: 8rem; /* Adjust as needed */
+}
+
+
+/* Optional: Style for the dropdown arrow icon if you use a custom one */
+.tuning-select-value-improved svg {
+  @apply ml-2 text-gray-500; /* Example styling for the dropdown arrow */
+}

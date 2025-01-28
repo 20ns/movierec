@@ -7,6 +7,7 @@ import 'react-loading-skeleton/dist/skeleton.css';
 const TrailerModal = React.lazy(() => import('./TrailerModal'));
 import { EventEmitter } from '../events';
 import { cacheAdapterEnhancer } from 'axios-extensions';
+import { ChevronDownIcon } from '@heroicons/react/24/outline'; // Import dropdown icon
 
 const hexToRgb = (hex) => {
   hex = hex.replace("#", "");
@@ -533,26 +534,40 @@ const SearchBar = () => {
       {hasSearched && (
         <div className="flex gap-4 mb-4">
           <div className="flex items-center">
-            <label className="mr-2 text-sm">Genre Focus:</label>
-            <select
-              className="rounded-lg px-2 py-1 border"
-              onChange={(e) => setGenreFocus(e.target.value)}
-            >
-              <option value="diverse">Diverse</option>
-              <option value="specific">Specific</option>
-            </select>
+            <label className="mr-2 text-sm text-gray-600 font-medium">Genre Focus:</label> {/* Updated label style */}
+            <div className="tuning-select-container-improved relative"> {/* New container class */}
+              <select
+                className="tuning-select-improved" // New select class
+                value={genreFocus}
+                onChange={(e) => setGenreFocus(e.target.value)}
+              >
+                <option value="diverse">Diverse</option>
+                <option value="specific">Specific</option>
+              </select>
+              <div className="tuning-select-value-improved"> {/* Display selected value as button text */}
+                {genreFocus.charAt(0).toUpperCase() + genreFocus.slice(1)}
+                <ChevronDownIcon className="w-4 h-4 ml-1 inline-block" /> {/* Dropdown icon */}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center">
-            <label className="mr-2 text-sm">Time Period:</label>
-            <select
-              className="rounded-lg px-2 py-1 border"
-              onChange={(e) => setTimePeriod(e.target.value)}
-            >
-              <option value="any">Any</option>
-              <option value="recent">Last 5 Years</option>
-              <option value="classic">Classics</option>
-            </select>
+            <label className="mr-2 text-sm text-gray-600 font-medium">Time Period:</label> {/* Updated label style */}
+            <div className="tuning-select-container-improved relative"> {/* New container class */}
+              <select
+                className="tuning-select-improved" // New select class
+                value={timePeriod}
+                onChange={(e) => setTimePeriod(e.target.value)}
+              >
+                <option value="any">Any</option>
+                <option value="recent">Last 5 Years</option>
+                <option value="classic">Classics</option>
+              </select>
+              <div className="tuning-select-value-improved"> {/* Display selected value as button text */}
+                {timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)}
+                <ChevronDownIcon className="w-4 h-4 ml-1 inline-block" /> {/* Dropdown icon */}
+              </div>
+            </div>
           </div>
         </div>
       )}
