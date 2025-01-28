@@ -6,7 +6,7 @@ import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
 import TrailerModal from './TrailerModal';
 import { EventEmitter } from '../events';
-import { cacheAdapterEnhancer } from 'axios-extensions'; // Import cache enhancer
+import { cacheAdapterEnhancer } from 'axios-extensions';
 
 const hexToRgb = (hex) => {
   hex = hex.replace("#", "");
@@ -16,9 +16,8 @@ const hexToRgb = (hex) => {
   return `rgb(${r}, ${g}, ${b})`;
 };
 
-// Enhanced axios instance with caching
 const axiosInstance = axios.create({
-  headers: { 'Cache-Control': 'no-cache' }, // Default cache control
+  headers: { 'Cache-Control': 'no-cache' },
   adapter: cacheAdapterEnhancer(axios.defaults.adapter, { enabledByDefault: true, cacheFlag: 'useCache' })
 });
 
@@ -83,19 +82,19 @@ const SearchBar = () => {
     score += genreMatches * 5; // Increased genre weight
 
     // Keyword Matching
-    const keywordMatches = item.keywords.filter(keyword =>
+    const keywordMatches = item.keywords?.filter(keyword =>
       targetDetails.keywords.includes(keyword)
-    ).length;
+    ).length || 0;
     score += keywordMatches * 3;
 
     // Cast Matching (Top 5)
-    const castMatches = item.cast.filter(actorId =>
+    const castMatches = item.cast?.filter(actorId =>
       targetDetails.cast.includes(actorId)
-    ).length;
+    ).length || 0;
     score += castMatches * 2;
 
     // Director Matching
-    if (targetDetails.director && item.crew.includes(targetDetails.director)) { // Check if director exists in item crew
+    if (targetDetails.director && item.crew?.includes(targetDetails.director)) { // Check if director exists in item crew
       score += 4;
     }
 
@@ -114,6 +113,14 @@ const SearchBar = () => {
     return Math.min(Math.round(score), 100);
   };
 
+  const fetchWithRetry = async (url, params, retries = 2) => {
+    try {
+      return await axiosInstance.get(url, { params, useCache: true });
+    } catch (error) {
+      if (retries > 0) return fetchWithRetry(url, params, retries - 1);
+      throw error;
+    }
+  };
 
   const fetchEnhancedRecommendations = async (targetMedia) => {
     try {
@@ -121,11 +128,11 @@ const SearchBar = () => {
       const mediaId = targetMedia.id;
       const apiKey = process.env.REACT_APP_TMDB_API_KEY;
 
-      const detailsResponse = await axiosInstance.get( // Use axiosInstance for caching
+      const detailsResponse = await fetchWithRetry(
         `https://api.themoviedb.org/3/${mediaType}/${mediaId}`,
         {
-          params: { api_key: apiKey, append_to_response: 'keywords,credits' },
-          useCache: true // Explicitly use cache for details
+          api_key: apiKey,
+          append_to_response: 'keywords,credits'
         }
       );
 
@@ -136,38 +143,56 @@ const SearchBar = () => {
         cast: detailsResponse.data.credits.cast.slice(0, 5).map(c => c.id)
       };
 
-      const [similar, recommendations, discover] = await Promise.all([
-        axiosInstance.get(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, { // Use axiosInstance
-          params: { api_key: apiKey },
-          useCache: true // Use cache for similar
+      const [
+        similar1, similar2,
+        rec1, rec2,
+        discover1, discover2
+      ] = await Promise.all([
+        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, {
+          api_key: apiKey, page: 1 }),
+        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, {
+          api_key: apiKey, page: 2 }),
+        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, {
+          api_key: apiKey, page: 1 }),
+        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, {
+          api_key: apiKey, page: 2 }),
+        fetchWithRetry(`https://api.themoviedb.org/3/discover/${mediaType}`, {
+          api_key: apiKey,
+          with_genres: targetDetails.genres.join(','),
+          with_people: [...targetDetails.cast, targetDetails.director].filter(Boolean).join(','),
+          with_keywords: targetDetails.keywords.join('|'),
+          sort_by: 'vote_average.desc',
+          'vote_count.gte': 1000,
+          include_adult: false,
+          with_original_language: targetMedia.original_language,
+          page: 1
         }),
-        axiosInstance.get(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, { // Use axiosInstance
-          params: { api_key: apiKey },
-          useCache: true // Use cache for recommendations
-        }),
-        axiosInstance.get(`https://api.themoviedb.org/3/discover/${mediaType}`, { // Use axiosInstance
-          params: {
-            api_key: apiKey,
-            with_genres: targetDetails.genres.join(','),
-            with_people: [...targetDetails.cast, targetDetails.director].filter(Boolean).join(','),
-            'with_keywords': targetDetails.keywords.join('|'),
-            sort_by: 'popularity.desc',
-            include_adult: false
-          },
-          useCache: true // Use cache for discover
+        fetchWithRetry(`https://api.themoviedb.org/3/discover/${mediaType}`, {
+          api_key: apiKey,
+          with_genres: targetDetails.genres.join(','),
+          with_people: [...targetDetails.cast, targetDetails.director].filter(Boolean).join(','),
+          with_keywords: targetDetails.keywords.join('|'),
+          sort_by: 'vote_average.desc',
+          'vote_count.gte': 1000,
+          include_adult: false,
+          with_original_language: targetMedia.original_language,
+          page: 2
         })
       ]);
 
       const combinedResults = [
-        ...similar.data.results,
-        ...recommendations.data.results,
-        ...discover.data.results
+        ...similar1.data.results,
+        ...similar2.data.results,
+        ...rec1.data.results,
+        ...rec2.data.results,
+        ...discover1.data.results,
+        ...discover2.data.results
       ].reduce((acc, current) => {
         if (!acc.some(item => item.id === current.id) && current.id !== mediaId) {
-          // Enrich each result with keywords and cast for scoring
-          current.keywords = current.genre_ids; // Placeholder - In real scenario, fetch keywords for each result if needed for more accurate keyword matching
-          current.cast = []; // Placeholder - In real scenario, fetch cast for each result if needed for more accurate cast matching
-          current.crew = []; // Placeholder - In real scenario, fetch crew (director) for each result if needed for director matching. You might need to fetch details for each result to get full credits.
+          // Enrich each result with keywords and cast for scoring - In real scenario, fetch these for accurate matching if needed for all results.
+          current.keywords = current.genre_ids; // Placeholder - Using genre_ids as keywords for now for scoring as an example.
+          current.cast = []; // Placeholder - In real scenario, fetch cast for each result if needed.
+          current.crew = []; // Placeholder - In real scenario, fetch crew (director) for each result if needed.
           acc.push(current);
         }
         return acc;
@@ -178,14 +203,27 @@ const SearchBar = () => {
           ...item,
           score: calculateMatchScore(item, targetDetails)
         }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 9);
+        .sort((a, b) => b.score - a.score);
 
-      return scoredResults;
+      // Ensure genre diversity
+      let finalResults = [];
+      const seenGenres = new Set();
+      for (const result of scoredResults) {
+        const mainGenre = result.genre_ids[0];
+        if (!seenGenres.has(mainGenre)) {
+          finalResults.push(result);
+          seenGenres.add(mainGenre);
+        } else {
+          finalResults.push(result);
+        }
+        if (finalResults.length >= 9) break;
+      }
+
+      return finalResults.slice(0, 9);
 
     } catch (error) {
       console.error('Recommendation engine error:', error);
-      setError('Failed to fetch recommendations. Please try again later.'); // More user-friendly error
+      setError('Failed to fetch recommendations. Please try again later.');
       return [];
     }
   };
@@ -198,16 +236,16 @@ const SearchBar = () => {
       }
 
       try {
-        const response = await axiosInstance.get(`https://api.themoviedb.org/3/search/multi`, { // Use axiosInstance
-          params: {
+        const response = await fetchWithRetry(
+          `https://api.themoviedb.org/3/search/multi`,
+          {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
             query: query,
             include_adult: false,
             language: 'en-US',
             page: 1
-          },
-          useCache: true // Cache search suggestions
-        });
+          }
+        );
 
         const topSuggestions = response.data.results
           .filter(item => item.title || item.name)
@@ -221,7 +259,7 @@ const SearchBar = () => {
         setSuggestions(topSuggestions);
       } catch (error) {
         console.error('Error fetching suggestions:', error);
-        setError('Error fetching suggestions. Please try again.'); // User-friendly error for suggestions
+        setError('Error fetching suggestions. Please try again.');
       }
     };
 
@@ -239,28 +277,30 @@ const SearchBar = () => {
     if (!query.trim()) return;
 
     setIsLoading(true);
-    setError(null); // Clear any previous errors on new search
+    setError(null);
     setHasSearched(true);
     setAllResults([]);
     setDisplayedResults([]);
     setResultsToShow(3);
 
     try {
-      const searchResponse = await axiosInstance.get( // Use axiosInstance
+      const searchResponse = await fetchWithRetry(
         'https://api.themoviedb.org/3/search/multi',
         {
-          params: {
-            api_key: process.env.REACT_APP_TMDB_API_KEY,
-            query: query,
-            include_adult: false
-          },
-          useCache: true // Cache main search results
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+          query: query,
+          include_adult: false
         }
       );
 
-      const primaryResult = searchResponse.data.results[0];
+      const searchResults = searchResponse.data.results;
+      const primaryResult = searchResults.length > 0
+        ? searchResults.reduce((prev, current) =>
+            (current.popularity > prev.popularity) ? current : prev, searchResults[0])
+        : null;
+
       if (!primaryResult) {
-        setError('No results found for your search.'); // Specific "no results" error
+        setError('No results found for your search.');
         setIsLoading(false);
         return;
       }
@@ -280,7 +320,7 @@ const SearchBar = () => {
 
     } catch (error) {
       console.error('Search error:', error);
-      setError('Search failed. Please check your connection and try again.'); // General search failure error
+      setError('Search failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -295,9 +335,9 @@ const SearchBar = () => {
 
   const handleResultClick = async (result) => {
     try {
-      const response = await axiosInstance.get( // Use axiosInstance
+      const response = await fetchWithRetry(
         `https://api.themoviedb.org/3/${result.media_type}/${result.id}/videos`,
-        { params: { api_key: process.env.REACT_APP_TMDB_API_KEY }, useCache: true } // Cache trailer videos
+        { params: { api_key: process.env.REACT_APP_TMDB_API_KEY } }
       );
 
       const trailer = response.data.results.find(video => video.type === 'Trailer');
@@ -305,7 +345,7 @@ const SearchBar = () => {
 
     } catch (error) {
       console.error('Trailer fetch error:', error);
-      setError('Error fetching trailer. Please try again.'); // Trailer fetch error message
+      setError('Error fetching trailer. Please try again.');
     }
   };
 
