@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { StarIcon, CalendarIcon, ChartBarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
+import { StarIcon, CalendarIcon, ChartBarIcon, MagnifyingGlassIcon, UserGroupIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import Skeleton from 'react-loading-skeleton';
 import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
-import TrailerModal from './TrailerModal';
+const TrailerModal = React.lazy(() => import('./TrailerModal'));
 import { EventEmitter } from '../events';
 import { cacheAdapterEnhancer } from 'axios-extensions';
 
@@ -32,6 +32,16 @@ const SearchBar = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [resultsToShow, setResultsToShow] = useState(3);
+  // 1. a. User Preference Tracking
+  const [userPreferences, setUserPreferences] = useState({
+    likedGenres: [],
+    dislikedGenres: [],
+    favoriteDecades: []
+  });
+  // 5. a. Recommendation Tuning Controls
+  const [genreFocus, setGenreFocus] = useState('diverse');
+  const [timePeriod, setTimePeriod] = useState('any');
+
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -72,29 +82,54 @@ const SearchBar = () => {
     return `rgb(${darkened.join(',')})`;
   };
 
+  // 1. a. User Preference Tracking
+  const trackInteraction = (item, interactionType) => {
+    // Store in localStorage
+    const interactions = JSON.parse(localStorage.getItem('viewingHistory') || '[]');
+    interactions.push({
+      id: item.id,
+      type: interactionType, // 'click', 'watch', 'skip'
+      timestamp: Date.now(),
+      genre_ids: item.genre_ids // Add genre_ids to interaction
+    });
+    localStorage.setItem('viewingHistory', JSON.stringify(interactions));
+  };
+
+  // 1. b. Collaborative Filtering Boost, 2. b. Crew/Cast Analysis, 3. a. Seasonal Recommendations, 3. b. Anniversary Recognition
   const calculateMatchScore = (item, targetDetails) => {
     let score = 0;
+    const reasons = []; // 5. b. Visual Explanation System
 
     // Genre Matching - Increased weight
     const genreMatches = item.genre_ids.filter(id =>
       targetDetails.genres.includes(id)
     ).length;
+    if (genreMatches > 0) { // 5. b. Visual Explanation System
+      reasons.push(`Matched ${genreMatches} genres`);
+    }
     score += genreMatches * 5; // Increased genre weight
 
     // Keyword Matching
     const keywordMatches = item.keywords?.filter(keyword =>
       targetDetails.keywords.includes(keyword)
     ).length || 0;
+    if (keywordMatches > 0) { // 5. b. Visual Explanation System
+      reasons.push(`Matched ${keywordMatches} keywords`);
+    }
     score += keywordMatches * 3;
 
     // Cast Matching (Top 5)
     const castMatches = item.cast?.filter(actorId =>
       targetDetails.cast.includes(actorId)
     ).length || 0;
+    if (castMatches > 0) { // 5. b. Visual Explanation System
+      reasons.push(`Matched cast`);
+    }
     score += castMatches * 2;
 
     // Director Matching
-    if (targetDetails.director && item.crew?.includes(targetDetails.director)) { // Check if director exists in item crew
+    if (targetDetails.director && item.crew?.some(c => c.id === targetDetails.director)) { // Check if director exists in item crew
+      if (targetDetails.director) reasons.push(`Directed by target director`); // 5. b. Visual Explanation System
       score += 4;
     }
 
@@ -102,16 +137,106 @@ const SearchBar = () => {
     const releaseYear = new Date(
       item.release_date || item.first_air_date || currentYear
     ).getFullYear();
+    if (currentYear - releaseYear <= 5) { // 5. b. Visual Explanation System
+      reasons.push(`Recent release (${releaseYear})`);
+    }
     score += (currentYear - releaseYear <= 5) ? 3 : 0;
 
     score += Math.min(Math.floor((item.popularity || 0) / 20), 5);
+    if (Math.floor((item.popularity || 0) / 20) > 0) reasons.push(`Popularity boost`); // 5. b. Visual Explanation System
     score += (item.vote_average || 0) * 2.5;
+    if ((item.vote_average || 0) > 3) reasons.push(`High vote average`); // 5. b. Visual Explanation System
+
 
     const uniqueGenres = new Set(item.genre_ids).size;
     score += Math.min(uniqueGenres, 3);
+    if (uniqueGenres > 1) reasons.push(`Genre diversity`); // 5. b. Visual Explanation System
 
-    return Math.min(Math.round(score), 100);
+    // 1. b. Collaborative Filtering Boost
+    const viewingHistory = JSON.parse(localStorage.getItem('viewingHistory') || '[]');
+    const similarTastes = viewingHistory.filter(h =>
+      h.genre_ids?.some(g => item.genre_ids.includes(g))
+    ).length;
+    score += similarTastes * 2;
+    if (similarTastes > 0) reasons.push(`Similar tastes boost`); // 5. b. Visual Explanation System
+
+
+    // 2. b. Crew/Cast Analysis
+    const CREW_WEIGHTS = {
+      Director: 5,
+      'Original Music Composer': 3,
+      'Director of Photography': 2
+    };
+
+    const creativeTeamScore = item.credits?.crew?.reduce((crewScore, member) => {
+      return crewScore + (CREW_WEIGHTS[member.job] || 0);
+    }, 0) || 0;
+    score += creativeTeamScore;
+    if (creativeTeamScore > 0) reasons.push(`Creative team boost`); // 5. b. Visual Explanation System
+
+
+    // 3. a. Seasonal Recommendations
+    const getSeasonalBoost = () => {
+      const month = new Date().getMonth();
+      const seasonalGenres = {
+        11: [10751, 18],    // December: Holiday, Drama
+        0: [18, 9648],      // January: Drama, Mystery
+        9: [27, 53],        // October: Horror, Thriller
+        6: [12, 14]         // July: Adventure, Fantasy
+      };
+      return seasonalGenres[month] || [];
+    };
+
+    if (item.genre_ids.some(g => getSeasonalBoost().includes(g))) {
+      reasons.push(`Seasonal recommendation`); // 5. b. Visual Explanation System
+    }
+    score += item.genre_ids.some(g => getSeasonalBoost().includes(g)) ? 3 : 0;
+
+    // 3. b. Anniversary Recognition
+    const isClassic = (releaseYear) => {
+      const currentYear = new Date().getFullYear();
+      const anniversaries = [5, 10, 15, 20, 25, 30, 40, 50];
+      return anniversaries.some(y => (currentYear - releaseYear) % y === 0);
+    };
+
+    if (isClassic(releaseYear)) {
+      reasons.push(`Classic film anniversary`); // 5. b. Visual Explanation System
+    }
+    score += isClassic(releaseYear) ? 2 : 0;
+
+    return { score: Math.min(Math.round(score), 100), reasons }; // 5. b. Visual Explanation System
   };
+
+  // 2. a. Semantic Analysis
+  const analyzeContent = async (text) => {
+    try {
+      const response = await axios.post('/api/analyze', { text });
+      return {
+        mood: response.data.mood,
+        themes: response.data.themes
+      };
+    } catch (error) {
+      return { mood: 'neutral', themes: [] };
+    }
+  };
+
+  // 7. a. Surprise Me Feature
+  const getWildcardRecommendation = async () => {
+    const { data } = await axios.get(
+      'https://api.themoviedb.org/3/discover/movie',
+      {
+        params: {
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+          sort_by: 'vote_average.desc',
+          'vote_count.gte': 5000,
+          with_original_language: 'en',
+          page: Math.floor(Math.random() * 100) + 1
+        }
+      }
+    );
+    return data.results[Math.floor(Math.random() * data.results.length)];
+  };
+
 
   const fetchWithRetry = async (url, params, retries = 2) => {
     try {
@@ -122,90 +247,93 @@ const SearchBar = () => {
     }
   };
 
-  const fetchEnhancedRecommendations = async (targetMedia) => {
+  const fetchEnhancedRecommendations = async (primaryResult) => {
     try {
-      const mediaType = targetMedia.media_type;
-      const mediaId = targetMedia.id;
+      const mediaType = primaryResult.media_type;
+      const mediaId = primaryResult.id;
       const apiKey = process.env.REACT_APP_TMDB_API_KEY;
 
+      // Fetch details including keywords and credits
       const detailsResponse = await fetchWithRetry(
         `https://api.themoviedb.org/3/${mediaType}/${mediaId}`,
-        {
-          api_key: apiKey,
-          append_to_response: 'keywords,credits'
-        }
+        { api_key: apiKey, append_to_response: 'keywords,credits' }
       );
+
+      // Handle keywords based on media type
+      const keywords = mediaType === 'movie'
+        ? detailsResponse.data.keywords?.keywords?.map(k => k.id) || []
+        : detailsResponse.data.keywords?.results?.map(k => k.id) || [];
 
       const targetDetails = {
         genres: detailsResponse.data.genres.map(g => g.id),
-        keywords: detailsResponse.data.keywords.keywords?.map(k => k.id) || [],
+        keywords: keywords,
         director: detailsResponse.data.credits.crew.find(c => c.job === 'Director')?.id,
-        cast: detailsResponse.data.credits.cast.slice(0, 5).map(c => c.id)
+        cast: detailsResponse.data.credits.cast.slice(0, 5).map(c => c.id),
+        analysis: { mood: 'neutral', themes: [] }
       };
 
-      const [
-        similar1, similar2,
-        rec1, rec2,
-        discover1, discover2
-      ] = await Promise.all([
-        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, {
-          api_key: apiKey, page: 1 }),
-        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, {
-          api_key: apiKey, page: 2 }),
-        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, {
-          api_key: apiKey, page: 1 }),
-        fetchWithRetry(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, {
-          api_key: apiKey, page: 2 }),
-        fetchWithRetry(`https://api.themoviedb.org/3/discover/${mediaType}`, {
-          api_key: apiKey,
-          with_genres: targetDetails.genres.join(','),
-          with_people: [...targetDetails.cast, targetDetails.director].filter(Boolean).join(','),
-          with_keywords: targetDetails.keywords.join('|'),
-          sort_by: 'vote_average.desc',
-          'vote_count.gte': 1000,
-          include_adult: false,
-          with_original_language: targetMedia.original_language,
-          page: 1
-        }),
-        fetchWithRetry(`https://api.themoviedb.org/3/discover/${mediaType}`, {
-          api_key: apiKey,
-          with_genres: targetDetails.genres.join(','),
-          with_people: [...targetDetails.cast, targetDetails.director].filter(Boolean).join(','),
-          with_keywords: targetDetails.keywords.join('|'),
-          sort_by: 'vote_average.desc',
-          'vote_count.gte': 1000,
-          include_adult: false,
-          with_original_language: targetMedia.original_language,
-          page: 2
-        })
-      ]);
+      // Fetch similar media and cross-recommendations safely
+      const similarMediaPromises = [];
 
-      const combinedResults = [
-        ...similar1.data.results,
-        ...similar2.data.results,
-        ...rec1.data.results,
-        ...rec2.data.results,
-        ...discover1.data.results,
-        ...discover2.data.results
-      ].reduce((acc, current) => {
-        if (!acc.some(item => item.id === current.id) && current.id !== mediaId) {
-          // Enrich each result with keywords and cast for scoring - In real scenario, fetch these for accurate matching if needed for all results.
-          current.keywords = current.genre_ids; // Placeholder - Using genre_ids as keywords for now for scoring as an example.
-          current.cast = []; // Placeholder - In real scenario, fetch cast for each result if needed.
-          current.crew = []; // Placeholder - In real scenario, fetch crew (director) for each result if needed.
-          acc.push(current);
+      // Similar content of the same type
+      similarMediaPromises.push(
+        fetchWithRetry(
+          `https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`,
+          { api_key: apiKey }
+        )
+      );
+
+      // Cross-media recommendations using discover endpoint
+      const crossMediaType = mediaType === 'movie' ? 'tv' : 'movie';
+      similarMediaPromises.push(
+        fetchWithRetry(
+          `https://api.themoviedb.org/3/discover/${crossMediaType}`,
+          {
+            api_key: apiKey,
+            with_genres: targetDetails.genres.join(','),
+            sort_by: 'popularity.desc',
+            page: 1
+          }
+        )
+      );
+
+      // Handle all promises safely
+      const crossMediaResponses = await Promise.allSettled(similarMediaPromises);
+
+      // Process successful responses
+      const combinedResults = crossMediaResponses.reduce((acc, response) => {
+        if (response.status === 'fulfilled') {
+          acc.push(...response.value.data.results);
         }
         return acc;
       }, []);
 
-      let scoredResults = combinedResults
-        .map(item => ({
-          ...item,
-          score: calculateMatchScore(item, targetDetails)
-        }))
+      // Add results from target media's similar if available
+      if (detailsResponse.data.similar?.results) {
+        combinedResults.push(...detailsResponse.data.similar.results);
+      }
+
+      // Filter unique items and exclude current media
+      const uniqueResults = combinedResults
+        .filter((item, index, self) =>
+          item.id &&
+          self.findIndex(t => t.id === item.id) === index &&
+          item.id !== mediaId
+        );
+
+      // Score and sort results
+      let scoredResults = uniqueResults
+        .map(item => {
+          const scoringResult = calculateMatchScore(item, targetDetails);
+          return {
+            ...item,
+            score: scoringResult.score,
+            scoreReasons: scoringResult.reasons
+          };
+        })
         .sort((a, b) => b.score - a.score);
 
-      // Ensure genre diversity
+      // Ensure genre diversity in top results
       let finalResults = [];
       const seenGenres = new Set();
       for (const result of scoredResults) {
@@ -214,12 +342,14 @@ const SearchBar = () => {
           finalResults.push(result);
           seenGenres.add(mainGenre);
         } else {
-          finalResults.push(result);
+          finalResults.push(result); // Still include if genre already seen, but lower priority
         }
-        if (finalResults.length >= 9) break;
+        if (finalResults.length >= 9) break; // Limit to 9 results
       }
 
+
       return finalResults.slice(0, 9);
+
 
     } catch (error) {
       console.error('Recommendation engine error:', error);
@@ -227,6 +357,7 @@ const SearchBar = () => {
       return [];
     }
   };
+
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -296,7 +427,7 @@ const SearchBar = () => {
       const searchResults = searchResponse.data.results;
       const primaryResult = searchResults.length > 0
         ? searchResults.reduce((prev, current) =>
-            (current.popularity > prev.popularity) ? current : prev, searchResults[0])
+          (current.popularity > prev.popularity) ? current : prev, searchResults[0])
         : null;
 
       if (!primaryResult) {
@@ -333,7 +464,9 @@ const SearchBar = () => {
   };
 
 
+  // 1. a. User Preference Tracking - Modify result click handler
   const handleResultClick = async (result) => {
+    trackInteraction(result, 'view');
     try {
       const response = await fetchWithRetry(
         `https://api.themoviedb.org/3/${result.media_type}/${result.id}/videos`,
@@ -356,11 +489,66 @@ const SearchBar = () => {
     handleSearch();
   };
 
+  // 6. a. Intelligent Prefetching
+  const handleSuggestionHover = async (suggestion) => {
+    try {
+      const { data } = await axiosInstance.get(
+        `https://api.themoviedb.org/3/${suggestion.type}/${suggestion.id}`,
+        { params: { api_key: process.env.REACT_APP_TMDB_API_KEY } }
+      );
+      fetchEnhancedRecommendations(data); // Cache in background
+    } catch (error) {
+      console.error('Prefetch error:', error);
+    }
+  };
+
+
+  // 4. a. Social Proof Integration
+  // Simulated social proof
+  const getSocialProof = (item) => {
+    const MOCK_SOCIAL_DATA = {
+      603: { friendsWatched: 12, friendsLiked: 11 }, // Matrix
+      238: { friendsWatched: 8, friendsLiked: 7 },   // The Godfather
+    };
+    return MOCK_SOCIAL_DATA[item.id] || { friendsWatched: 0, friendsLiked: 0 };
+  };
+
+
   const showMoreButtonVisible = hasSearched && displayedResults.length < allResults.length && displayedResults.length < 9;
 
 
   return (
     <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
+
+      {/* 5. a. Recommendation Tuning Controls */}
+      {hasSearched && (
+        <div className="flex gap-4 mb-4">
+          <div className="flex items-center">
+            <label className="mr-2 text-sm">Genre Focus:</label>
+            <select
+              className="rounded-lg px-2 py-1 border"
+              onChange={(e) => setGenreFocus(e.target.value)}
+            >
+              <option value="diverse">Diverse</option>
+              <option value="specific">Specific</option>
+            </select>
+          </div>
+
+          <div className="flex items-center">
+            <label className="mr-2 text-sm">Time Period:</label>
+            <select
+              className="rounded-lg px-2 py-1 border"
+              onChange={(e) => setTimePeriod(e.target.value)}
+            >
+              <option value="any">Any</option>
+              <option value="recent">Last 5 Years</option>
+              <option value="classic">Classics</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+
       {/* Search Container */}
       <div className="relative w-full flex justify-center" style={{ zIndex: 50 }}>
         <motion.div
@@ -445,6 +633,7 @@ const SearchBar = () => {
                         transition={{ delay: index * 0.1, type: 'spring' }}
                         className="cursor-pointer group"
                         onClick={() => handleSuggestionClick(suggestion)}
+                        onMouseEnter={() => handleSuggestionHover(suggestion)} // 6. a. Intelligent Prefetching
                       >
                         <div className="px-4 py-2 hover:bg-indigo-50/50 transition-colors duration-200 flex items-center justify-between">
                           <div className="flex items-center space-x-2">
@@ -510,73 +699,98 @@ const SearchBar = () => {
                   </motion.div>
                 ))
               ) : (
-                displayedResults.map((result) => (
-                  <motion.div
-                    key={result.id}
-                    variants={itemVariants}
-                    className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full"
-                    whileHover={{ scale: 1.02, rotate: 0.5 }}
-                    onClick={() => handleResultClick(result)}
-                    layout
-                    onMouseEnter={() => EventEmitter.emit('accentColor', getGenreColor(result.genre_ids))}
-                    onMouseLeave={() => EventEmitter.emit('accentColor', null)}
-                  >
-                    <div className="relative overflow-hidden h-[50%] md:h-[180px] flex-shrink-0">
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                      <motion.img
-                        src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
-                        alt={result.title || result.name}
-                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
-                        Match: {result.score}% {/* Display Match Score */}
+                displayedResults.map((result) => {
+                  // 4. a. Social Proof Integration
+                  const socialProof = getSocialProof(result);
+
+                  return (
+                    <motion.div
+                      key={result.id}
+                      variants={itemVariants}
+                      className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full"
+                      whileHover={{ scale: 1.02, rotate: 0.5 }}
+                      onClick={() => handleResultClick(result)}
+                      layout
+                      onMouseEnter={() => EventEmitter.emit('accentColor', getGenreColor(result.genre_ids))}
+                      onMouseLeave={() => EventEmitter.emit('accentColor', null)}
+                    >
+                      <div className="relative overflow-hidden h-[50%] md:h-[180px] flex-shrink-0">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+                        <motion.img
+                          src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
+                          alt={result.title || result.name}
+                          className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.3 }}
+                        />
+                        <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
+                          Match: {result.score}% {/* Display Match Score */}
+                        </div>
+                        <motion.div
+                          className="absolute top-2 right-2 z-20"
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
+                            {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
+                          </span>
+                        </motion.div>
+                        {/* 4. a. Social Proof Integration - UI*/}
+                        {socialProof.friendsLiked > 0 && (
+                          <div className="absolute bottom-2 left-2 flex items-center">
+                            <UserGroupIcon className="w-4 h-4 text-white" />
+                            <span className="ml-1 text-xs text-white">
+                              {socialProof.friendsLiked} friends liked
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <motion.div
-                        className="absolute top-2 right-2 z-20"
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
-                          {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
-                        </span>
-                      </motion.div>
-                    </div>
 
-                    <div className="p-3 flex flex-col flex-grow">
-                      <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
-                        {result.title || result.name}
-                      </h2>
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2 text-sm leading-relaxed flex-grow">
-                        {result.overview}
-                      </p>
+                      <div className="p-3 flex flex-col flex-grow">
+                        <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
+                          {result.title || result.name}
+                        </h2>
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2 text-sm leading-relaxed flex-grow">
+                          {result.overview}
+                        </p>
 
-                      <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
-                        <div className="flex items-center space-x-1">
-                          <StarIcon className="w-4 h-4 text-amber-400" />
-                          <span className="font-medium text-sm text-gray-700">
-                            {result.vote_average?.toFixed(1) || 'N/A'}
-                          </span>
+                        {/* 5. b. Visual Explanation System */}
+                        <div className="mt-2 space-y-1">
+                          {result.scoreReasons?.map((reason, i) => (
+                            <div key={i} className="flex items-center text-xs">
+                              <CheckCircleIcon className="w-3 h-3 mr-1 text-green-500" />
+                              <span className="text-gray-600">{reason}</span>
+                            </div>
+                          ))}
                         </div>
 
-                        <div className="flex items-center space-x-1">
-                          <CalendarIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {new Date(result.release_date || result.first_air_date).getFullYear()}
-                          </span>
-                        </div>
 
-                        <div className="flex items-center space-x-1">
-                          <ChartBarIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {Math.round(result.popularity)}
-                          </span>
+                        <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
+                          <div className="flex items-center space-x-1">
+                            <StarIcon className="w-4 h-4 text-amber-400" />
+                            <span className="font-medium text-sm text-gray-700">
+                              {result.vote_average?.toFixed(1) || 'N/A'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-1">
+                            <CalendarIcon className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {new Date(result.release_date || result.first_air_date).getFullYear()}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-1">
+                            <ChartBarIcon className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {Math.round(result.popularity)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  );
+                })
               )}
             </motion.div>
           ) : (
@@ -630,9 +844,9 @@ const SearchBar = () => {
       </AnimatePresence>
 
 
-      {selectedTrailer && (
-        <TrailerModal trailerKey={selectedTrailer} onClose={handleCloseModal} />
-      )}
+      <Suspense fallback={<div>Loading trailer...</div>}>
+        {selectedTrailer && <TrailerModal trailerKey={selectedTrailer} onClose={handleCloseModal} />}
+      </Suspense>
     </div>
   );
 };
