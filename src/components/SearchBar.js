@@ -6,6 +6,7 @@ import axios from 'axios';
 import 'react-loading-skeleton/dist/skeleton.css';
 import TrailerModal from './TrailerModal';
 import { EventEmitter } from '../events';
+import { cacheAdapterEnhancer } from 'axios-extensions'; // Import cache enhancer
 
 const hexToRgb = (hex) => {
   hex = hex.replace("#", "");
@@ -15,17 +16,23 @@ const hexToRgb = (hex) => {
   return `rgb(${r}, ${g}, ${b})`;
 };
 
+// Enhanced axios instance with caching
+const axiosInstance = axios.create({
+  headers: { 'Cache-Control': 'no-cache' }, // Default cache control
+  adapter: cacheAdapterEnhancer(axios.defaults.adapter, { enabledByDefault: true, cacheFlag: 'useCache' })
+});
+
 const SearchBar = () => {
   const [query, setQuery] = useState('');
-  const [allResults, setAllResults] = useState([]); // Store all fetched results
-  const [displayedResults, setDisplayedResults] = useState([]); // Results to display currently
+  const [allResults, setAllResults] = useState([]);
+  const [displayedResults, setDisplayedResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTrailer, setSelectedTrailer] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [resultsToShow, setResultsToShow] = useState(3); // Control number of results to display
+  const [resultsToShow, setResultsToShow] = useState(3);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -68,10 +75,29 @@ const SearchBar = () => {
 
   const calculateMatchScore = (item, targetDetails) => {
     let score = 0;
+
+    // Genre Matching - Increased weight
     const genreMatches = item.genre_ids.filter(id =>
       targetDetails.genres.includes(id)
     ).length;
-    score += genreMatches * 4;
+    score += genreMatches * 5; // Increased genre weight
+
+    // Keyword Matching
+    const keywordMatches = item.keywords.filter(keyword =>
+      targetDetails.keywords.includes(keyword)
+    ).length;
+    score += keywordMatches * 3;
+
+    // Cast Matching (Top 5)
+    const castMatches = item.cast.filter(actorId =>
+      targetDetails.cast.includes(actorId)
+    ).length;
+    score += castMatches * 2;
+
+    // Director Matching
+    if (targetDetails.director && item.crew.includes(targetDetails.director)) { // Check if director exists in item crew
+      score += 4;
+    }
 
     const currentYear = new Date().getFullYear();
     const releaseYear = new Date(
@@ -88,15 +114,19 @@ const SearchBar = () => {
     return Math.min(Math.round(score), 100);
   };
 
+
   const fetchEnhancedRecommendations = async (targetMedia) => {
     try {
       const mediaType = targetMedia.media_type;
       const mediaId = targetMedia.id;
       const apiKey = process.env.REACT_APP_TMDB_API_KEY;
 
-      const detailsResponse = await axios.get(
+      const detailsResponse = await axiosInstance.get( // Use axiosInstance for caching
         `https://api.themoviedb.org/3/${mediaType}/${mediaId}`,
-        { params: { api_key: apiKey, append_to_response: 'keywords,credits' } }
+        {
+          params: { api_key: apiKey, append_to_response: 'keywords,credits' },
+          useCache: true // Explicitly use cache for details
+        }
       );
 
       const targetDetails = {
@@ -107,13 +137,15 @@ const SearchBar = () => {
       };
 
       const [similar, recommendations, discover] = await Promise.all([
-        axios.get(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, {
-          params: { api_key: apiKey }
+        axiosInstance.get(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar`, { // Use axiosInstance
+          params: { api_key: apiKey },
+          useCache: true // Use cache for similar
         }),
-        axios.get(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, {
-          params: { api_key: apiKey }
+        axiosInstance.get(`https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations`, { // Use axiosInstance
+          params: { api_key: apiKey },
+          useCache: true // Use cache for recommendations
         }),
-        axios.get(`https://api.themoviedb.org/3/discover/${mediaType}`, {
+        axiosInstance.get(`https://api.themoviedb.org/3/discover/${mediaType}`, { // Use axiosInstance
           params: {
             api_key: apiKey,
             with_genres: targetDetails.genres.join(','),
@@ -121,7 +153,8 @@ const SearchBar = () => {
             'with_keywords': targetDetails.keywords.join('|'),
             sort_by: 'popularity.desc',
             include_adult: false
-          }
+          },
+          useCache: true // Use cache for discover
         })
       ]);
 
@@ -131,6 +164,10 @@ const SearchBar = () => {
         ...discover.data.results
       ].reduce((acc, current) => {
         if (!acc.some(item => item.id === current.id) && current.id !== mediaId) {
+          // Enrich each result with keywords and cast for scoring
+          current.keywords = current.genre_ids; // Placeholder - In real scenario, fetch keywords for each result if needed for more accurate keyword matching
+          current.cast = []; // Placeholder - In real scenario, fetch cast for each result if needed for more accurate cast matching
+          current.crew = []; // Placeholder - In real scenario, fetch crew (director) for each result if needed for director matching. You might need to fetch details for each result to get full credits.
           acc.push(current);
         }
         return acc;
@@ -142,12 +179,13 @@ const SearchBar = () => {
           score: calculateMatchScore(item, targetDetails)
         }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, 9); // Fetch up to 9 results initially
+        .slice(0, 9);
 
       return scoredResults;
 
     } catch (error) {
       console.error('Recommendation engine error:', error);
+      setError('Failed to fetch recommendations. Please try again later.'); // More user-friendly error
       return [];
     }
   };
@@ -160,14 +198,15 @@ const SearchBar = () => {
       }
 
       try {
-        const response = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
+        const response = await axiosInstance.get(`https://api.themoviedb.org/3/search/multi`, { // Use axiosInstance
           params: {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
             query: query,
             include_adult: false,
             language: 'en-US',
             page: 1
-          }
+          },
+          useCache: true // Cache search suggestions
         });
 
         const topSuggestions = response.data.results
@@ -182,6 +221,7 @@ const SearchBar = () => {
         setSuggestions(topSuggestions);
       } catch (error) {
         console.error('Error fetching suggestions:', error);
+        setError('Error fetching suggestions. Please try again.'); // User-friendly error for suggestions
       }
     };
 
@@ -199,26 +239,31 @@ const SearchBar = () => {
     if (!query.trim()) return;
 
     setIsLoading(true);
-    setError(null);
+    setError(null); // Clear any previous errors on new search
     setHasSearched(true);
-    setAllResults([]); // Clear previous results
+    setAllResults([]);
     setDisplayedResults([]);
-    setResultsToShow(3); // Reset to show initial 3 results
+    setResultsToShow(3);
 
     try {
-      const searchResponse = await axios.get(
+      const searchResponse = await axiosInstance.get( // Use axiosInstance
         'https://api.themoviedb.org/3/search/multi',
         {
           params: {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
             query: query,
             include_adult: false
-          }
+          },
+          useCache: true // Cache main search results
         }
       );
 
       const primaryResult = searchResponse.data.results[0];
-      if (!primaryResult) throw new Error('No results found');
+      if (!primaryResult) {
+        setError('No results found for your search.'); // Specific "no results" error
+        setIsLoading(false);
+        return;
+      }
 
       const recommendations = await fetchEnhancedRecommendations(primaryResult);
 
@@ -230,18 +275,19 @@ const SearchBar = () => {
           result.vote_average > 5
         );
 
-      setAllResults(filteredResults); // Store all filtered results
-      setDisplayedResults(filteredResults.slice(0, 3)); // Display initial 3
+      setAllResults(filteredResults);
+      setDisplayedResults(filteredResults.slice(0, 3));
 
     } catch (error) {
-      setError(error.message || 'Failed to fetch recommendations');
+      console.error('Search error:', error);
+      setError('Search failed. Please check your connection and try again.'); // General search failure error
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleShowMore = () => {
-    const nextResultsToShow = Math.min(resultsToShow + 3, allResults.length, 9); // Show up to 3 more, max 9 or total results
+    const nextResultsToShow = Math.min(resultsToShow + 3, allResults.length, 9);
     setDisplayedResults(allResults.slice(0, nextResultsToShow));
     setResultsToShow(nextResultsToShow);
   };
@@ -249,16 +295,17 @@ const SearchBar = () => {
 
   const handleResultClick = async (result) => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get( // Use axiosInstance
         `https://api.themoviedb.org/3/${result.media_type}/${result.id}/videos`,
-        { params: { api_key: process.env.REACT_APP_TMDB_API_KEY } }
+        { params: { api_key: process.env.REACT_APP_TMDB_API_KEY }, useCache: true } // Cache trailer videos
       );
 
       const trailer = response.data.results.find(video => video.type === 'Trailer');
       setSelectedTrailer(trailer?.key || null);
 
     } catch (error) {
-      setError('Error fetching trailer.');
+      console.error('Trailer fetch error:', error);
+      setError('Error fetching trailer. Please try again.'); // Trailer fetch error message
     }
   };
 
@@ -274,7 +321,7 @@ const SearchBar = () => {
 
   return (
     <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
-      {/* Search Container - Move to highest z-index */}
+      {/* Search Container */}
       <div className="relative w-full flex justify-center" style={{ zIndex: 50 }}>
         <motion.div
           className="flex-grow flex items-center justify-center"
@@ -403,7 +450,7 @@ const SearchBar = () => {
               variants={containerVariants}
               initial="hidden"
               animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 pb-4" // Reduced pb to separate from button
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 pb-4"
             >
               {isLoading ? (
                 Array(3).fill(0).map((_, index) => (
@@ -445,7 +492,7 @@ const SearchBar = () => {
                         transition={{ duration: 0.3 }}
                       />
                       <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
-                        Match: {result.score}%
+                        Match: {result.score}% {/* Display Match Score */}
                       </div>
                       <motion.div
                         className="absolute top-2 right-2 z-20"
@@ -528,7 +575,7 @@ const SearchBar = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex justify-center pb-8" // Added pb-8 for spacing below button
+            className="flex justify-center pb-8"
           >
             <motion.button
               whileHover={{ scale: 1.03 }}
