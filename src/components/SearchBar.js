@@ -32,13 +32,11 @@ const SearchBar = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [resultsToShow, setResultsToShow] = useState(3);
-  // 1. a. User Preference Tracking
   const [userPreferences, setUserPreferences] = useState({
     likedGenres: [],
     dislikedGenres: [],
     favoriteDecades: []
   });
-  // 5. a. Recommendation Tuning Controls
   const [genreFocus, setGenreFocus] = useState('diverse');
   const [timePeriod, setTimePeriod] = useState('any');
 
@@ -82,38 +80,37 @@ const SearchBar = () => {
     return `rgb(${darkened.join(',')})`;
   };
 
-  // 1. a. User Preference Tracking
+  // User Preference Tracking: Stores user interactions to localStorage for personalized recommendations.
   const trackInteraction = (item, interactionType) => {
-    // Store in localStorage
     const interactions = JSON.parse(localStorage.getItem('viewingHistory') || '[]');
     interactions.push({
       id: item.id,
-      type: interactionType, // 'click', 'watch', 'skip'
+      type: interactionType,
       timestamp: Date.now(),
-      genre_ids: item.genre_ids // Add genre_ids to interaction
+      genre_ids: item.genre_ids
     });
     localStorage.setItem('viewingHistory', JSON.stringify(interactions));
   };
 
-  // 1. b. Collaborative Filtering Boost, 2. b. Crew/Cast Analysis, 3. a. Seasonal Recommendations, 3. b. Anniversary Recognition
+  // calculateMatchScore: Scores search results based on multiple factors for enhanced recommendation quality.
   const calculateMatchScore = (item, targetDetails) => {
     let score = 0;
-    const reasons = []; // 5. b. Visual Explanation System
+    const reasons = []; // Visual Explanation System: Stores reasons for score contribution.
 
-    // Genre Matching - Increased weight
+    // Genre Matching: Significantly boosts score for genre relevance.
     const genreMatches = item.genre_ids.filter(id =>
       targetDetails.genres.includes(id)
     ).length;
-    if (genreMatches > 0) { // 5. b. Visual Explanation System
+    if (genreMatches > 0) {
       reasons.push(`Matched ${genreMatches} genres`);
     }
-    score += genreMatches * 5; // Increased genre weight
+    score += genreMatches * 5;
 
     // Keyword Matching
     const keywordMatches = item.keywords?.filter(keyword =>
       targetDetails.keywords.includes(keyword)
     ).length || 0;
-    if (keywordMatches > 0) { // 5. b. Visual Explanation System
+    if (keywordMatches > 0) {
       reasons.push(`Matched ${keywordMatches} keywords`);
     }
     score += keywordMatches * 3;
@@ -122,14 +119,14 @@ const SearchBar = () => {
     const castMatches = item.cast?.filter(actorId =>
       targetDetails.cast.includes(actorId)
     ).length || 0;
-    if (castMatches > 0) { // 5. b. Visual Explanation System
+    if (castMatches > 0) {
       reasons.push(`Matched cast`);
     }
     score += castMatches * 2;
 
     // Director Matching
-    if (targetDetails.director && item.crew?.some(c => c.id === targetDetails.director)) { // Check if director exists in item crew
-      if (targetDetails.director) reasons.push(`Directed by target director`); // 5. b. Visual Explanation System
+    if (targetDetails.director && item.crew?.some(c => c.id === targetDetails.director)) {
+      if (targetDetails.director) reasons.push(`Directed by target director`);
       score += 4;
     }
 
@@ -137,31 +134,31 @@ const SearchBar = () => {
     const releaseYear = new Date(
       item.release_date || item.first_air_date || currentYear
     ).getFullYear();
-    if (currentYear - releaseYear <= 5) { // 5. b. Visual Explanation System
+    if (currentYear - releaseYear <= 5) {
       reasons.push(`Recent release (${releaseYear})`);
     }
     score += (currentYear - releaseYear <= 5) ? 3 : 0;
 
     score += Math.min(Math.floor((item.popularity || 0) / 20), 5);
-    if (Math.floor((item.popularity || 0) / 20) > 0) reasons.push(`Popularity boost`); // 5. b. Visual Explanation System
+    if (Math.floor((item.popularity || 0) / 20) > 0) reasons.push(`Popularity boost`);
     score += (item.vote_average || 0) * 2.5;
-    if ((item.vote_average || 0) > 3) reasons.push(`High vote average`); // 5. b. Visual Explanation System
+    if ((item.vote_average || 0) > 3) reasons.push(`High vote average`);
 
 
     const uniqueGenres = new Set(item.genre_ids).size;
     score += Math.min(uniqueGenres, 3);
-    if (uniqueGenres > 1) reasons.push(`Genre diversity`); // 5. b. Visual Explanation System
+    if (uniqueGenres > 1) reasons.push(`Genre diversity`);
 
-    // 1. b. Collaborative Filtering Boost
+    // Collaborative Filtering Boost: Boosts score based on viewing history similarity.
     const viewingHistory = JSON.parse(localStorage.getItem('viewingHistory') || '[]');
     const similarTastes = viewingHistory.filter(h =>
       h.genre_ids?.some(g => item.genre_ids.includes(g))
     ).length;
     score += similarTastes * 2;
-    if (similarTastes > 0) reasons.push(`Similar tastes boost`); // 5. b. Visual Explanation System
+    if (similarTastes > 0) reasons.push(`Similar tastes boost`);
 
 
-    // 2. b. Crew/Cast Analysis
+    // Crew/Cast Analysis: Weights crew roles to enhance recommendation relevance.
     const CREW_WEIGHTS = {
       Director: 5,
       'Original Music Composer': 3,
@@ -172,10 +169,10 @@ const SearchBar = () => {
       return crewScore + (CREW_WEIGHTS[member.job] || 0);
     }, 0) || 0;
     score += creativeTeamScore;
-    if (creativeTeamScore > 0) reasons.push(`Creative team boost`); // 5. b. Visual Explanation System
+    if (creativeTeamScore > 0) reasons.push(`Creative team boost`);
 
 
-    // 3. a. Seasonal Recommendations
+    // Seasonal Recommendations: Boosts score for seasonally relevant genres.
     const getSeasonalBoost = () => {
       const month = new Date().getMonth();
       const seasonalGenres = {
@@ -188,11 +185,11 @@ const SearchBar = () => {
     };
 
     if (item.genre_ids.some(g => getSeasonalBoost().includes(g))) {
-      reasons.push(`Seasonal recommendation`); // 5. b. Visual Explanation System
+      reasons.push(`Seasonal recommendation`);
     }
     score += item.genre_ids.some(g => getSeasonalBoost().includes(g)) ? 3 : 0;
 
-    // 3. b. Anniversary Recognition
+    // Anniversary Recognition: Boosts score for classic film anniversaries.
     const isClassic = (releaseYear) => {
       const currentYear = new Date().getFullYear();
       const anniversaries = [5, 10, 15, 20, 25, 30, 40, 50];
@@ -200,14 +197,14 @@ const SearchBar = () => {
     };
 
     if (isClassic(releaseYear)) {
-      reasons.push(`Classic film anniversary`); // 5. b. Visual Explanation System
+      reasons.push(`Classic film anniversary`);
     }
     score += isClassic(releaseYear) ? 2 : 0;
 
-    return { score: Math.min(Math.round(score), 100), reasons }; // 5. b. Visual Explanation System
+    return { score: Math.min(Math.round(score), 100), reasons }; // Visual Explanation System: Returns score and reasons.
   };
 
-  // 2. a. Semantic Analysis
+  // Semantic Analysis: Placeholder function for future content analysis implementation.
   const analyzeContent = async (text) => {
     try {
       const response = await axios.post('/api/analyze', { text });
@@ -220,7 +217,7 @@ const SearchBar = () => {
     }
   };
 
-  // 7. a. Surprise Me Feature
+  // Surprise Me Feature: Fetches a highly-rated, popular movie for wildcard recommendation.
   const getWildcardRecommendation = async () => {
     const { data } = await axios.get(
       'https://api.themoviedb.org/3/discover/movie',
@@ -247,23 +244,23 @@ const SearchBar = () => {
     }
   };
 
+  // fetchEnhancedRecommendations: Fetches recommendations based on a primary search result, incorporating cross-media and similar content.
   const fetchEnhancedRecommendations = async (primaryResult) => {
     try {
       if (!primaryResult || !primaryResult.media_type) {
         console.error('Error: primaryResult or primaryResult.media_type is missing:', primaryResult);
-        setError('Failed to fetch recommendations due to missing media information.'); // More specific error
-        return []; // Return empty array to avoid further errors
+        setError('Failed to fetch recommendations due to missing media information.');
+        return [];
       }
 
       const mediaType = primaryResult.media_type;
       const mediaId = primaryResult.id;
       const apiKey = process.env.REACT_APP_TMDB_API_KEY;
 
-      // **Important Check:** Validate mediaType
       if (!['movie', 'tv'].includes(mediaType)) {
         console.error('Error: Invalid mediaType:', mediaType);
-        setError('Failed to fetch recommendations due to invalid media type.'); // More specific error
-        return []; // Return empty array
+        setError('Failed to fetch recommendations due to invalid media type.');
+        return [];
       }
 
 
@@ -273,7 +270,6 @@ const SearchBar = () => {
         { api_key: apiKey, append_to_response: 'keywords,credits' }
       );
 
-      // Handle keywords based on media type
       const keywords = mediaType === 'movie'
         ? detailsResponse.data.keywords?.keywords?.map(k => k.id) || []
         : detailsResponse.data.keywords?.results?.map(k => k.id) || [];
@@ -286,7 +282,7 @@ const SearchBar = () => {
         analysis: { mood: 'neutral', themes: [] }
       };
 
-      // Fetch similar media and cross-recommendations safely
+      // Fetch similar media and cross-recommendations
       const similarMediaPromises = [];
 
       // Similar content of the same type
@@ -335,8 +331,6 @@ const SearchBar = () => {
           item.id !== mediaId
         );
 
-      // Rest of the scoring and filtering logic remains the same
-      // ... (keep the existing calculateMatchScore and processing logic)
       let scoredResults = uniqueResults
         .map(item => {
           const scoringResult = calculateMatchScore(item, targetDetails);
@@ -357,9 +351,9 @@ const SearchBar = () => {
           finalResults.push(result);
           seenGenres.add(mainGenre);
         } else {
-          finalResults.push(result); // Still include if genre already seen, but lower priority
+          finalResults.push(result);
         }
-        if (finalResults.length >= 9) break; // Limit to 9 results
+        if (finalResults.length >= 9) break;
       }
 
 
@@ -480,7 +474,7 @@ const SearchBar = () => {
   };
 
 
-  // 1. a. User Preference Tracking - Modify result click handler
+  // User Preference Tracking: Tracks result clicks for interaction analysis.
   const handleResultClick = async (result) => {
     trackInteraction(result, 'view');
     try {
@@ -505,7 +499,7 @@ const SearchBar = () => {
     handleSearch();
   };
 
-  // 6. a. Intelligent Prefetching
+  // Intelligent Prefetching: Caches recommendation data on suggestion hover for faster result loading.
   const handleSuggestionHover = async (suggestion) => {
     try {
       const { data } = await axiosInstance.get(
@@ -519,8 +513,7 @@ const SearchBar = () => {
   };
 
 
-  // 4. a. Social Proof Integration
-  // Simulated social proof
+  // Social Proof Integration: Mocks social data to simulate friend activity.
   const getSocialProof = (item) => {
     const MOCK_SOCIAL_DATA = {
       603: { friendsWatched: 12, friendsLiked: 11 }, // Matrix
@@ -536,7 +529,7 @@ const SearchBar = () => {
   return (
     <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
 
-      {/* 5. a. Recommendation Tuning Controls */}
+      {/* Recommendation Tuning Controls */}
       {hasSearched && (
         <div className="flex gap-4 mb-4">
           <div className="flex items-center">
@@ -649,7 +642,7 @@ const SearchBar = () => {
                         transition={{ delay: index * 0.1, type: 'spring' }}
                         className="cursor-pointer group"
                         onClick={() => handleSuggestionClick(suggestion)}
-                        onMouseEnter={() => handleSuggestionHover(suggestion)} // 6. a. Intelligent Prefetching
+                        onMouseEnter={() => handleSuggestionHover(suggestion)} // Intelligent Prefetching trigger
                       >
                         <div className="px-4 py-2 hover:bg-indigo-50/50 transition-colors duration-200 flex items-center justify-between">
                           <div className="flex items-center space-x-2">
@@ -716,7 +709,7 @@ const SearchBar = () => {
                 ))
               ) : (
                 displayedResults.map((result) => {
-                  // 4. a. Social Proof Integration
+                  // Social Proof Integration: Retrieve mock social data for each result.
                   const socialProof = getSocialProof(result);
 
                   return (
@@ -751,7 +744,7 @@ const SearchBar = () => {
                             {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
                           </span>
                         </motion.div>
-                        {/* 4. a. Social Proof Integration - UI*/}
+                        {/* Social Proof Integration: Display friend activity if available. */}
                         {socialProof.friendsLiked > 0 && (
                           <div className="absolute bottom-2 left-2 flex items-center">
                             <UserGroupIcon className="w-4 h-4 text-white" />
@@ -770,7 +763,7 @@ const SearchBar = () => {
                           {result.overview}
                         </p>
 
-                        {/* 5. b. Visual Explanation System */}
+                        {/* Visual Explanation System: Display reasons for recommendation score. */}
                         <div className="mt-2 space-y-1">
                           {result.scoreReasons?.map((reason, i) => (
                             <div key={i} className="flex items-center text-xs">
