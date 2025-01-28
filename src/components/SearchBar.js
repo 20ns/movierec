@@ -209,6 +209,7 @@ const SearchBar = () => {
     setIsLoading(true);
     setError(null);
     setHasSearched(true);
+    setResults([]); // Clear previous results on new search
 
     try {
       const searchResponse = await axios.get(
@@ -268,22 +269,24 @@ const SearchBar = () => {
   };
 
   return (
-    <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col z-10">
+    <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
       {/* Search Container - Move to highest z-index */}
-      <div className="relative" style={{ zIndex: 50 }}>
+      <div className="relative w-full flex justify-center" style={{ zIndex: 50 }}>
         <motion.div
           className="flex-grow flex items-center justify-center"
           animate={{
-            paddingTop: hasSearched ? '2rem' : '0',
-            paddingBottom: hasSearched ? '2rem' : '0',
+            paddingTop: hasSearched ? '0.75rem' : '0', // Further reduced paddingTop after search
+            paddingBottom: hasSearched ? '0.75rem' : '0', // Further reduced paddingBottom after search
+            maxWidth: hasSearched ? 'max-w-2xl' : 'max-w-xl',
+            width: '100%',
           }}
           transition={{ type: 'spring', stiffness: 300 }}
         >
           <motion.div
-            className="w-full max-w-3xl relative"
+            className="w-full relative"
             animate={{
-              y: hasSearched ? 40 : 0,
-              scale: hasSearched ? 0.95 : 1,
+              y: hasSearched ? 0 : 0,
+              scale: hasSearched ? 0.9 : 1, // Slightly more scaled down search bar
             }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
@@ -301,11 +304,11 @@ const SearchBar = () => {
             >
               <div className="flex items-center bg-gradient-to-r from-indigo-50 to-blue-50 backdrop-blur-xl rounded-full border-2 border-indigo-100 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-200/50 transition-all duration-300 shadow-lg">
                 <motion.div
-                  className="pl-6 text-indigo-400"
+                  className="pl-4 text-indigo-400"
                   animate={{ scale: isLoading ? [1, 1.2, 1] : 1, rotate: isLoading ? 360 : 0 }}
                   transition={{ duration: 1, repeat: isLoading ? Infinity : 0, ease: "linear" }}
                 >
-                  <MagnifyingGlassIcon className="w-8 h-8" />
+                  <MagnifyingGlassIcon className="w-6 h-6" />
                 </motion.div>
 
                 <input
@@ -315,15 +318,15 @@ const SearchBar = () => {
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setTimeout(() => setIsFocused(false), 200)}
                   placeholder="Search for movies or TV shows..."
-                  className="flex-grow pl-6 pr-4 py-6 text-xl bg-transparent focus:outline-none placeholder-indigo-300 text-indigo-600 font-medium"
+                  className="flex-grow pl-4 pr-3 py-3 text-lg bg-transparent focus:outline-none placeholder-indigo-300 text-indigo-600 font-medium" // Further reduced py
                 />
 
-                <div className="pr-3">
+                <div className="pr-2">
                   <motion.button
                     type="submit"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="px-10 py-3 bg-gradient-to-br from-indigo-500 to-blue-500 text-white text-lg font-semibold rounded-full hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-indigo-200/50"
+                    className="px-5 py-2 text-base bg-gradient-to-br from-indigo-500 to-blue-500 text-white font-semibold rounded-full hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-indigo-200/50" // Further reduced px
                   >
                     Search
                   </motion.button>
@@ -352,10 +355,10 @@ const SearchBar = () => {
                         className="cursor-pointer group"
                         onClick={() => handleSuggestionClick(suggestion)}
                       >
-                        <div className="px-6 py-3 hover:bg-indigo-50/50 transition-colors duration-200 flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <MagnifyingGlassIcon className="w-5 h-5 text-indigo-400 group-hover:text-indigo-600 transition-colors duration-200" />
-                            <span className="text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 font-medium">
+                        <div className="px-4 py-2 hover:bg-indigo-50/50 transition-colors duration-200 flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <MagnifyingGlassIcon className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 transition-colors duration-200" />
+                            <span className="text-base text-indigo-700 group-hover:text-indigo-900 transition-colors duration-200 font-medium">
                               {suggestion.title}
                             </span>
                           </div>
@@ -388,7 +391,7 @@ const SearchBar = () => {
       </div>
 
       {/* Results Container - Lower z-index */}
-      <div className="relative" style={{ zIndex: 40 }}>
+      <div className="relative w-full mt-8" style={{ zIndex: 40 }}>
         <AnimatePresence mode='wait'>
           {hasSearched ? (
             <motion.div
@@ -396,22 +399,22 @@ const SearchBar = () => {
               variants={containerVariants}
               initial="hidden"
               animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow h-[50vh] overflow-hidden px-4 pb-8"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 pb-8"
             >
               {isLoading ? (
                 Array(3).fill(0).map((_, index) => (
                   <motion.div
                     key={`skeleton-${index}`}
                     variants={itemVariants}
-                    className="bg-white rounded-2xl overflow-hidden shadow-lg p-4 hover:shadow-xl transition-shadow duration-300 h-full"
+                    className="bg-white rounded-2xl overflow-hidden shadow-lg p-3 hover:shadow-xl transition-shadow duration-300 h-full"
                   >
-                    <Skeleton height="25vh" className="rounded-xl" />
-                    <Skeleton height={28} width={180} className="mt-4" />
-                    <Skeleton count={2} className="mt-2" />
-                    <div className="mt-4 flex justify-between">
-                      <Skeleton width={60} height={24} />
-                      <Skeleton width={80} height={24} />
-                      <Skeleton width={60} height={24} />
+                    <Skeleton height="200px" className="rounded-xl" />
+                    <Skeleton height={24} width={160} className="mt-3" />
+                    <Skeleton count={2} className="mt-1" />
+                    <div className="mt-2 flex justify-between">
+                      <Skeleton width={50} height={20} />
+                      <Skeleton width={70} height={20} />
+                      <Skeleton width={50} height={20} />
                     </div>
                   </motion.div>
                 ))
@@ -420,14 +423,14 @@ const SearchBar = () => {
                   <motion.div
                     key={result.id}
                     variants={itemVariants}
-                    className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative h-full flex flex-col"
-                    whileHover={{ scale: 1.01, rotate: 1 }}
+                    className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full"
+                    whileHover={{ scale: 1.02, rotate: 0.5 }}
                     onClick={() => handleResultClick(result)}
                     layout
                     onMouseEnter={() => EventEmitter.emit('accentColor', getGenreColor(result.genre_ids))}
                     onMouseLeave={() => EventEmitter.emit('accentColor', null)}
                   >
-                    <div className="relative overflow-hidden h-[25vh] flex-shrink-0">
+                    <div className="relative overflow-hidden h-[50%] md:h-[180px] flex-shrink-0">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
                       <motion.img
                         src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
@@ -437,45 +440,45 @@ const SearchBar = () => {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.3 }}
                       />
-                      <div className="absolute bottom-2 left-2 bg-black/60 px-2 py-1 rounded text-xs text-white">
+                      <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
                         Match: {result.score}%
                       </div>
                       <motion.div
-                        className="absolute top-3 right-3 z-20"
+                        className="absolute top-2 right-2 z-20"
                         whileHover={{ scale: 1.05 }}
                       >
-                        <span className="bg-indigo-500/90 text-white px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
+                        <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
                           {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
                         </span>
                       </motion.div>
                     </div>
 
-                    <div className="p-4 flex flex-col flex-grow">
-                      <h2 className="text-lg font-bold text-gray-800 mb-2 line-clamp-1">
+                    <div className="p-3 flex flex-col flex-grow">
+                      <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
                         {result.title || result.name}
                       </h2>
-                      <p className="text-gray-600 line-clamp-3 mb-4 text-sm leading-relaxed flex-grow">
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-2 text-sm leading-relaxed flex-grow">
                         {result.overview}
                       </p>
 
-                      <div className="border-t border-gray-100 pt-3 flex items-center justify-between space-x-2">
-                        <div className="flex items-center space-x-2">
-                          <StarIcon className="w-5 h-5 text-amber-400" />
-                          <span className="font-medium text-gray-700 text-sm">
+                      <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
+                        <div className="flex items-center space-x-1">
+                          <StarIcon className="w-4 h-4 text-amber-400" />
+                          <span className="font-medium text-sm text-gray-700">
                             {result.vote_average?.toFixed(1) || 'N/A'}
                           </span>
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                          <CalendarIcon className="w-5 h-5 text-gray-400" />
-                          <span className="text-gray-600 text-sm">
+                        <div className="flex items-center space-x-1">
+                          <CalendarIcon className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
                             {new Date(result.release_date || result.first_air_date).getFullYear()}
                           </span>
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                          <ChartBarIcon className="w-5 h-5 text-gray-400" />
-                          <span className="text-gray-600 text-sm">
+                        <div className="flex items-center space-x-1">
+                          <ChartBarIcon className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600">
                             {Math.round(result.popularity)}
                           </span>
                         </div>
@@ -500,6 +503,14 @@ const SearchBar = () => {
                 <p className="text-gray-400">
                   Enter a title and press search to discover your next favorite movie or TV show
                 </p>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="mt-6 text-sm text-indigo-400 italic"
+                >
+                  Powered by TMDB API
+                </motion.div>
               </div>
             </motion.div>
           )}
