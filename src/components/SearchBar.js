@@ -249,9 +249,23 @@ const SearchBar = () => {
 
   const fetchEnhancedRecommendations = async (primaryResult) => {
     try {
+      if (!primaryResult || !primaryResult.media_type) {
+        console.error('Error: primaryResult or primaryResult.media_type is missing:', primaryResult);
+        setError('Failed to fetch recommendations due to missing media information.'); // More specific error
+        return []; // Return empty array to avoid further errors
+      }
+
       const mediaType = primaryResult.media_type;
       const mediaId = primaryResult.id;
       const apiKey = process.env.REACT_APP_TMDB_API_KEY;
+
+      // **Important Check:** Validate mediaType
+      if (!['movie', 'tv'].includes(mediaType)) {
+        console.error('Error: Invalid mediaType:', mediaType);
+        setError('Failed to fetch recommendations due to invalid media type.'); // More specific error
+        return []; // Return empty array
+      }
+
 
       // Fetch details including keywords and credits
       const detailsResponse = await fetchWithRetry(
@@ -321,7 +335,8 @@ const SearchBar = () => {
           item.id !== mediaId
         );
 
-      // Score and sort results
+      // Rest of the scoring and filtering logic remains the same
+      // ... (keep the existing calculateMatchScore and processing logic)
       let scoredResults = uniqueResults
         .map(item => {
           const scoringResult = calculateMatchScore(item, targetDetails);
@@ -353,6 +368,7 @@ const SearchBar = () => {
 
     } catch (error) {
       console.error('Recommendation engine error:', error);
+      console.log('Error details in fetchEnhancedRecommendations:', error.message, error.response);
       setError('Failed to fetch recommendations. Please try again later.');
       return [];
     }
