@@ -17,13 +17,15 @@ const hexToRgb = (hex) => {
 
 const SearchBar = () => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [allResults, setAllResults] = useState([]); // Store all fetched results
+  const [displayedResults, setDisplayedResults] = useState([]); // Results to display currently
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTrailer, setSelectedTrailer] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [resultsToShow, setResultsToShow] = useState(3); // Control number of results to display
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -140,17 +142,7 @@ const SearchBar = () => {
           score: calculateMatchScore(item, targetDetails)
         }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
-
-      if (scoredResults.length < 3) {
-        const trending = await axios.get(
-          `https://api.themoviedb.org/3/trending/${mediaType}/week`,
-          { params: { api_key: apiKey } }
-        );
-        scoredResults = [...scoredResults, ...trending.data.results]
-          .filter(r => !scoredResults.some(sr => sr.id === r.id))
-          .slice(0, 6);
-      }
+        .slice(0, 9); // Fetch up to 9 results initially
 
       return scoredResults;
 
@@ -209,7 +201,9 @@ const SearchBar = () => {
     setIsLoading(true);
     setError(null);
     setHasSearched(true);
-    setResults([]); // Clear previous results on new search
+    setAllResults([]); // Clear previous results
+    setDisplayedResults([]);
+    setResultsToShow(3); // Reset to show initial 3 results
 
     try {
       const searchResponse = await axios.get(
@@ -228,16 +222,16 @@ const SearchBar = () => {
 
       const recommendations = await fetchEnhancedRecommendations(primaryResult);
 
-      const finalResults = recommendations
+      const filteredResults = recommendations
         .filter(result =>
           result.poster_path &&
           result.overview &&
           result.vote_count > 100 &&
           result.vote_average > 5
-        )
-        .slice(0, 3);
+        );
 
-      setResults(finalResults);
+      setAllResults(filteredResults); // Store all filtered results
+      setDisplayedResults(filteredResults.slice(0, 3)); // Display initial 3
 
     } catch (error) {
       setError(error.message || 'Failed to fetch recommendations');
@@ -245,6 +239,13 @@ const SearchBar = () => {
       setIsLoading(false);
     }
   };
+
+  const handleShowMore = () => {
+    const nextResultsToShow = Math.min(resultsToShow + 3, allResults.length, 9); // Show up to 3 more, max 9 or total results
+    setDisplayedResults(allResults.slice(0, nextResultsToShow));
+    setResultsToShow(nextResultsToShow);
+  };
+
 
   const handleResultClick = async (result) => {
     try {
@@ -268,6 +269,9 @@ const SearchBar = () => {
     handleSearch();
   };
 
+  const showMoreButtonVisible = hasSearched && displayedResults.length < allResults.length && displayedResults.length < 9;
+
+
   return (
     <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
       {/* Search Container - Move to highest z-index */}
@@ -275,8 +279,8 @@ const SearchBar = () => {
         <motion.div
           className="flex-grow flex items-center justify-center"
           animate={{
-            paddingTop: hasSearched ? '0.75rem' : '0', // Further reduced paddingTop after search
-            paddingBottom: hasSearched ? '0.75rem' : '0', // Further reduced paddingBottom after search
+            paddingTop: hasSearched ? '0.75rem' : '0',
+            paddingBottom: hasSearched ? '0.75rem' : '0',
             maxWidth: hasSearched ? 'max-w-2xl' : 'max-w-xl',
             width: '100%',
           }}
@@ -286,7 +290,7 @@ const SearchBar = () => {
             className="w-full relative"
             animate={{
               y: hasSearched ? 0 : 0,
-              scale: hasSearched ? 0.9 : 1, // Slightly more scaled down search bar
+              scale: hasSearched ? 0.9 : 1,
             }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
@@ -318,7 +322,7 @@ const SearchBar = () => {
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setTimeout(() => setIsFocused(false), 200)}
                   placeholder="Search for movies or TV shows..."
-                  className="flex-grow pl-4 pr-3 py-3 text-lg bg-transparent focus:outline-none placeholder-indigo-300 text-indigo-600 font-medium" // Further reduced py
+                  className="flex-grow pl-4 pr-3 py-3 text-lg bg-transparent focus:outline-none placeholder-indigo-300 text-indigo-600 font-medium"
                 />
 
                 <div className="pr-2">
@@ -326,7 +330,7 @@ const SearchBar = () => {
                     type="submit"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="px-5 py-2 text-base bg-gradient-to-br from-indigo-500 to-blue-500 text-white font-semibold rounded-full hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-indigo-200/50" // Further reduced px
+                    className="px-5 py-2 text-base bg-gradient-to-br from-indigo-500 to-blue-500 text-white font-semibold rounded-full hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-indigo-200/50"
                   >
                     Search
                   </motion.button>
@@ -334,7 +338,7 @@ const SearchBar = () => {
               </div>
             </motion.form>
 
-            {/* Suggestions Dropdown - Ensure it's a direct child of the search container */}
+            {/* Suggestions Dropdown */}
             <AnimatePresence>
               {suggestions.length > 0 && isFocused && (
                 <motion.div
@@ -373,7 +377,7 @@ const SearchBar = () => {
               )}
             </AnimatePresence>
 
-            {/* Error message remains the same */}
+            {/* Error message */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -390,7 +394,7 @@ const SearchBar = () => {
         </motion.div>
       </div>
 
-      {/* Results Container - Lower z-index */}
+      {/* Results Container */}
       <div className="relative w-full mt-8" style={{ zIndex: 40 }}>
         <AnimatePresence mode='wait'>
           {hasSearched ? (
@@ -399,7 +403,7 @@ const SearchBar = () => {
               variants={containerVariants}
               initial="hidden"
               animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 pb-8"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 pb-4" // Reduced pb to separate from button
             >
               {isLoading ? (
                 Array(3).fill(0).map((_, index) => (
@@ -419,7 +423,7 @@ const SearchBar = () => {
                   </motion.div>
                 ))
               ) : (
-                results.map((result) => (
+                displayedResults.map((result) => (
                   <motion.div
                     key={result.id}
                     variants={itemVariants}
@@ -516,6 +520,28 @@ const SearchBar = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* "Show More" Button */}
+      <AnimatePresence>
+        {showMoreButtonVisible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex justify-center pb-8" // Added pb-8 for spacing below button
+          >
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-6 py-2 text-base bg-indigo-500 text-white font-semibold rounded-full hover:bg-indigo-600 transition-colors duration-300 shadow-md"
+              onClick={handleShowMore}
+            >
+              Show More
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       {selectedTrailer && (
         <TrailerModal trailerKey={selectedTrailer} onClose={handleCloseModal} />
