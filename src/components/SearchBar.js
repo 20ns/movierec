@@ -315,25 +315,33 @@ const fetchEnhancedRecommendations = async (primaryResult) => {
         const crossMediaResponses = await Promise.allSettled(similarMediaPromises);
 
         // Process successful responses
-        const combinedResults = crossMediaResponses.reduce((acc, response) => {
-            if (response.status === 'fulfilled') {
-                acc.push(...response.value.data.results);
-            }
-            return acc;
+        const combinedResults = crossMediaResponses.reduce((acc, response, index) => {
+          if (response.status === 'fulfilled') {
+            const resultsWithType = response.value.data.results.map(result => ({
+              ...result,
+              media_type: index === 0 ? mediaType : crossMediaType
+            }));
+            acc.push(...resultsWithType);
+          }
+          return acc;
         }, []);
 
         // Add results from target media's similar if available
         if (detailsResponse.data.similar?.results) {
-            combinedResults.push(...detailsResponse.data.similar.results);
+          const similarWithType = detailsResponse.data.similar.results.map(result => ({
+            ...result,
+            media_type: mediaType
+          }));
+          combinedResults.push(...similarWithType);
         }
 
         // Filter unique items and exclude current media
         const uniqueResults = combinedResults
-            .filter((item, index, self) =>
-                item.id &&
-                self.findIndex(t => t.id === item.id) === index &&
-                item.id !== mediaId
-            );
+          .filter((item) => item.id && item.media_type) // Ensure media_type exists
+          .filter((item, index, self) =>
+            self.findIndex(t => t.id === item.id) === index &&
+            item.id !== mediaId
+        );
 
         let scoredResults = uniqueResults
             .map(item => {
