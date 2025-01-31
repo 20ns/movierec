@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { fetchWithRetry, fetchEnhancedRecommendations } from './SearchBarUtils';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { fetchWithRetry, fetchEnhancedRecommendations, axiosInstance } from './SearchBarUtils';
 
 export const useSearch = () => {
   const [query, setQuery] = useState('');
   const [allResults, setAllResults] = useState([]);
-  const [displayedResults, setDisplayedResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,116 +11,19 @@ export const useSearch = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [resultsToShow, setResultsToShow] = useState(3);
-  const [filteredResults, setFilteredResults] = useState([]);
   const [activeFilters, setActiveFilters] = useState({
     genre: 'diverse',
     time: 'any',
     type: 'all'
   });
 
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (query.trim().length < 2) {
-        setSuggestions([]);
-        return;
-      }
+  const abortControllerRef = useRef(new AbortController());
+  const errorTimeoutRef = useRef(null);
 
-      try {
-        const response = await fetchWithRetry(
-          'https://api.themoviedb.org/3/search/multi',
-          {
-            api_key: process.env.REACT_APP_TMDB_API_KEY,
-            query: query,
-            include_adult: false,
-            language: 'en-US',
-            page: 1
-          }
-        );
-
-        const topSuggestions = response.data.results
-          .filter(item => item.title || item.name)
-          .slice(0, 3)
-          .map(item => ({
-            id: item.id,
-            title: item.title || item.name,
-            type: item.media_type
-          }));
-
-        setSuggestions(topSuggestions);
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        setError('Error fetching suggestions. Please try again.');
-        setIsErrorVisible(true);
-        setTimeout(() => setIsErrorVisible(false), 3000);
-      }
-    };
-
-    const debounceTimer = setTimeout(() => {
-      if (query.trim() !== '') fetchSuggestions();
-    }, 200);
-
-    return () => clearTimeout(debounceTimer);
-  }, [query]);
-
-  const handleSearch = async (e) => {
-    if (e) e.preventDefault();
-    if (!query.trim()) return;
-
-    setIsLoading(true);
-    setError(null);
-    setIsErrorVisible(false);
-    setHasSearched(true);
-    setAllResults([]);
-    setDisplayedResults([]);
-    setResultsToShow(3);
-
-    try {
-      const searchResponse = await fetchWithRetry(
-        'https://api.themoviedb.org/3/search/multi',
-        {
-          api_key: process.env.REACT_APP_TMDB_API_KEY,
-          query: query,
-          include_adult: false
-        }
-      );
-
-      const searchResults = searchResponse.data.results.filter(result =>
-        result && result.media_type && (result.title || result.name) &&
-        ['movie', 'tv'].includes(result.media_type)
-      );
-
-      if (searchResults.length === 0) {
-        setError('No results found for your search.');
-        setIsErrorVisible(true);
-        setTimeout(() => setIsErrorVisible(false), 3000);
-        setIsLoading(false);
-        return;
-      }
-
-      const primaryResult = searchResults.reduce((prev, current) =>
-        (current.popularity > prev.popularity) ? current : prev, searchResults[0]);
-
-      const recommendations = await fetchEnhancedRecommendations(primaryResult);
-      const filteredRecommendations = recommendations.filter(result =>
-        result && result.poster_path && result.overview &&
-        result.vote_count > 100 && result.vote_average > 5
-      );
-
-      setAllResults(filteredRecommendations);
-      setDisplayedResults(filteredRecommendations.slice(0, 3));
-    } catch (error) {
-      console.error('Search error:', error);
-      setError('Search failed. Please check your connection and try again.');
-      setIsErrorVisible(true);
-      setTimeout(() => setIsErrorVisible(false), 3000);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!allResults.length) return;
-
+  // Memoized filtered results
+  const filteredResults = useMemo(() => {
+    if (!allResults.length) return [];
+    
     let filtered = [...allResults];
     const currentYear = new Date().getFullYear();
 
@@ -158,23 +60,196 @@ export const useSearch = () => {
       filtered = filtered.filter(item => item.media_type === activeFilters.type);
     }
 
-    setFilteredResults(filtered);
-    setDisplayedResults(filtered.slice(0, resultsToShow));
-  }, [allResults, activeFilters, resultsToShow]);
+    return filtered;
+  }, [allResults, activeFilters]);
 
-  const handleShowMore = () => {
-    const nextResultsToShow = Math.min(resultsToShow + 3, filteredResults.length, 9);
-    setDisplayedResults(filteredResults.slice(0, nextResultsToShow));
-    setResultsToShow(nextResultsToShow);
-  };
+  // Memoized displayed results
+  const displayedResults = useMemo(() => 
+    filteredResults.slice(0, resultsToShow),
+    [filteredResults, resultsToShow]
+  );
 
-  const handleSuggestionClick = (suggestion) => {
+  const showError = useCallback((message, duration = 3000) => {
+    setError(message);
+    setIsErrorVisible(true);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => 
+      setIsErrorVisible(false), duration
+    );
+  }, []);
+
+  const fetchSuggestions = useCallback(async (query, signal) => {
+    try {
+      const response = await fetchWithRetry(
+        'https://api.themoviedb.org/3/search/multi',
+        {
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+          query: query,
+          include_adult: false,
+          language: 'en-US',
+          page: 1
+        },
+        { signal }
+      );
+
+      return response.data.results
+        .filter(item => item.title || item.name)
+        .slice(0, 3)
+        .map(item => ({
+          id: item.id,
+          title: item.title || item.name,
+          type: item.media_type
+        }));
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching suggestions:', error);
+        showError('Error fetching suggestions. Please try again.');
+      }
+      return [];
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const debounceTimer = setTimeout(async () => {
+      if (query.trim().length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      const results = await fetchSuggestions(query, controller.signal);
+      if (!controller.signal.aborted) {
+        setSuggestions(results);
+      }
+    }, 300);
+
+    return () => {
+      controller.abort();
+      clearTimeout(debounceTimer);
+    };
+  }, [query, fetchSuggestions]);
+
+  const handleSearch = useCallback(async (e) => {
+    e?.preventDefault();
+    if (!query.trim()) return;
+
+    try {
+      abortControllerRef.current.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      setIsLoading(true);
+      setError(null);
+      setIsErrorVisible(false);
+      setHasSearched(true);
+      setAllResults([]);
+      setResultsToShow(3);
+
+      const searchResponse = await fetchWithRetry(
+        'https://api.themoviedb.org/3/search/multi',
+        {
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+          query: query,
+          include_adult: false
+        },
+        { signal: controller.signal }
+      );
+
+      const searchResults = searchResponse.data.results.filter(result =>
+        result?.media_type && (result.title || result.name) &&
+        ['movie', 'tv'].includes(result.media_type)
+      );
+
+      if (!searchResults.length) {
+        showError('No results found for your search.');
+        return;
+      }
+
+      const primaryResult = searchResults.reduce((prev, current) => 
+        current.popularity > prev.popularity ? current : prev, 
+        searchResults[0]
+      );
+
+      const recommendations = await fetchEnhancedRecommendations(primaryResult);
+      const validRecommendations = recommendations.filter(result =>
+        result?.poster_path && result.overview &&
+        result.vote_count > 100 && result.vote_average > 5
+      );
+
+      setAllResults(validRecommendations);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Search error:', error);
+        showError('Search failed. Please check your connection and try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [query, showError]);
+
+  const handleShowMore = useCallback(() => {
+    setResultsToShow(prev => Math.min(prev + 3, filteredResults.length, 9));
+  }, [filteredResults.length]);
+
+  const handleSuggestionClick = useCallback((suggestion) => {
     setQuery(suggestion.title);
     setSuggestions([]);
     handleSearch();
-  };
+  }, [handleSearch]);
 
-  return {
+  const handleSuggestionHover = useCallback(async (suggestion) => {
+    try {
+      const { data } = await axiosInstance.get(
+        `https://api.themoviedb.org/3/${suggestion.type}/${suggestion.id}`,
+        { 
+          params: { api_key: process.env.REACT_APP_TMDB_API_KEY },
+          signal: abortControllerRef.current.signal 
+        }
+      );
+      fetchEnhancedRecommendations(data);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Prefetch error:', error);
+        showError('Error prefetching data.');
+      }
+    }
+  }, [showError]);
+
+  const handleResultClick = useCallback(async (result) => {
+    if (!result?.media_type) {
+      showError('Unable to get details for this title.');
+      return;
+    }
+
+    try {
+      const externalIdsResponse = await fetchWithRetry(
+        `https://api.themoviedb.org/3/${result.media_type}/${result.id}/external_ids`,
+        { api_key: process.env.REACT_APP_TMDB_API_KEY },
+        { signal: abortControllerRef.current.signal }
+      );
+
+      const imdbId = externalIdsResponse.data.imdb_id;
+      if (imdbId) {
+        window.open(`https://www.imdb.com/title/${imdbId}`, '_blank');
+      } else {
+        showError('IMDb page not available for this title.');
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching external IDs:', error);
+        showError('Failed to open IMDb page. Please try again.');
+      }
+    }
+  }, [showError]);
+
+  useEffect(() => () => {
+    abortControllerRef.current.abort();
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+  }, []);
+
+  return useMemo(() => ({
     query,
     setQuery,
     activeFilters,
@@ -192,48 +267,24 @@ export const useSearch = () => {
     handleSearch,
     handleShowMore,
     handleSuggestionClick,
-    handleSuggestionHover: async (suggestion) => {
-      try {
-        const { data } = await axiosInstance.get(
-          `https://api.themoviedb.org/3/${suggestion.type}/${suggestion.id}`,
-          { params: { api_key: process.env.REACT_APP_TMDB_API_KEY } }
-        );
-        fetchEnhancedRecommendations(data);
-      } catch (error) {
-        console.error('Prefetch error:', error);
-        setError('Error prefetching data.');
-        setIsErrorVisible(true);
-        setTimeout(() => setIsErrorVisible(false), 3000);
-      }
-    },
-    handleResultClick: async (result) => {
-      if (!result?.media_type) {
-        setError('Unable to get details for this title.');
-        setIsErrorVisible(true);
-        setTimeout(() => setIsErrorVisible(false), 3000);
-        return;
-      }
-
-      try {
-        const externalIdsResponse = await fetchWithRetry(
-          `https://api.themoviedb.org/3/${result.media_type}/${result.id}/external_ids`,
-          { api_key: process.env.REACT_APP_TMDB_API_KEY }
-        );
-
-        const imdbId = externalIdsResponse.data.imdb_id;
-        if (imdbId) {
-          window.open(`https://www.imdb.com/title/${imdbId}`, '_blank');
-        } else {
-          setError('IMDb page not available for this title.');
-          setIsErrorVisible(true);
-          setTimeout(() => setIsErrorVisible(false), 3000);
-        }
-      } catch (error) {
-        console.error('Error fetching external IDs:', error);
-        setError('Failed to open IMDb page. Please try again.');
-        setIsErrorVisible(true);
-        setTimeout(() => setIsErrorVisible(false), 3000);
-      }
-    }
-  };
+    handleSuggestionHover,
+    handleResultClick
+  }), [
+    query,
+    activeFilters,
+    hasSearched,
+    isLoading,
+    displayedResults,
+    filteredResults,
+    resultsToShow,
+    error,
+    isErrorVisible,
+    isFocused,
+    suggestions,
+    handleSearch,
+    handleShowMore,
+    handleSuggestionClick,
+    handleSuggestionHover,
+    handleResultClick
+  ]);
 };
