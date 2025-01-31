@@ -2,11 +2,33 @@ import axios from 'axios';
 import { cacheAdapterEnhancer } from 'axios-extensions';
 
 export const hexToRgb = (hex) => {
-  hex = hex.replace("#", "");
-  let r = parseInt(hex.substring(0, 2), 16);
-  let g = parseInt(hex.substring(2, 4), 16);
-  let b = parseInt(hex.substring(4, 6), 16);
-  return `rgb(${r}, ${g}, ${b})`;
+    hex = hex.replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgb(${r}, ${g}, ${b})`;
+};
+
+export const getGenreColor = (genreIds = []) => {
+    const genreColors = {
+        28: '#7f1d1d',   12: '#14532d',   16: '#713f12',
+        35: '#4c1d95',   80: '#1e293b',   18: '#1e3a8a',
+        10751: '#134e4a', 14: '#581c87',  27: '#3c1513',
+        9648: '#312e81', 10749: '#831843', 878: '#0c4a6e',
+        default: '#1e1b4b'
+    };
+    
+    const firstGenre = genreIds[0] || 'default';
+    const hexColor = genreColors[firstGenre] || genreColors.default;
+    return hexToRgb(hexColor);
+};
+
+export const getSocialProof = (item) => {
+    const MOCK_SOCIAL_DATA = {
+        603: { friendsWatched: 12, friendsLiked: 11 },
+        238: { friendsWatched: 8, friendsLiked: 7 },
+    };
+    return MOCK_SOCIAL_DATA[item.id] || { friendsWatched: 0, friendsLiked: 0 };
 };
 
 export const axiosInstance = axios.create({
@@ -273,13 +295,4 @@ export const getWildcardRecommendation = async () => {
     }
   );
   return data.results[Math.floor(Math.random() * data.results.length)];
-};
-
-
-export const getSocialProof = (item) => {
-  const MOCK_SOCIAL_DATA = {
-    603: { friendsWatched: 12, friendsLiked: 11 },
-    238: { friendsWatched: 8, friendsLiked: 7 },
-  };
-  return MOCK_SOCIAL_DATA[item.id] || { friendsWatched: 0, friendsLiked: 0 };
 };
