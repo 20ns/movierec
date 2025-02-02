@@ -87,12 +87,12 @@ export const SearchInput = React.memo(({
 const SearchIcon = React.memo(({ isLoading }) => (
   <motion.div
     className="pl-4 text-indigo-400"
-    animate={{ 
+    animate={{
       scale: isLoading ? [1, 1.2, 1] : 1,
       rotate: isLoading ? 360 : 0,
-      transition: { repeat: Infinity, duration: 1.5 }
+      transition: { duration: 0.5 } // Keep duration for animation speed, remove repeat
     }}
-    style={{ willChange: 'transform' }} // Optimize animation performance
+    style={{ willChange: 'transform' }}
   >
     <MagnifyingGlassIcon className="w-6 h-6" />
   </motion.div>

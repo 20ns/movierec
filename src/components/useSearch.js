@@ -23,7 +23,7 @@ export const useSearch = () => {
   // Memoized filtered results
   const filteredResults = useMemo(() => {
     if (!allResults.length) return [];
-    
+
     let filtered = [...allResults];
     const currentYear = new Date().getFullYear();
 
@@ -64,7 +64,7 @@ export const useSearch = () => {
   }, [allResults, activeFilters]);
 
   // Memoized displayed results
-  const displayedResults = useMemo(() => 
+  const displayedResults = useMemo(() =>
     filteredResults.slice(0, resultsToShow),
     [filteredResults, resultsToShow]
   );
@@ -73,7 +73,7 @@ export const useSearch = () => {
     setError(message);
     setIsErrorVisible(true);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-    errorTimeoutRef.current = setTimeout(() => 
+    errorTimeoutRef.current = setTimeout(() =>
       setIsErrorVisible(false), duration
     );
   }, []);
@@ -119,9 +119,16 @@ export const useSearch = () => {
         return;
       }
 
-      const results = await fetchSuggestions(query, controller.signal);
-      if (!controller.signal.aborted) {
-        setSuggestions(results);
+      try {
+        const results = await fetchSuggestions(query, controller.signal);
+        if (!controller.signal.aborted) {
+          setSuggestions(results);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching suggestions:', error);
+          showError('Error fetching suggestions. Please try again.');
+        }
       }
     }, 300);
 
@@ -129,7 +136,7 @@ export const useSearch = () => {
       controller.abort();
       clearTimeout(debounceTimer);
     };
-  }, [query, fetchSuggestions]);
+  }, [query, fetchSuggestions, showError]);
 
   const handleSearch = useCallback(async (e) => {
     e?.preventDefault();
@@ -140,7 +147,7 @@ export const useSearch = () => {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      setIsLoading(true);
+      setIsLoading(true); // Start loading here for search
       setError(null);
       setIsErrorVisible(false);
       setHasSearched(true);
@@ -167,8 +174,8 @@ export const useSearch = () => {
         return;
       }
 
-      const primaryResult = searchResults.reduce((prev, current) => 
-        current.popularity > prev.popularity ? current : prev, 
+      const primaryResult = searchResults.reduce((prev, current) =>
+        current.popularity > prev.popularity ? current : prev,
         searchResults[0]
       );
 
@@ -185,7 +192,7 @@ export const useSearch = () => {
         showError('Search failed. Please check your connection and try again.');
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // End loading here for search
     }
   }, [query, showError]);
 
@@ -203,9 +210,9 @@ export const useSearch = () => {
     try {
       const { data } = await axiosInstance.get(
         `https://api.themoviedb.org/3/${suggestion.type}/${suggestion.id}`,
-        { 
+        {
           params: { api_key: process.env.REACT_APP_TMDB_API_KEY },
-          signal: abortControllerRef.current.signal 
+          signal: abortControllerRef.current.signal
         }
       );
       fetchEnhancedRecommendations(data);
