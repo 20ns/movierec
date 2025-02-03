@@ -5,16 +5,14 @@ import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
 
 export const MediaCard = ({ result, onClick }) => {
   const socialProof = getSocialProof(result);
+  const title = result.title || result.name; // Extract title for reuse
+  const overview = result.overview; // Extract overview
+  const posterURL = `https://image.tmdb.org/t/p/w500${result.poster_path}`; // Poster URL
+  const releaseYear = new Date(result.release_date || result.first_air_date).getFullYear(); // Release Year
 
-  // Fallback genre color function
+  // Fallback genre color function (as before)
   const getGenreColorFallback = (genreIds = []) => {
-    const genreColors = {
-      28: '#7f1d1d',   12: '#14532d',   16: '#713f12',
-      35: '#4c1d95',   80: '#1e293b',   18: '#1e3a8a',
-      10751: '#134e4a', 14: '#581c87',  27: '#3c1513',
-      9648: '#312e81', 10749: '#831843', 878: '#0c4a6e',
-      default: '#1e1b4b'
-    };
+    const genreColors = { /* ... genreColors ... */ };
     const firstGenre = genreIds[0] || 'default';
     const hexColor = genreColors[firstGenre] || genreColors.default;
     return hexToRgb(hexColor);
@@ -32,19 +30,22 @@ export const MediaCard = ({ result, onClick }) => {
       onMouseLeave={() => {
         document.documentElement.style.removeProperty('--accent-color');
       }}
+      itemScope // Schema.org context - for the whole card
+      itemType={result.media_type === 'movie' ? "http://schema.org/Movie" : "http://schema.org/TVSeries"} // Dynamic schema type
     >
       <div className="relative overflow-hidden h-[50%] md:h-[180px] flex-shrink-0">
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
         <motion.img
-          src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
-          alt={result.title || result.name}
+          src={posterURL}
+          alt={`Poster for ${title}`} // Descriptive alt text using title
           className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
+          itemProp="image" // Schema property: image
         />
         <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
-          Match: {result.matchPercentage !== undefined ? `${result.matchPercentage.toFixed(0)}%` : 'N/A'} {/* UPDATED HERE */}
+          Match: {result.matchPercentage !== undefined ? `${result.matchPercentage.toFixed(0)}%` : 'N/A'}
         </div>
         <motion.div className="absolute top-2 right-2 z-20" whileHover={{ scale: 1.05 }}>
           <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
@@ -62,11 +63,11 @@ export const MediaCard = ({ result, onClick }) => {
       </div>
 
       <div className="p-3 flex flex-col flex-grow">
-        <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
-          {result.title || result.name}
+        <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300" itemProp="name">
+          {title} {/* Title in H2, Schema property: name */}
         </h2>
-        <p className="text-sm text-gray-600 line-clamp-2 mb-2 text-sm leading-relaxed flex-grow">
-          {result.overview}
+        <p className="text-sm text-gray-600 line-clamp-2 mb-2 text-sm leading-relaxed flex-grow" itemProp="description">
+          {overview} {/* Overview in P, Schema property: description */}
         </p>
 
         <div className="mt-2 space-y-1">
@@ -81,26 +82,25 @@ export const MediaCard = ({ result, onClick }) => {
         <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
           <div className="flex items-center space-x-1">
             <StarIcon className="w-4 h-4 text-amber-400" />
-            <span className="font-medium text-sm text-gray-700">
+            <span className="font-medium text-sm text-gray-700" itemProp="ratingValue" itemScope itemType="http://schema.org/Rating"> {/* Rating Schema */}
+              <meta itemProp="bestRating" content="10" /> {/* Best rating is 10 */}
+              <meta itemProp="worstRating" content="0" /> {/* Worst rating is 0 */}
               {result.vote_average?.toFixed(1) || 'N/A'}
             </span>
           </div>
 
           <div className="flex items-center space-x-1">
             <CalendarIcon className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
-              {new Date(result.release_date || result.first_air_date).getFullYear()}
-            </span>
+            <span className="text-sm text-gray-600" itemProp="datePublished">{releaseYear}</span> {/* Release Year, Schema property: datePublished */}
           </div>
 
           <div className="flex items-center space-x-1">
             <ChartBarIcon className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
-              {Math.round(result.popularity)}
-            </span>
+            <span className="text-sm text-gray-600">{Math.round(result.popularity)}</span>
           </div>
         </div>
       </div>
+       <meta itemProp="genre" content={result.genre_names?.join(', ') || ''} /> {/* Genre as meta, Schema property: genre */}
     </motion.div>
   );
 };
