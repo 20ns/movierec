@@ -5,27 +5,29 @@ import { FilterPill } from './FilterPill';
 
 export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
   const timePeriodOptions = [
-    { value: 'any', label: 'Any Time', icon: <ClockIcon /> },
-    { value: 'recent', label: 'Recent', icon: <SparklesIcon /> },
-    { value: 'classic', label: 'Classic', icon: <FilmIcon /> },
-    { value: '90s00s', label: '90s/00s', icon: <TvIcon /> }
+    { value: 'any', label: 'Any Time', icon: <ClockIcon className="w-4 h-4" /> },
+    { value: 'recent', label: 'Recent', icon: <SparklesIcon className="w-4 h-4" /> },
+    { value: 'classic', label: 'Classic', icon: <FilmIcon className="w-4 h-4" /> },
+    { value: '90s00s', label: '90s/00s', icon: <TvIcon className="w-4 h-4" /> }
   ];
 
   const genreOptions = [
-    { value: 'diverse', label: 'Diverse Genres', icon: <SparklesIcon /> },
-    { value: 'specific', label: 'Specific Genre', icon: <FilmIcon /> }
+    { value: 'diverse', label: 'Diverse Genres', icon: <SparklesIcon className="w-4 h-4" /> },
+    { value: 'specific', label: 'Specific Genre', icon: <FilmIcon className="w-4 h-4" /> }
   ];
 
   const typeOptions = [
-    { value: 'all', label: 'All Types', icon: <TvIcon /> },
-    { value: 'movie', label: 'Movies', icon: <FilmIcon /> },
-    { value: 'tv', label: 'TV Shows', icon: <TvIcon /> }
+    { value: 'all', label: 'All Types', icon: <TvIcon className="w-4 h-4" /> },
+    { value: 'movie', label: 'Movies', icon: <FilmIcon className="w-4 h-4" /> },
+    { value: 'tv', label: 'TV Shows', icon: <TvIcon className="w-4 h-4" /> }
   ];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: -20, scaleY: 0.9 }}
+      animate={{ opacity: 1, y: 0, scaleY: 1 }}
+      exit={{ opacity: 0, y: -20, scaleY: 0.9 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className="w-full max-w-4xl mb-6 space-y-4"
     >
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-4 shadow-lg border border-indigo-100">
