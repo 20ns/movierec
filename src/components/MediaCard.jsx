@@ -44,7 +44,7 @@ export const MediaCard = ({ result, onClick }) => {
           transition={{ duration: 0.3 }}
         />
         <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
-          Match: {result.score}%
+          Match: {result.matchPercentage !== undefined ? `${result.matchPercentage.toFixed(0)}%` : 'N/A'} {/* UPDATED HERE */}
         </div>
         <motion.div className="absolute top-2 right-2 z-20" whileHover={{ scale: 1.05 }}>
           <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">

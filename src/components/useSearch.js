@@ -69,11 +69,15 @@ export const useSearch = () => {
     // Intent bonuses
     let intentBonus = 0;
     const genreIds = item.genre_ids || []; // Handle missing genre_ids
-    if (queryIntent.genre && genreIds.some(id =>
-      Object.values(GENRE_MAP[item.media_type]).includes(queryIntent.genre))) {
+    const mediaType = item.media_type || 'movie'; // Default to movie if media_type is missing
+    if (queryIntent.genre && genreIds.some(id => {
+      const genreMapForType = GENRE_MAP[mediaType];
+      return genreMapForType && Object.values(genreMapForType).includes(queryIntent.genre);
+    })) {
       intentBonus += 2;
     }
-    if (queryIntent.year && (item.release_date || item.first_air_date).includes(queryIntent.year)) {
+
+    if (queryIntent.year && (item.release_date || item.first_air_date)?.includes(queryIntent.year)) {
       intentBonus += 1.5;
     }
     if (queryIntent.explicitType && item.media_type ===
@@ -194,8 +198,10 @@ export const useSearch = () => {
     });
   }, [allResults, activeFilters]);
 
-  const displayedResults = useMemo(() =>
-    filteredResults.slice(0, resultsToShow),
+  const displayedResults = useMemo(() => {
+    console.log("Displayed Results with matchPercentage:", filteredResults.slice(0, resultsToShow).map(item => ({title: item.title || item.name, matchPercentage: item.matchPercentage}))); // ADDED CONSOLE LOG HERE
+    return filteredResults.slice(0, resultsToShow);
+  },
     [filteredResults, resultsToShow]
   );
 
