@@ -68,7 +68,8 @@ export const useSearch = () => {
 
     // Intent bonuses
     let intentBonus = 0;
-    if (queryIntent.genre && item.genre_ids.some(id =>
+    const genreIds = item.genre_ids || []; // Handle missing genre_ids
+    if (queryIntent.genre && genreIds.some(id =>
       Object.values(GENRE_MAP[item.media_type]).includes(queryIntent.genre))) {
       intentBonus += 2;
     }
@@ -80,14 +81,39 @@ export const useSearch = () => {
       intentBonus += 1;
     }
 
-    return titleMatch + overviewMatch + popularityScore + voteScore + recencyScore + intentBonus;
+    let rawScore = titleMatch + overviewMatch + popularityScore + voteScore + recencyScore + intentBonus;
+
+    // Heuristic scaling to percentage (adjust factor as needed)
+    let percentageScore = Math.min(Math.max(rawScore * 15, 0), 100); // Scale and clamp between 0 and 100
+    return percentageScore; // Return percentage score directly now
   }, []);
 
+  // Helper method to process results from Promise.allSettled
+  const processResult = useCallback((result) => {
+    return result.status === 'fulfilled' ? result.value : [];
+  }, []);
+
+  // Helper method to validate recommendation items
+  const isValidRecommendation = useCallback((item) => {
+    // More lenient validation
+    return item &&
+      (item.title || item.name) &&
+      (item.poster_path || item.backdrop_path) &&
+      item.overview &&
+      item.overview.length > 20;
+  }, []);
+
+
   // Hybrid recommendation fetcher
-  // Update getHybridRecommendations:
   const getHybridRecommendations = useCallback(async (primaryResult, searchResults, queryIntent) => {
     try {
-      const [directorRecs, castRecs, keywordRecs, similarRecs, searchRecs] = await Promise.all([
+      const [
+        directorRecs,
+        castRecs,
+        keywordRecs,
+        similarRecs,
+        searchRecs
+      ] = await Promise.allSettled([
         fetchDirectorRecommendations(primaryResult),
         fetchCastRecommendations(primaryResult),
         fetchKeywordRecommendations(primaryResult),
@@ -95,32 +121,34 @@ export const useSearch = () => {
         fetchTopSearchResults(searchResults)
       ]);
 
-      // Flatten nested arrays and filter undefined
+      // Process results with proper error handling
       const allRecs = [
-        ...(directorRecs?.flat() || []),
-        ...(castRecs?.flat().flat() || []), // Double flat for cast array
-        ...(keywordRecs || []),
-        ...(similarRecs || []),
-        ...(searchRecs || [])
+        ...processResult(directorRecs),
+        ...processResult(castRecs).flat(),
+        ...processResult(keywordRecs),
+        ...processResult(similarRecs),
+        ...processResult(searchRecs),
+        ...searchResults // Include original search results as fallback
       ].filter(Boolean);
 
-      // Remove duplicates by ID
+      // Remove duplicates and primary result
       const uniqueRecs = allRecs.reduce((acc, current) => {
-        if (!acc.some(item => item.id === current.id)) {
+        if (current.id !== primaryResult?.id &&
+          !acc.some(item => item.id === current.id) &&
+          isValidRecommendation(current)) {
           acc.push(current);
         }
         return acc;
       }, []);
 
-      return uniqueRecs.filter(item => item.id !== primaryResult.id);
+      return uniqueRecs.length > 0 ? uniqueRecs : searchResults.slice(0, 10);
     } catch (error) {
       console.error('Hybrid recommendations error:', error);
-      return [];
+      return searchResults.slice(0, 10); // Fallback to original results
     }
-  }, []);
+  }, [fetchDirectorRecommendations, fetchCastRecommendations, fetchKeywordRecommendations, fetchSimilarContent, fetchTopSearchResults, processResult, isValidRecommendation]);
 
   // Memoized filtered results with enhanced logic
-  // Update filteredResults memo:
   const filteredResults = useMemo(() => {
     if (!allResults.length) return [];
 
@@ -131,7 +159,7 @@ export const useSearch = () => {
       if (!item.media_type || (!item.title && !item.name)) return false;
 
       // Get valid release year
-      const releaseDate = item.release_date || item.first_air_date;
+      const releaseDate = item.release_date || item.first_air_date || ''; // Handle TV shows
       if (!releaseDate) return false;
       const releaseYear = new Date(releaseDate).getFullYear();
       if (isNaN(releaseYear)) return false;
@@ -162,7 +190,6 @@ export const useSearch = () => {
       const bMatch = activeFilters.genre === 'diverse'
         ? b.genre_ids?.filter(g => primaryGenres.includes(g)).length || 0
         : 0;
-      console.log('Filtered results:', filteredResults);
       return bMatch - aMatch || b.popularity - a.popularity;
     });
   }, [allResults, activeFilters]);
@@ -246,6 +273,13 @@ export const useSearch = () => {
     e?.preventDefault();
     if (!query.trim()) return;
 
+    if (!process.env.REACT_APP_TMDB_API_KEY) {
+      console.error("TMDB API Key is missing! Search will not work.");
+      showError("API Key missing. Search unavailable.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       abortControllerRef.current.abort();
       const controller = new AbortController();
@@ -267,6 +301,7 @@ export const useSearch = () => {
       }
 
       // Fetch search results
+      console.log("Fetching search results for query:", query);
       const searchResponse = await fetchWithRetry(
         'https://api.themoviedb.org/3/search/multi',
         {
@@ -278,13 +313,15 @@ export const useSearch = () => {
         },
         { signal: controller.signal }
       );
+      console.log("Raw search API response:", searchResponse);
 
       const searchResults = searchResponse.data.results
-        .filter(result => result.media_type && (result.title || result.name))
-        .map(result => ({
-          ...result,
-          media_type: result.media_type === 'person' ? 'movie' : result.media_type
-        }));
+        .filter(result =>
+          result &&
+          (result.title || result.name) &&
+          result.media_type !== 'person' // Exclude person results
+        );
+      console.log("Filtered search results:", searchResults);
 
       if (!searchResults.length) {
         showError('No results found for your search.');
@@ -300,6 +337,13 @@ export const useSearch = () => {
           ? current : prev, searchResults[0]
       );
 
+      // Validation for Primary Result
+      if (!primaryResult?.id || !primaryResult.media_type) {
+        console.error('Invalid primary result:', primaryResult);
+        showError('Unable to find valid results for this search.');
+        return;
+      }
+
       // Get hybrid recommendations
       const rawRecommendations = await getHybridRecommendations(
         primaryResult,
@@ -310,10 +354,28 @@ export const useSearch = () => {
       // Process recommendations
       const validRecommendations = rawRecommendations
         .filter(item => item.poster_path && item.overview)
-        .sort((a, b) => calculateScore(b, query, queryIntent) - calculateScore(a, query, queryIntent))
+        .map(item => ({ // Add score to each item in validRecommendations
+          ...item,
+          matchPercentage: calculateScore(item, query, queryIntent)
+        }))
+        .sort((a, b) => b.matchPercentage - a.matchPercentage) // Sort by percentage
         .slice(0, 50);
 
-      setAllResults(validRecommendations);
+      // Add Results Validation Before State Update
+      if (validRecommendations.length === 0) {
+        console.warn('No recommendations, using search results', searchResults);
+        const scoredSearchResults = searchResults.slice(0, 10).map(item => ({
+          ...item,
+          matchPercentage: calculateScore(item, query, queryIntent) // Add score here as well
+        }));
+        setAllResults(scoredSearchResults);
+        return;
+      }
+
+      setAllResults(validRecommendations.map(item => ({ // Ensure percentage is also added when setting valid recommendations to state.
+        ...item,
+        matchPercentage: item.matchPercentage // Percentage is already calculated above, just pass it along.
+      })));
       searchCache.current.set(cacheKey, {
         results: validRecommendations,
         timestamp: Date.now()
@@ -327,66 +389,101 @@ export const useSearch = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query, activeFilters, showError, calculateScore, analyzeQueryIntent, getHybridRecommendations]);
+  }, [query, activeFilters, showError, calculateScore, analyzeQueryIntent, getHybridRecommendations, processResult, isValidRecommendation]);
 
   // Additional recommendation sources
-  const fetchDirectorRecommendations = async (item) => {
-    const credits = await fetchWithRetry(
-      `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
-      { api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
-    );
-    const director = credits.data.crew.find(c => c.job === 'Director');
-    return director?.id ? fetchPersonWorks(director.id) : [];
-  };
+  const fetchDirectorRecommendations = useCallback(async (item) => {
+    try {
+      const credits = await fetchWithRetry(
+        `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
+        { api_key: process.env.REACT_APP_TMDB_API_KEY }
+      );
 
-  const fetchCastRecommendations = async (item) => {
-    const credits = await fetchWithRetry(
-      `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
-       { api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
-    );
-    const topCast = credits.data.cast.slice(0, 3);
-    return Promise.all(topCast.map(actor => fetchPersonWorks(actor.id)));
-  };
+      // Handle TV shows by looking for creators
+      const directors = item.media_type === 'tv'
+        ? credits.data.crew.filter(c => c.job === 'Executive Producer' || c.department === 'Creator')
+        : credits.data.crew.filter(c => c.job === 'Director');
 
-  const fetchKeywordRecommendations = async (item) => {
+      return directors.length > 0
+        ? await fetchPersonWorks(directors[0].id)
+        : [];
+    } catch (error) {
+      console.error('Director recommendations error:', error);
+      return [];
+    }
+  }, [fetchWithRetry, fetchPersonWorks]);
+
+  const fetchCastRecommendations = useCallback(async (item) => {
+    console.log("fetchCastRecommendations item:", item); // Log item at start
+    try {
+      const credits = await fetchWithRetry(
+        `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
+         { api_key: process.env.REACT_APP_TMDB_API_KEY }
+      );
+      console.log('Credits response:', credits); // Log credits response
+      if (!credits?.data?.cast || !Array.isArray(credits.data.cast)) { // Enhanced error checks
+        return [];
+      }
+      const topCast = credits.data.cast.slice(0, 3);
+      return Promise.all(topCast.map(actor =>
+        actor.id ? fetchPersonWorks(actor.id) : [] // Check if actor.id exists
+      ));
+    } catch (error) {
+      console.error('Cast recommendations error:', error);
+      return []; // Return empty array on error
+    }
+  }, [fetchWithRetry, fetchPersonWorks]);
+
+
+  const fetchKeywordRecommendations = useCallback(async (item) => {
     const keywords = await fetchWithRetry(
       `https://api.themoviedb.org/3/${item.media_type}/${item.id}/keywords`,
-       { api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
+       { api_key: process.env.REACT_APP_TMDB_API_KEY }
     );
     const keywordIds = keywords.data.keywords.map(k => k.id).join(',');
     return keywordIds ? fetchWithRetry(
       `https://api.themoviedb.org/3/discover/${item.media_type}`,
-      { with_keywords: keywordIds, api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
+      { with_keywords: keywordIds, api_key: process.env.REACT_APP_TMDB_API_KEY }
     ).then(res => res.data.results) : [];
-  };
+  }, [fetchWithRetry]);
 
-  const fetchSimilarContent = async (item) => {
-    return fetchWithRetry(
-      `https://api.themoviedb.org/3/${item.media_type}/${item.id}/similar`,
-       { api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
-    ).then(res => res.data.results);
-  };
+  const fetchSimilarContent = useCallback(async (item) => {
+    try {
+      const endpoint = item.media_type === 'tv'
+        ? `https://api.themoviedb.org/3/tv/${item.id}/recommendations`
+        : `https://api.themoviedb.org/3/movie/${item.id}/similar`;
 
-  const fetchTopSearchResults = (searchResults) => {
+      const response = await fetchWithRetry(
+        endpoint,
+        { api_key: process.env.REACT_APP_TMDB_API_KEY }
+      );
+      return response.data.results || [];
+    } catch (error) {
+      console.error('Similar content error:', error);
+      return [];
+    }
+  }, [fetchWithRetry]);
+
+  const fetchTopSearchResults = useCallback((searchResults) => {
     return Promise.all(
       searchResults.slice(0, 3).map(item =>
         fetchWithRetry(
           `https://api.themoviedb.org/3/${item.media_type}/${item.id}`,
-           { api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
+           { api_key: process.env.REACT_APP_TMDB_API_KEY }
         ).catch(error => {
           console.error('Error fetching item details:', error);
           return null;
         })
       )
     ).then(results => results.filter(Boolean).map(res => res.data));
-  };
+  }, [fetchWithRetry]);
 
-  const fetchPersonWorks = async (personId) => {
+  const fetchPersonWorks = useCallback(async (personId) => {
     return fetchWithRetry(
       `https://api.themoviedb.org/3/person/${personId}/combined_credits`,
-       { api_key: process.env.REACT_APP_TMDB_API_KEY } // ADDED API KEY HERE
+       { api_key: process.env.REACT_APP_TMDB_API_KEY }
     ).then(res => res.data.cast);
-  };
+  }, [fetchWithRetry]);
 
   const handleShowMore = useCallback(() => {
     setResultsToShow(prev => Math.min(prev + 3, 9));
@@ -486,6 +583,8 @@ export const useSearch = () => {
     handleShowMore,
     handleSuggestionClick,
     handleSuggestionHover,
-    handleResultClick
+    handleResultClick,
+    processResult,
+    isValidRecommendation
   ]);
 };
