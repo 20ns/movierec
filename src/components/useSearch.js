@@ -194,10 +194,11 @@ export const useSearch = () => {
     });
   }, [allResults, activeFilters]);
 
-  const displayedResults = useMemo(() =>
-    filteredResults.slice(0, resultsToShow),
-    [filteredResults, resultsToShow]
-  );
+  const displayedResults = useMemo(() => {
+    const results = filteredResults.slice(0, resultsToShow);
+    console.log("Displayed Results:", results); // Debugging log
+    return results;
+  }, [filteredResults, resultsToShow]);
 
   const showError = useCallback((message, duration = 3000) => {
     setError(message);
@@ -567,7 +568,7 @@ export const useSearch = () => {
     handleSuggestionClick,
     handleSuggestionHover,
     handleResultClick
-  }), [
+  }), [ 
     query,
     activeFilters,
     hasSearched,
