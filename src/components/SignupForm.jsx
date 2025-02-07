@@ -12,27 +12,40 @@ const SignupForm = ({ onSignupSuccess }) => {
     setError('');
 
     try {
-      const apiEndpoint = process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signup'; // Get API Gateway URL from env
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password, email }),
-      });
+        const response = await fetch(
+            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/signup`, 
+            {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    username, 
+                    password, 
+                    email 
+                }),
+            }
+        );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Signup failed');
-      }
-
-      onSignupSuccess(); // Call success callback (from useAuth hook)
-      alert('Signup successful! Please sign in.'); // Basic alert, consider better UI
+        const data = await response.json();
+        
+        if (!response.ok) {
+            // Handle specific Cognito errors
+            if (data.code === 'UsernameExistsException') {
+                throw new Error('Username already exists');
+            }
+            if (data.code === 'InvalidParameterException') {
+                throw new Error('Invalid email format');
+            }
+            throw new Error(data.error || 'Signup failed');
+        }
+        
+        onSignupSuccess();
+        alert('Signup successful! Please check your email to confirm your account.');
     } catch (err) {
-      setError(err.message);
+        setError(err.message);
     }
-  };
-
+};
   return (
     <form onSubmit={handleSubmit} className="max-w-sm mx-auto p-4 border rounded">
       <h2 className="text-xl font-semibold mb-4">Sign Up</h2>
