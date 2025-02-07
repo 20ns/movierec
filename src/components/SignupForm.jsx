@@ -18,34 +18,26 @@ const SignupForm = ({ onSignupSuccess }) => {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    username, 
-                    password, 
-                    email 
-                }),
+                body: JSON.stringify({ username, password, email }),
             }
         );
 
         const data = await response.json();
+        console.log("Response data:", data); // Debugging line
         
-        if (!response.ok) {
-            // Handle specific Cognito errors
-            if (data.code === 'UsernameExistsException') {
-                throw new Error('Username already exists');
-            }
-            if (data.code === 'InvalidParameterException') {
-                throw new Error('Invalid email format');
-            }
-            throw new Error(data.error || 'Signup failed');
-        }
+        if (!response.ok) throw new Error(data.error || 'Signup failed');
         
         onSignupSuccess();
         alert('Signup successful! Please check your email to confirm your account.');
+        console.log("Sending Request:", JSON.stringify({ username, password, email }));
+
     } catch (err) {
         setError(err.message);
     }
 };
+
   return (
     <form onSubmit={handleSubmit} className="max-w-sm mx-auto p-4 border rounded">
       <h2 className="text-xl font-semibold mb-4">Sign Up</h2>
