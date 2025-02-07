@@ -1,4 +1,3 @@
-// auth/authPage.js
 import React, { useState } from 'react';
 import SignupForm from '../components/SignupForm';
 import SigninForm from '../components/SigninForm';

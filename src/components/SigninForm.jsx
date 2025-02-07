@@ -1,4 +1,3 @@
-// components/SigninForm.js
 import React, { useState } from 'react';
 
 const SigninForm = ({ onSigninSuccess }) => {

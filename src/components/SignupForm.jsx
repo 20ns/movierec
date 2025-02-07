@@ -1,4 +1,3 @@
-// components/SignupForm.js
 import React, { useState } from 'react';
 
 const SignupForm = ({ onSignupSuccess }) => {
