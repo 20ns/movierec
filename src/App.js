@@ -20,47 +20,51 @@ function App() {
       <HelmetProvider>
         <div className="min-h-screen relative">
           <Bg />
-          
-          <header className="relative z-10">
-            <SearchBar />
-            <nav className="absolute top-0 right-0 mt-4 mr-4">
-              {!isAuthenticated ? (
-                <Link 
-                  to="/signin?mode=signin" 
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                >
-                  Sign In
-                </Link>
-              ) : (
-                <button 
-                  onClick={handleSignout} 
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                >
-                  Sign Out
-                </button>
-              )}
-            </nav>
+
+          {/* Fixed positioned navigation */}
+          <nav className="fixed top-4 right-4 z-50">
+            {!isAuthenticated ? (
+              <Link
+                to="/signin?mode=signin"
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors whitespace-nowrap"
+              >
+                Sign In
+              </Link>
+            ) : (
+              <button
+                onClick={handleSignout}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
+              >
+                Sign Out
+              </button>
+            )}
+          </nav>
+
+          <header className="relative z-10 pt-8">
+            <div className="w-full max-w-4xl mx-auto">
+              <SearchBar />
+            </div>
           </header>
 
           <main className="relative z-10">
             <Routes>
-              <Route 
-                path="/signin" 
+              <Route
+                path="/signin"
                 element={
-                  <AuthPage 
-                    onSignupSuccess={handleSignupSuccess} 
-                    onSigninSuccess={handleSigninSuccess} 
+                  <AuthPage
+                    onSignupSuccess={handleSignupSuccess}
+                    onSigninSuccess={handleSigninSuccess}
                   />
-                } 
+                }
               />
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
                   <div className="container mx-auto px-4 mt-20">
                     {isAuthenticated ? (
                       <div className="text-center">
                         <p className="text-green-600 font-semibold text-xl">
-                          Authenticated User Content (Replace with your protected content)
+                          Authenticated User Content
                         </p>
                       </div>
                     ) : (
@@ -71,7 +75,7 @@ function App() {
                       </div>
                     )}
                   </div>
-                } 
+                }
               />
             </Routes>
           </main>

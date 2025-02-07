@@ -11,31 +11,31 @@ const SignupForm = ({ onSignupSuccess }) => {
     setError('');
 
     try {
-        const response = await fetch(
-            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/signup`, 
-            {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ username, password, email }),
-            }
-        );
+      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/signup`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({ username, password, email }),
+        }
+      );
 
-        const data = await response.json();
-        console.log("Response data:", data); // Debugging line
-        
-        if (!response.ok) throw new Error(data.error || 'Signup failed');
-        
-        onSignupSuccess();
-        alert('Signup successful! Please check your email to confirm your account.');
-        console.log("Sending Request:", JSON.stringify({ username, password, email }));
+      const data = await response.json();
+      console.log("Response data:", data); // Debugging line
+
+      if (!response.ok) throw new Error(data.error || 'Signup failed');
+
+      onSignupSuccess();
+      alert('Signup successful! Please check your email to confirm your account.');
+      console.log("Sending Request:", JSON.stringify({ username, password, email }));
 
     } catch (err) {
-        setError(err.message);
+      setError(err.message);
     }
-};
+  };
 
   return (
     <form onSubmit={handleSubmit} className="max-w-sm mx-auto p-4 border rounded">
