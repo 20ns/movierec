@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { cacheAdapterEnhancer } from 'axios-extensions';
 
 // --- Utility Functions (No significant performance bottlenecks) ---
 export const hexToRgb = (hex) => {
@@ -34,20 +33,42 @@ export const getSocialProof = (item) => {
     return MOCK_SOCIAL_DATA[item.id] || { friendsWatched: 0, friendsLiked: 0 };
 };
 
-// --- Axios Instance (Already Optimized with Caching and Retry) ---
+// --- Axios Instance (Caching and Retry) ---
 export const axiosInstance = axios.create({
-  headers: { 'Cache-Control': 'no-cache' },
-  adapter: cacheAdapterEnhancer(axios.defaults.adapter, { enabledByDefault: true, cacheFlag: 'useCache' })
+  headers: { 'Cache-Control': 'no-cache' }, //  We'll handle caching manually.
 });
 
+// Manual In-Memory Cache
+const cache = new Map();
+
 export const fetchWithRetry = async (url, params, retries = 2) => {
-  try {
-    return await axiosInstance.get(url, { params, useCache: true });
-  } catch (error) {
-    if (retries > 0) return fetchWithRetry(url, params, retries - 1);
-    throw error;
-  }
+    const key = JSON.stringify({ url, params });
+
+    // Check cache first
+    if (cache.has(key)) {
+        const cached = cache.get(key);
+        if (cached.expiry > Date.now()) {
+          return { data: cached.data }; // Return a promise-like object, similar to Axios
+        } else {
+          cache.delete(key); // Remove expired entry
+        }
+    }
+
+    try {
+      const response = await axiosInstance.get(url, { params });
+      // Store in cache with a 5-minute expiry (adjust as needed)
+      cache.set(key, { data: response.data, expiry: Date.now() + 300000 });
+      return response;
+    } catch (error) {
+      if (retries > 0) {
+        // Simple exponential backoff: 100ms, 200ms, 400ms, etc.
+        await new Promise(resolve => setTimeout(resolve, (1 << (2 - retries)) * 100));
+        return fetchWithRetry(url, params, retries - 1);
+      }
+      throw error;
+    }
 };
+
 
 // --- Recommendation Engine (Most Complex - Focus on Optimizations) ---
 const CREW_WEIGHTS = { // Define constants outside function
