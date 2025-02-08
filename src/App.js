@@ -26,16 +26,24 @@ function App() {
             {!isAuthenticated ? (
               <Link
                 to="/signin?mode=signin"
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors whitespace-nowrap"
+                className="group relative px-4 py-2 rounded-full text-white  border-2  border-gray-100/50 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10  transition-all duration-300 overflow-hidden
+                hover:border-white
+                "
               >
+
+                  <div className="absolute inset-0 rounded-full  bg-gradient-to-r from-blue-500 to-purple-600 opacity-20 blur-md z-[-1] transition-opacity duration-300 group-hover:opacity-30 "></div>
                 Sign In
+
               </Link>
             ) : (
               <button
                 onClick={handleSignout}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors whitespace-nowrap"
+                className="group relative px-4 py-2 rounded-full  text-white   border-2  border-gray-100/50  bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10   transition-all duration-300  overflow-hidden
+                      hover:border-white"
               >
-                Sign Out
+
+                  <div className="absolute inset-0 rounded-full  bg-gradient-to-r from-red-500 to-orange-600 opacity-20 blur-md z-[-1] transition-opacity duration-300 group-hover:opacity-30"></div>
+                  Sign Out
               </button>
             )}
           </nav>
