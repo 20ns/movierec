@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { cacheAdapterEnhancer } from 'axios-extensions';
+import { setupCache } from 'axios-cache-interceptor';
 
 // --- Utility Functions (No significant performance bottlenecks) ---
 export const hexToRgb = (hex) => {
@@ -35,19 +35,29 @@ export const getSocialProof = (item) => {
 };
 
 // --- Axios Instance (Already Optimized with Caching and Retry) ---
-export const axiosInstance = axios.create({
-  headers: { 'Cache-Control': 'no-cache' },
-  adapter: cacheAdapterEnhancer(axios.defaults.adapter, { enabledByDefault: true, cacheFlag: 'useCache' })
-});
+export const axiosInstance = setupCache(axios.create(), {
+    // Cache configuration
+    ttl: 1000 * 60 * 5, // Cache for 5 minutes
+    cachePredicate: {
+      statusCheck: (status) => status >= 200 && status < 400, // Cache successful responses
+    },
+    headerInterpreter: (headers) => {
+      // Respect cache headers from the server
+      if (headers['cache-control']?.includes('no-cache')) {
+        return false; // Disable caching if server says so
+      }
+      return true;
+    },
+  });
 
-export const fetchWithRetry = async (url, params, retries = 2) => {
-  try {
-    return await axiosInstance.get(url, { params, useCache: true });
-  } catch (error) {
-    if (retries > 0) return fetchWithRetry(url, params, retries - 1);
-    throw error;
-  }
-};
+  export const fetchWithRetry = async (url, params, retries = 2) => {
+    try {
+      return await axiosInstance.get(url, { params });
+    } catch (error) {
+      if (retries > 0) return fetchWithRetry(url, params, retries - 1);
+      throw error;
+    }
+  };
 
 // --- Recommendation Engine (Most Complex - Focus on Optimizations) ---
 const CREW_WEIGHTS = { // Define constants outside function
