@@ -1,4 +1,3 @@
-// auth/authPage.js
 import React, { useState } from 'react';
 import SignupForm from '../components/SignupForm';
 import SigninForm from '../components/SigninForm';
@@ -17,14 +16,14 @@ const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen pt-20 px-4">
-      <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <div className="min-h-screen pt-20 px-4 flex items-center justify-center"> {/* Added flexbox centering */}
+      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg"> {/* Added w-full */}
         <div className="flex justify-around mb-4">
           <button
             onClick={() => handleToggleForm('signup')}
             className={`px-4 py-2 rounded transition-colors ${
-              showSignupForm 
-                ? 'bg-blue-500 text-white' 
+              showSignupForm
+                ? 'bg-blue-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
@@ -33,8 +32,8 @@ const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
           <button
             onClick={() => handleToggleForm('signin')}
             className={`px-4 py-2 rounded transition-colors ${
-              !showSignupForm 
-                ? 'bg-green-500 text-white' 
+              !showSignupForm
+                ? 'bg-green-500 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
@@ -61,6 +60,7 @@ const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
               transition={{ duration: 0.2 }}
               key="signin-form"
             >
+                {/*  No changes to how SigninForm is rendered!  */}
               <SigninForm onSigninSuccess={onSigninSuccess} />
             </motion.div>
           )}

@@ -2,9 +2,9 @@ import React from 'react';
 import SearchBar from './components/SearchBar';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
-import { BrowserRouter, Route, Routes, Link } from 'react-router-dom';
+import SignInModal from './components/SigninForm';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import useAuth from './auth/auth';
-
 
 function App() {
   const {
@@ -16,32 +16,19 @@ function App() {
 
   return (
     <BrowserRouter>
-      {/* <HelmetProvider> Removed as per optimization */}
       <div className="min-h-screen relative">
         <Bg />
 
         {/* Fixed positioned navigation */}
         <nav className="fixed top-4 right-4 z-50">
           {!isAuthenticated ? (
-            <Link
-              to="/signin?mode=signin"
-              className="group relative px-4 py-2 rounded-full text-white  border-2  border-gray-100/50 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10  transition-all duration-300 overflow-hidden
-                hover:border-white
-                "
-            >
-
-              <div className="absolute inset-0 rounded-full  bg-gradient-to-r from-blue-500 to-purple-600 opacity-20 blur-md z-[-1] transition-opacity duration-300 group-hover:opacity-30 "></div>
-              Sign In
-
-            </Link>
+            <SignInModal onSigninSuccess={handleSigninSuccess} />
           ) : (
             <button
               onClick={handleSignout}
-              className="group relative px-4 py-2 rounded-full  text-white   border-2  border-gray-100/50  bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10   transition-all duration-300  overflow-hidden
-                      hover:border-white"
+              className="group relative px-4 py-2 rounded-full text-white border-2 border-gray-100/50 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 transition-all duration-300 overflow-hidden hover:border-white"
             >
-
-              <div className="absolute inset-0 rounded-full  bg-gradient-to-r from-red-500 to-orange-600 opacity-20 blur-md z-[-1] transition-opacity duration-300 group-hover:opacity-30"></div>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500 to-orange-600 opacity-20 blur-md z-[-1] transition-opacity duration-300 group-hover:opacity-30"></div>
               Sign Out
             </button>
           )}
@@ -77,7 +64,7 @@ function App() {
                   ) : (
                     <div className="text-center">
                       <p className="text-lg">
-                        Welcome to the app!  Please Sign In to access content.
+                        Welcome to the app! Please Sign In to access content.
                       </p>
                     </div>
                   )}
@@ -87,7 +74,6 @@ function App() {
           </Routes>
         </main>
       </div>
-      {/* </HelmetProvider> Removed as per optimization*/}
     </BrowserRouter>
   );
 }
