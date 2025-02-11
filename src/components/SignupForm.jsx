@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -12,17 +11,9 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
 
     // Log the data being sent
     console.log('Sending signup data:', {
-        username,
         email,
         passwordLength: password.length
     });
-
-     // Client-side validation (minimum length)
-    const minUsernameLength = 1;
-    if (username.trim().length < minUsernameLength) {
-        setError(`Username must be at least ${minUsernameLength} characters`);
-        return;
-    }
 
     try {
         const response = await fetch(
@@ -34,7 +25,6 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    username: username.trim(),
                     password,
                     email: email.trim()
                 }),
@@ -46,18 +36,14 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
 
         if (!response.ok) {
             // Handle specific error codes from the backend
-            if (data.code === 'UsernameExists') {
-                setError('Username is already taken');
-            } else if (data.code === 'EmailExists') {
-                setError('Email is already in use');
-            } else if (data.code === 'InvalidUsernameLength') {
-                setError(data.error)
-            }
-             else {
-              setError(data.error || 'Signup failed');
+            if (data.code === 'EmailExists') {
+                setError('Email is already registered');
+            } else if (data.code === 'InvalidEmailLength') {
+                setError(data.error);
+            } else {
+                setError(data.error || 'Signup failed');
             }
             return;
-           // throw new Error(data.error || 'Signup failed'); // No need to throw
         }
 
         onSignupSuccess();
@@ -88,23 +74,7 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
             </div>
           )}
 
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Username
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                required
-                // Remove pattern and title attributes!
-              />
-            </label>
-            <p className="text-sm text-gray-500 mt-1">
-              {/* No restriction message here */}
-            </p>
-          </div>
-
+          {/* Removed username input */}
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Email
