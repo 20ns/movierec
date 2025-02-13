@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import SignupModal from './SignupForm';
 
 const SignInModal = ({ onSigninSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); // Use email instead of username
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -16,20 +16,26 @@ const SignInModal = ({ onSigninSuccess }) => {
       const apiEndpoint = process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signin';
       const response = await fetch(apiEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ username: email, password }),
+    });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Signin failed');
+        setError(errorData.error || 'Signin failed'); // Set error directly
+        return; // Important: Stop execution on error
       }
 
       const responseData = await response.json();
-      onSigninSuccess(responseData.tokens);
+      // Assuming your backend returns the email in the response
+      onSigninSuccess(responseData.tokens, responseData.email); // Add email parameter
       setIsOpen(false);
+
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'An unexpected error occurred');
     }
   };
 
@@ -46,19 +52,23 @@ const SignInModal = ({ onSigninSuccess }) => {
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setIsOpen(false)}></div>
-          
+
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <form onSubmit={handleSubmit}>
               <h2 className="text-xl font-semibold mb-4">Sign In</h2>
-              {error && <div className="text-red-500 mb-4">{error}</div>}
-              
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                  {error}
+                </div>
+              )}
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Username
+                  Email {/* Change: Label to Email */}
                   <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email" // Change: Input type to email
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)} // Change: Update email state
                     className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                     required
                   />
@@ -115,7 +125,10 @@ const SignInModal = ({ onSigninSuccess }) => {
       <SignupModal
         isOpen={showSignUp}
         onClose={() => setShowSignUp(false)}
-        onSignupSuccess={() => setShowSignUp(false)}
+        onSignupSuccess={() => {
+          setShowSignUp(false); // Close signup modal on success
+          setIsOpen(true); // Optionally reopen the sign-in modal
+        }}
       />
     </>
   );

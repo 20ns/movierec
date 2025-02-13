@@ -1,14 +1,17 @@
+// App.js
 import React from 'react';
 import SearchBar from './components/SearchBar';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
 import SignInModal from './components/SigninForm';
+import UserMenu from './account/UserMenu'; 
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import useAuth from './auth/auth';
 
 function App() {
   const {
     isAuthenticated,
+    userEmail, // Get userEmail from useAuth
     handleSignupSuccess,
     handleSigninSuccess,
     handleSignout,
@@ -24,13 +27,8 @@ function App() {
           {!isAuthenticated ? (
             <SignInModal onSigninSuccess={handleSigninSuccess} />
           ) : (
-            <button
-              onClick={handleSignout}
-              className="group relative px-4 py-2 rounded-full text-white border-2 border-gray-100/50 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 transition-all duration-300 overflow-hidden hover:border-white"
-            >
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500 to-orange-600 opacity-20 blur-md z-[-1] transition-opacity duration-300 group-hover:opacity-30"></div>
-              Sign Out
-            </button>
+            // Use UserMenu when authenticated
+            <UserMenu userEmail={userEmail} onSignout={handleSignout} />
           )}
         </nav>
 

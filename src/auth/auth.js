@@ -1,4 +1,3 @@
-// auth/auth.js
 import { useState, useEffect } from 'react';
 
 const useAuth = () => {
