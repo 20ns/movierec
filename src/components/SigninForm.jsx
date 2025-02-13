@@ -12,16 +12,30 @@ const SignInModal = ({ onSigninSuccess }) => {
     e.preventDefault();
     setError('');
 
-    try {
-      const apiEndpoint = process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signin';
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ username: email, password }),
+    // Add this logging
+    console.log('Attempting to sign in with:', {
+        emailLength: email.length,
+        passwordLength: password.length,
+        apiUrl: process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signin'
     });
+
+    try {
+        const apiEndpoint = process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signin';
+        
+        // Log the full request
+        console.log('Making request to:', apiEndpoint);
+        
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            // Remove credentials: 'include' to match signup
+            body: JSON.stringify({ username: email, password }),
+        });
+
+        console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
