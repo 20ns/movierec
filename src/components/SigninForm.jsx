@@ -140,8 +140,8 @@ const SignInModal = ({ onSigninSuccess }) => {
         isOpen={showSignUp}
         onClose={() => setShowSignUp(false)}
         onSignupSuccess={() => {
-          setShowSignUp(false); // Close signup modal on success
-          setIsOpen(true); // Optionally reopen the sign-in modal
+          setShowSignUp(false);
+          setIsOpen(true);
         }}
       />
     </>
