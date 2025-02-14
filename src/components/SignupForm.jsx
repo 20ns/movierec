@@ -9,110 +9,116 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
     e.preventDefault();
     setError('');
 
-    // Log the data being sent
     console.log('Sending signup data:', {
-        email,
-        passwordLength: password.length
+      email,
+      passwordLength: password.length,
     });
 
     try {
-        const response = await fetch(
-            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/signup`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    password,
-                    email: email.trim()
-                }),
-            }
-        );
-
-        const data = await response.json();
-        console.log('Response data:', data); // Log the response
-
-        if (!response.ok) {
-            // Handle specific error codes from the backend
-            if (data.code === 'EmailExists') {
-                setError('Email is already registered');
-            } else if (data.code === 'InvalidEmailLength') {
-                setError(data.error);
-            } else {
-                setError(data.error || 'Signup failed');
-            }
-            return;
+      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/signup`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            password,
+            email: email.trim(),
+          }),
         }
+      );
 
-        onSignupSuccess();
-        alert('Signup successful! Please check your email.'); // Show this *after* success
-        onClose();
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        if (data.code === 'EmailExists') {
+          setError('Email is already registered');
+        } else if (data.code === 'InvalidEmailLength') {
+          setError(data.error);
+        } else {
+          setError(data.error || 'Signup failed');
+        }
+        return;
+      }
+
+      onSignupSuccess();
+      alert('Signup successful! Please check your email.');
+      onClose();
     } catch (err) {
-        console.error('Signup error details:', {
-            message: err.message,
-            stack: err.stack
-        });
-        setError(err.message);
+      console.error('Signup error details:', {
+        message: err.message,
+        stack: err.stack,
+      });
+      setError(err.message);
     }
-};
-
-  if (!isOpen) return null;
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
-      <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={onClose}></div>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-y-auto transition-opacity duration-500 ease-in-out ${
+        isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}
+    >
+      {/* Modal Overlay */}
+      <div
+        className={`fixed inset-0 bg-black bg-opacity-80 transition-opacity duration-500 ease-in-out ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+        onClick={onClose}
+        aria-hidden="true"
+      ></div>
 
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      {/* Modal Content */}
+      <div
+        className={`relative bg-gray-900 rounded-2xl shadow-lg w-full max-w-lg p-8 transform transition-all duration-500 ease-in-out ${
+          isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-8 opacity-0'
+        }`}
+      >
         <form onSubmit={handleSubmit}>
-          <h2 className="text-xl font-semibold mb-4">Sign Up</h2>
-
+          <h2 className="text-3xl font-bold mb-6 text-white text-center">Sign Up</h2>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+            <div className="bg-red-900 border border-red-400 text-red-100 px-4 py-3 rounded-md relative mb-6 transition-all duration-300 ease-in-out">
               {error}
             </div>
           )}
 
-          {/* Removed username input */}
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Email
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                required
-              />
-            </label>
-          </div>
-
           <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                required
-                minLength="8"
-              />
-            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
+              placeholder="Email"
+              required
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="mb-8">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
+              placeholder="Password"
+              required
+              minLength="8"
+            />
+          </div>
+
+          <div className="flex items-center justify-between space-x-4">
             <button
               type="button"
               onClick={onClose}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
+              className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-full transition-colors duration-300 ease-in-out"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+              className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-full transition-colors duration-300 ease-in-out"
             >
               Sign Up
             </button>
