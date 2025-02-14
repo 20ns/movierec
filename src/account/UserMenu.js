@@ -6,7 +6,7 @@ const UserMenu = ({ userEmail, onSignout }) => {
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
-  const timeoutRef = useRef(null); // Ref to store the timeout ID
+  const timeoutRef = useRef(null);
 
   const handleCloseDropdown = () => {
     setIsDropdownOpen(false);
@@ -15,7 +15,7 @@ const UserMenu = ({ userEmail, onSignout }) => {
   const startCloseTimer = () => {
     timeoutRef.current = setTimeout(() => {
       handleCloseDropdown();
-    }, 200); // 200ms delay - adjust as needed
+    }, 200);
   };
 
   const clearCloseTimer = () => {
@@ -25,23 +25,21 @@ const UserMenu = ({ userEmail, onSignout }) => {
   };
 
   useEffect(() => {
-    // No click outside handling needed anymore
-
     return () => {
-      clearCloseTimer(); // Clear the timeout on unmount
+      clearCloseTimer();
     };
-  }, []); // Empty dependency array for unmount cleanup
+  }, []);
 
   return (
     <div className="relative">
       <button
         ref={buttonRef}
         onMouseEnter={() => {
-          clearCloseTimer(); // Cancel any pending close
+          clearCloseTimer();
           setIsDropdownOpen(true);
         }}
-        onMouseLeave={startCloseTimer} // Start timer on button leave
-        className="flex items-center justify-center w-10 h-10 rounded-full bg-black text-white hover:bg-gray-800 transition-colors"
+        onMouseLeave={startCloseTimer}
+        className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200" // Dark mode colors
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -62,15 +60,20 @@ const UserMenu = ({ userEmail, onSignout }) => {
       {isDropdownOpen && (
         <div
           ref={dropdownRef}
-          className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
-          onMouseEnter={clearCloseTimer} // Cancel timer on dropdown enter
-          onMouseLeave={startCloseTimer} // Start timer on dropdown leave
+          className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-10 transition-opacity duration-200 ease-in-out opacity-0" // Initial opacity 0
+          style={{
+            opacity: isDropdownOpen ? 1 : 0, // Animate opacity
+            transform: isDropdownOpen ? 'translateY(0)' : 'translateY(-10px)', // Slide-down effect
+            transition: 'opacity 0.2s ease, transform 0.2s ease', // Combine transitions
+          }}
+          onMouseEnter={clearCloseTimer}
+          onMouseLeave={startCloseTimer}
         >
           <button
             onClick={() => {
               setShowAccountDetails(true);
             }}
-            className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+            className="block w-full px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200 text-left" // Dark mode colors
           >
             Account Details
           </button>
@@ -79,7 +82,7 @@ const UserMenu = ({ userEmail, onSignout }) => {
               onSignout();
               handleCloseDropdown();
             }}
-            className="block w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+            className="block w-full px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200 text-left" // Dark mode colors
           >
             Sign Out
           </button>
