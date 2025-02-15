@@ -10,7 +10,7 @@ import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
 
 export const SearchBar = () => {
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const {
     query,
     setQuery,
@@ -34,49 +34,52 @@ export const SearchBar = () => {
 
   return (
     <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
-      {/* Filters Toggle Button */}
-      {hasSearched && (
-        <motion.button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`mb-4 flex items-center space-x-2 px-4 py-2 rounded-full transition-all ${
-            showFilters 
-              ? 'bg-indigo-500 text-white shadow-lg'
-              : 'bg-white/90 text-indigo-500 hover:bg-indigo-50 backdrop-blur-sm'
-          }`}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          {showFilters ? (
-            <FunnelSolidIcon className="w-5 h-5" />
-          ) : (
-            <FunnelIcon className="w-5 h-5" />
-          )}
-          <span className="font-semibold text-sm">
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </span>
-        </motion.button>
-      )}
-
-      {/* Filters Section */}
-      {hasSearched && showFilters && (
-        <FiltersSection
-          activeFilters={activeFilters}
-          setActiveFilters={setActiveFilters}
+      {/* Search Input - Moved to top */}
+      <div className="w-full max-w-2xl mb-4">
+        <SearchInput
+          query={query}
+          setQuery={setQuery}
+          handleSearch={handleSearch}
+          isLoading={isLoading}
+          isFocused={isFocused}
+          setIsFocused={setIsFocused}
+          suggestions={suggestions}
+          handleSuggestionClick={handleSuggestionClick}
+          handleSuggestionHover={handleSuggestionHover}
         />
-      )}
+      </div>
 
-      {/* Search Input */}
-      <SearchInput
-        query={query}
-        setQuery={setQuery}
-        handleSearch={handleSearch}
-        isLoading={isLoading}
-        isFocused={isFocused}
-        setIsFocused={setIsFocused}
-        suggestions={suggestions}
-        handleSuggestionClick={handleSuggestionClick}
-        handleSuggestionHover={handleSuggestionHover}
-      />
+      {/* Filters Toggle and Section - Positioned below search */}
+      {hasSearched && (
+        <div className="w-full max-w-4xl mb-4 space-y-2">
+          <motion.button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all ${
+              showFilters 
+                ? 'bg-indigo-500 text-white shadow-lg'
+                : 'bg-white/90 text-indigo-500 hover:bg-indigo-50 backdrop-blur-sm'
+            }`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {showFilters ? (
+              <FunnelSolidIcon className="w-5 h-5" />
+            ) : (
+              <FunnelIcon className="w-5 h-5" />
+            )}
+            <span className="font-semibold text-sm">
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </span>
+          </motion.button>
+
+          {showFilters && (
+            <FiltersSection
+              activeFilters={activeFilters}
+              setActiveFilters={setActiveFilters}
+            />
+          )}
+        </div>
+      )}
 
       {/* Error Messages */}
       <ErrorMessage error={error} isVisible={isErrorVisible} />
