@@ -26,7 +26,7 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="w-full max-w-4xl mb-6"
+      className="w-full max-w-4xl mb-6 relative z-50"
     >
       <div className="bg-gray-800/80 backdrop-blur-lg rounded-xl p-3 shadow-lg border border-gray-700">
         <div className="flex flex-wrap gap-3">
