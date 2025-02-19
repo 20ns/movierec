@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { StarIcon, CalendarIcon, ChartBarIcon, UserGroupIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { 
+  StarIcon, CalendarIcon, ChartBarIcon, 
+  UserGroupIcon, CheckCircleIcon, HeartIcon 
+} from '@heroicons/react/24/solid';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
 
-export const MediaCard = ({ result, onClick }) => {
+export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   const socialProof = getSocialProof(result);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   // Fallback genre color function
   const getGenreColorFallback = (genreIds = []) => {
@@ -18,6 +22,42 @@ export const MediaCard = ({ result, onClick }) => {
     const firstGenre = genreIds[0] || 'default';
     const hexColor = genreColors[firstGenre] || genreColors.default;
     return hexToRgb(hexColor);
+  };
+
+  const handleFavorite = async (e) => {
+    e.stopPropagation(); // Prevent card click triggering other handlers
+    if (!currentUser) {
+      if (promptLogin) {
+        promptLogin(); // Open login/signup modal
+      } else {
+        alert("Please log in or create an account to use favorites.");
+      }
+      return;
+    }
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user: currentUser,
+          media: {
+            id: result.id,
+            title: result.title || result.name,
+            poster_path: result.poster_path,
+            media_type: result.media_type
+          }
+        })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to add favorite');
+      }
+      setIsFavorited(true);
+    } catch (error) {
+      console.error("Error adding favorite:", error);
+      alert("Failed to add favorite. Please try again.");
+    }
   };
 
   return (
@@ -46,10 +86,13 @@ export const MediaCard = ({ result, onClick }) => {
         <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
           Match: {result.score}%
         </div>
-        <motion.div className="absolute top-2 right-2 z-20" whileHover={{ scale: 1.05 }}>
+        <motion.div className="absolute top-2 right-2 z-20 flex items-center space-x-2" whileHover={{ scale: 1.05 }}>
           <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
             {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
           </span>
+          <button onClick={handleFavorite} className="focus:outline-none">
+            <HeartIcon className={`w-6 h-6 ${isFavorited ? 'text-red-500' : 'text-gray-300'}`} />
+          </button>
         </motion.div>
         {socialProof.friendsLiked > 0 && (
           <div className="absolute bottom-2 left-2 flex items-center">
@@ -65,7 +108,7 @@ export const MediaCard = ({ result, onClick }) => {
         <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
           {result.title || result.name}
         </h2>
-        <p className="text-sm text-gray-600 line-clamp-2 mb-2 text-sm leading-relaxed flex-grow">
+        <p className="text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed flex-grow">
           {result.overview}
         </p>
 

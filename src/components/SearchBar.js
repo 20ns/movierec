@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiltersSection } from './FiltersSection';
 import { SearchInput } from './SearchInput';
@@ -8,9 +8,12 @@ import { LoadMoreButton } from './LoadMoreButton';
 import { useSearch } from './useSearch';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
+import { getUser, storeSearchHistory } from './authUtils';
 
 export const SearchBar = () => {
   const [showFilters, setShowFilters] = useState(true);
+  const [user, setUser] = useState(null);
+
   const {
     query,
     setQuery,
@@ -31,6 +34,17 @@ export const SearchBar = () => {
     handleSuggestionHover,
     handleResultClick
   } = useSearch();
+
+  useEffect(() => {
+    const currentUser = getUser();
+    setUser(currentUser);
+  }, []);
+
+  useEffect(() => {
+    if (user && query.trim() !== '') {
+      storeSearchHistory(user.sub, query);
+    }
+  }, [query, user]);
 
   return (
     <div className="w-full h-screen max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24">
@@ -90,6 +104,7 @@ export const SearchBar = () => {
         isLoading={isLoading}
         displayedResults={displayedResults}
         handleResultClick={handleResultClick}
+        user={user}
       />
 
       {/* Load More Button */}
@@ -100,4 +115,5 @@ export const SearchBar = () => {
     </div>
   );
 };
+
 export default SearchBar;
