@@ -1,12 +1,15 @@
+// SignInModal.jsx
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
+import { useAuth } from './auth'; // Import useAuth
 
-const SignInModal = ({ onSigninSuccess }) => {
+const SignInModal = ({}) => { // Remove onSigninSuccess, get from context
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
+  const { onSigninSuccess } = useAuth(); // Get from context
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,17 +44,18 @@ const SignInModal = ({ onSigninSuccess }) => {
 
       const responseData = await response.json();
       console.log("responseData:", responseData);
-      onSigninSuccess(responseData.tokens, responseData.email);
-      setIsOpen(false);
+      onSigninSuccess(responseData.tokens, responseData.email); // Correct args
+      setIsOpen(false); // Close modal on success
     } catch (err) {
       setError(err.message || 'An unexpected error occurred');
     }
   };
+    const openModal = () => setIsOpen(true);
 
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={openModal} // Use named function for clarity
         className="group relative px-6 py-3 rounded-full text-white border-2 border-purple-500 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 transition-all duration-500 ease-in-out overflow-hidden hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/50"
       >
         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 opacity-30 blur-lg z-[-1] transition-opacity duration-500 ease-in-out group-hover:opacity-50"></div>
@@ -87,25 +91,25 @@ const SignInModal = ({ onSigninSuccess }) => {
             )}
 
             <div className="mb-6">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
-                  placeholder="Email"
-                  required
-                />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
+                placeholder="Email"
+                required
+              />
             </div>
 
             <div className="mb-8">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
-                  placeholder="Password"
-                  required
-                />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
+                placeholder="Password"
+                required
+              />
             </div>
 
             <div className="flex items-center justify-between space-x-4">
@@ -129,8 +133,8 @@ const SignInModal = ({ onSigninSuccess }) => {
               <button
                 type="button"
                 onClick={() => {
-                  setIsOpen(false);
-                  setShowSignUp(true);
+                  setIsOpen(false); // Close sign-in modal
+                  setShowSignUp(true); // Open sign-up modal
                 }}
                 className="text-purple-400 hover:text-purple-300 font-semibold transition-colors duration-300 ease-in-out"
               >
@@ -145,8 +149,8 @@ const SignInModal = ({ onSigninSuccess }) => {
         isOpen={showSignUp}
         onClose={() => setShowSignUp(false)}
         onSignupSuccess={() => {
-          setShowSignUp(false);
-          setIsOpen(true);
+          setShowSignUp(false); // Close sign-up
+          setIsOpen(true);   // Open sign-in (optional auto-login)
         }}
       />
     </>

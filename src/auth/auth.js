@@ -1,21 +1,26 @@
 // auth.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 
-const useAuth = () => {
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
-      setIsAuthenticated(true);
-      setCurrentUser(JSON.parse(storedUser));
+      const user = JSON.parse(storedUser);
+      // Check for token presence (and ideally, expiry)
+      if (user?.token) {
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+      }
     }
   }, []);
 
-  const handleSigninSuccess = (tokens, email, sub) => {
-    // Ensure sub is included from the Cognito response
-    const user = { token: tokens.accessToken, email, sub };
+  const handleSigninSuccess = (tokens, email) => {
+    const user = { token: tokens.accessToken, email, tokens }; // Store ALL tokens
     localStorage.setItem('currentUser', JSON.stringify(user));
     setIsAuthenticated(true);
     setCurrentUser(user);
@@ -27,20 +32,28 @@ const useAuth = () => {
     setCurrentUser(null);
   };
 
-  const handleSignupSuccess = (tokens, email, sub) => {
-    const user = { token: tokens.accessToken, email, sub };
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    setIsAuthenticated(true);
-    setCurrentUser(user);
-  };
+    // No changes to handleSignupSuccess in this example.
+    const handleSignupSuccess = (tokens, email, sub) => {
+      const user = { token: tokens.accessToken, email, sub, tokens };
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      setIsAuthenticated(true);
+      setCurrentUser(user);
+    };
 
-  return {
+
+  const authContextValue = {
     isAuthenticated,
     currentUser,
-    handleSignupSuccess,
-    handleSigninSuccess,
-    handleSignout
+    onSigninSuccess: handleSigninSuccess, // Use consistent naming (on...)
+    onSignout: handleSignout,
+    onSignupSuccess: handleSignupSuccess,
   };
+
+  return (
+    <AuthContext.Provider value={authContextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export default useAuth;
+export const useAuth = () => useContext(AuthContext);

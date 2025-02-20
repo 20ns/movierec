@@ -1,3 +1,4 @@
+// MediaCard.jsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -5,10 +6,12 @@ import {
   UserGroupIcon, CheckCircleIcon, HeartIcon
 } from '@heroicons/react/24/solid';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils'; // Ensure this path is correct
+import { useAuth } from './auth'; // Import useAuth
 
-export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
+export const MediaCard = ({ result, onClick, promptLogin }) => { // Remove currentUser
   const socialProof = getSocialProof(result);
   const [isFavorited, setIsFavorited] = useState(false);
+  const { currentUser } = useAuth(); // Get currentUser from context
 
   // Fallback genre color function (kept for robustness)
   const getGenreColorFallback = (genreIds = []) => {
@@ -27,7 +30,6 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      // If you still want to check for sub, update here. Otherwise, you can skip this check entirely.
       if (!currentUser?.token) return;
 
       try {
@@ -49,7 +51,9 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
       }
     };
 
-    checkFavoriteStatus();
+    if (currentUser?.token) { // Only check if authenticated
+        checkFavoriteStatus();
+    }
   }, [currentUser?.token, result.id]);
 
   // Handle adding/removing favorites
@@ -57,7 +61,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     e.stopPropagation();
     console.log("Favorite button clicked");
     console.log("Favorite button clicked, user token is:", currentUser?.token);
-    // Check for token instead of sub
+
     if (!currentUser?.token) {
       promptLogin?.();
       return;
@@ -185,5 +189,3 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     </motion.div>
   );
 };
-
-export default MediaCard;
