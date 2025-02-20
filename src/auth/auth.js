@@ -1,5 +1,4 @@
-// auth.js
-import { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -11,8 +10,7 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       const user = JSON.parse(storedUser);
-      // Check for token presence (and ideally, expiry)
-      if (user?.token) {
+      if (user?.tokens?.idToken) {
         setIsAuthenticated(true);
         setCurrentUser(user);
       }
@@ -20,7 +18,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const handleSigninSuccess = (tokens, email) => {
-    const user = { token: tokens.accessToken, email, tokens }; // Store ALL tokens
+    const user = { 
+      email,
+      tokens: {
+        idToken: tokens.idToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken
+      }
+    };
     localStorage.setItem('currentUser', JSON.stringify(user));
     setIsAuthenticated(true);
     setCurrentUser(user);
@@ -32,19 +37,24 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
-    // No changes to handleSignupSuccess in this example.
-    const handleSignupSuccess = (tokens, email, sub) => {
-      const user = { token: tokens.accessToken, email, sub, tokens };
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      setIsAuthenticated(true);
-      setCurrentUser(user);
+  const handleSignupSuccess = (tokens, email) => {
+    const user = {
+      email,
+      tokens: {
+        idToken: tokens.idToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken
+      }
     };
-
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setIsAuthenticated(true);
+    setCurrentUser(user);
+  };
 
   const authContextValue = {
     isAuthenticated,
     currentUser,
-    onSigninSuccess: handleSigninSuccess, // Use consistent naming (on...)
+    onSigninSuccess: handleSigninSuccess,
     onSignout: handleSignout,
     onSignupSuccess: handleSignupSuccess,
   };
@@ -56,4 +66,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

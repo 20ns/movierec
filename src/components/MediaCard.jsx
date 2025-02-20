@@ -5,7 +5,7 @@ import {
   UserGroupIcon, CheckCircleIcon, HeartIcon
 } from '@heroicons/react/24/solid';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
-import { useAuth } from './auth';
+import { useAuth } from '../auth/auth';
 
 export const MediaCard = ({ result, onClick, promptLogin }) => {
   const socialProof = getSocialProof(result);
@@ -59,17 +59,15 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
       promptLogin?.();
       return;
     }
-
-    const method = isFavorited ? 'DELETE' : 'POST';
-
+  
     try {
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
         {
-          method,
+          method: isFavorited ? 'DELETE' : 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentUser.tokens.idToken}`
+            'Authorization': `Bearer ${currentUser.tokens.idToken}`
           },
           body: JSON.stringify({
             media: {
@@ -81,8 +79,12 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
           })
         }
       );
-
-      if (!response.ok) throw new Error(`Failed to ${method} favorite`);
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update favorite');
+      }
+  
       setIsFavorited(!isFavorited);
     } catch (error) {
       console.error("Error updating favorite:", error);

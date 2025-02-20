@@ -4,10 +4,16 @@ import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
 
 const FavoritesSection = ({ currentUser, isAuthenticated }) => {
-  // ... existing state declarations
+  const [favorites, setFavorites] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    if (!currentUser?.tokens?.idToken) return;
+    if (!currentUser?.tokens?.idToken) {
+      setError('Authentication required');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -18,17 +24,21 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
         {
           headers: {
             Authorization: `Bearer ${currentUser.tokens.idToken}`,
-            'Content-Type': 'application/json',
-          },
+            // Remove 'Content-Type' for GET requests
+          }
         }
       );
 
-      if (!response.ok) throw new Error('Failed to fetch favorites');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch favorites');
+      }
+
       const data = await response.json();
       setFavorites(data);
     } catch (err) {
       console.error('Error fetching favorites:', err);
-      setError('Failed to load favorites. Please try again later.');
+      setError(err.message || 'Failed to load favorites. Please try again later.');
     } finally {
       setIsLoading(false);
     }

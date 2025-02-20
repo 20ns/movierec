@@ -1,22 +1,25 @@
-// App.js
 import React from 'react';
 import SearchBar from './components/SearchBar';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
 import SignInModal from './components/SigninForm';
-import UserMenu from './account/UserMenu'; 
+import UserMenu from './account/UserMenu';
 import FavoritesSection from './components/FavoritesSection';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import useAuth from './auth/auth';
+import { AuthProvider, useAuth } from './auth/auth'; // Import both from auth.js
+
+// Create a wrapper component to provide the AuthProvider context
+function AppWrapper() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}
 
 function App() {
-  const {
-    isAuthenticated,
-    currentUser,
-    handleSignupSuccess,
-    handleSigninSuccess,
-    handleSignout,
-  } = useAuth();
+  // Now useAuth will work because we're inside AuthProvider
+  const { isAuthenticated, currentUser, onSignout } = useAuth();
 
   return (
     <BrowserRouter>
@@ -26,9 +29,9 @@ function App() {
         {/* Fixed positioned navigation */}
         <nav className="fixed top-4 right-4 z-50">
           {!isAuthenticated ? (
-            <SignInModal onSigninSuccess={handleSigninSuccess} />
+            <SignInModal />
           ) : (
-            <UserMenu userEmail={currentUser.email} onSignout={handleSignout} />
+            <UserMenu userEmail={currentUser?.email} onSignout={onSignout} />
           )}
         </nav>
 
@@ -45,15 +48,7 @@ function App() {
 
         <main className="relative z-10">
           <Routes>
-            <Route
-              path="/signin"
-              element={
-                <AuthPage
-                  onSignupSuccess={handleSignupSuccess}
-                  onSigninSuccess={handleSigninSuccess}
-                />
-              }
-            />
+            <Route path="/signin" element={<AuthPage />} />
             <Route
               path="/"
               element={
@@ -61,7 +56,7 @@ function App() {
                   {isAuthenticated ? (
                     <div className="text-center">
                       <p className="text-green-600 font-semibold text-xl">
-                        Authenticated User Content
+                        Welcome back, {currentUser?.email}
                       </p>
                     </div>
                   ) : (
@@ -81,4 +76,4 @@ function App() {
   );
 }
 
-export default App;
+export default AppWrapper;

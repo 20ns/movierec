@@ -1,7 +1,7 @@
 // SignInModal.jsx
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
-import { useAuth } from './auth'; // Import useAuth
+import { useAuth } from '../auth/auth';
 
 const SignInModal = ({}) => { // Remove onSigninSuccess, get from context
   const [email, setEmail] = useState('');
