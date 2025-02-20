@@ -5,13 +5,14 @@ import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
 import SignInModal from './components/SigninForm';
 import UserMenu from './account/UserMenu'; 
+import FavoritesSection from './components/FavoritesSection';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import useAuth from './auth/auth';
 
 function App() {
   const {
     isAuthenticated,
-    userEmail, // Get userEmail from useAuth
+    currentUser,
     handleSignupSuccess,
     handleSigninSuccess,
     handleSignout,
@@ -27,8 +28,7 @@ function App() {
           {!isAuthenticated ? (
             <SignInModal onSigninSuccess={handleSigninSuccess} />
           ) : (
-            // Use UserMenu when authenticated
-            <UserMenu userEmail={userEmail} onSignout={handleSignout} />
+            <UserMenu userEmail={currentUser.email} onSignout={handleSignout} />
           )}
         </nav>
 
@@ -37,6 +37,11 @@ function App() {
             <SearchBar />
           </div>
         </header>
+
+        {/* Favorites section only shows for authenticated users */}
+        {isAuthenticated && (
+          <FavoritesSection currentUser={currentUser} isAuthenticated={isAuthenticated} />
+        )}
 
         <main className="relative z-10">
           <Routes>

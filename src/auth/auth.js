@@ -1,37 +1,43 @@
+// auth.js
 import { useState, useEffect } from 'react';
 
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userEmail, setUserEmail] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const storedEmail = localStorage.getItem('userEmail');
-    if (storedEmail) {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
       setIsAuthenticated(true);
-      setUserEmail(storedEmail);
+      setCurrentUser(JSON.parse(storedUser));
     }
   }, []);
 
   const handleSigninSuccess = (tokens, email) => {
-    localStorage.setItem('userEmail', email);
+    // Assuming tokens is an object with an accessToken property
+    const user = { token: tokens.accessToken, email };
+    localStorage.setItem('currentUser', JSON.stringify(user));
     setIsAuthenticated(true);
-    setUserEmail(email);
+    setCurrentUser(user);
   };
 
   const handleSignout = () => {
-    localStorage.removeItem('userEmail');
+    localStorage.removeItem('currentUser');
     setIsAuthenticated(false);
-    setUserEmail(null);
+    setCurrentUser(null);
+  };
+
+  const handleSignupSuccess = (tokens, email) => {
+    const user = { token: tokens.accessToken, email };
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setIsAuthenticated(true);
+    setCurrentUser(user);
   };
 
   return {
     isAuthenticated,
-    userEmail,
-    handleSignupSuccess: (email) => {
-      localStorage.setItem('userEmail', email);
-      setIsAuthenticated(true);
-      setUserEmail(email);
-    },
+    currentUser,
+    handleSignupSuccess,
     handleSigninSuccess,
     handleSignout
   };
