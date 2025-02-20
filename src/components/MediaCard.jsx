@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  StarIcon, CalendarIcon, ChartBarIcon, 
-  UserGroupIcon, CheckCircleIcon, HeartIcon 
+import {
+  StarIcon, CalendarIcon, ChartBarIcon,
+  UserGroupIcon, CheckCircleIcon, HeartIcon
 } from '@heroicons/react/24/solid';
-import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
+import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils'; // Ensure this path is correct
 
 export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
-  const socialProof = getSocialProof(result);
+  const socialProof = getSocialProof(result); // Get social proof data
   const [isFavorited, setIsFavorited] = useState(false);
 
-  // Fallback genre color function
+  // Fallback genre color function (kept for robustness)
   const getGenreColorFallback = (genreIds = []) => {
     const genreColors = {
-      28: '#7f1d1d',   12: '#14532d',   16: '#713f12',
-      35: '#4c1d95',   80: '#1e293b',   18: '#1e3a8a',
-      10751: '#134e4a', 14: '#581c87',  27: '#3c1513',
+      28: '#7f1d1d', 12: '#14532d', 16: '#713f12',
+      35: '#4c1d95', 80: '#1e293b', 18: '#1e3a8a',
+      10751: '#134e4a', 14: '#581c87', 27: '#3c1513',
       9648: '#312e81', 10749: '#831843', 878: '#0c4a6e',
       default: '#1e1b4b'
     };
@@ -24,39 +24,69 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     return hexToRgb(hexColor);
   };
 
-  const handleFavorite = async (e) => {
-    e.stopPropagation(); // Prevent card click triggering other handlers
-    if (!currentUser) {
-      if (promptLogin) {
-        promptLogin(); // Open login/signup modal
-      } else {
-        alert("Please log in or create an account to use favorites.");
+  // Check favorite status on component mount and user/result changes
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (!currentUser?.sub) return;
+
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite?mediaId=${result.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${currentUser.token}`
+            }
+          }
+        );
+
+        if (!response.ok) throw new Error('Failed to check favorite status');
+
+        const data = await response.json();
+        setIsFavorited(data.isFavorited);
+      } catch (error) {
+        console.error("Error checking favorite status:", error);
       }
+    };
+
+    checkFavoriteStatus();
+  }, [currentUser?.sub, result.id, currentUser?.token]);
+
+  // Handle adding/removing favorites
+  const handleFavorite = async (e) => {
+    e.stopPropagation();
+    if (!currentUser?.sub) {
+      promptLogin?.();
       return;
     }
+
+    const method = isFavorited ? 'DELETE' : 'POST';
+
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user: currentUser,
-          media: {
-            id: result.id,
-            title: result.title || result.name,
-            poster_path: result.poster_path,
-            media_type: result.media_type
-          }
-        })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to add favorite');
-      }
-      setIsFavorited(true);
+      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
+        {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${currentUser.token}`
+          },
+          body: JSON.stringify({
+            media: {
+              id: result.id,
+              title: result.title || result.name,
+              poster_path: result.poster_path,
+              media_type: result.media_type
+            }
+          })
+        }
+      );
+
+      if (!response.ok) throw new Error(`Failed to ${method} favorite`);
+
+      setIsFavorited(!isFavorited);
     } catch (error) {
-      console.error("Error adding favorite:", error);
-      alert("Failed to add favorite. Please try again.");
+      console.error("Error updating favorite:", error);
+      alert(`Failed to ${isFavorited ? 'remove from' : 'add to'} favorites. Please try again.`);
     }
   };
 
@@ -91,7 +121,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
             {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
           </span>
           <button onClick={handleFavorite} className="focus:outline-none">
-            <HeartIcon className={`w-6 h-6 ${isFavorited ? 'text-red-500' : 'text-gray-300'}`} />
+            <HeartIcon className={`w-6 h-6 ${isFavorited ? 'text-red-500 animate-pulse' : 'text-gray-300 hover:text-red-300'}`} />
           </button>
         </motion.div>
         {socialProof.friendsLiked > 0 && (
