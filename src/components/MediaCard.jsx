@@ -49,13 +49,15 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     };
 
     checkFavoriteStatus();
-  }, [currentUser?.sub, result.id, currentUser?.token]);
+    // Updated dependency array to use currentUser.token
+  }, [currentUser?.token, result.id]);
 
   // Handle adding/removing favorites
   const handleFavorite = async (e) => {
     e.stopPropagation();
     console.log("Favorite button clicked");
-    if (!currentUser?.sub) {
+    // Updated to check for currentUser.token
+    if (!currentUser?.token) {
       promptLogin?.();
       return;
     }

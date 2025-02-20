@@ -13,9 +13,9 @@ const useAuth = () => {
     }
   }, []);
 
-  const handleSigninSuccess = (tokens, email) => {
-    // Assuming tokens is an object with an accessToken property
-    const user = { token: tokens.accessToken, email };
+  const handleSigninSuccess = (tokens, email, sub) => {
+    // Ensure sub is included from the Cognito response
+    const user = { token: tokens.accessToken, email, sub };
     localStorage.setItem('currentUser', JSON.stringify(user));
     setIsAuthenticated(true);
     setCurrentUser(user);
@@ -27,8 +27,8 @@ const useAuth = () => {
     setCurrentUser(null);
   };
 
-  const handleSignupSuccess = (tokens, email) => {
-    const user = { token: tokens.accessToken, email };
+  const handleSignupSuccess = (tokens, email, sub) => {
+    const user = { token: tokens.accessToken, email, sub };
     localStorage.setItem('currentUser', JSON.stringify(user));
     setIsAuthenticated(true);
     setCurrentUser(user);
