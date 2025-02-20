@@ -7,7 +7,7 @@ import {
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils'; // Ensure this path is correct
 
 export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
-  const socialProof = getSocialProof(result); // Get social proof data
+  const socialProof = getSocialProof(result);
   const [isFavorited, setIsFavorited] = useState(false);
 
   // Fallback genre color function (kept for robustness)
@@ -24,7 +24,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     return hexToRgb(hexColor);
   };
 
-  // Check favorite status on component mount and user/result changes
+  // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       if (!currentUser?.sub) return;
@@ -54,6 +54,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   // Handle adding/removing favorites
   const handleFavorite = async (e) => {
     e.stopPropagation();
+    console.log("Favorite button clicked");
     if (!currentUser?.sub) {
       promptLogin?.();
       return;
@@ -177,3 +178,5 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     </motion.div>
   );
 };
+
+export default MediaCard;
