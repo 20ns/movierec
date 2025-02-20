@@ -40,6 +40,7 @@ const SignInModal = ({ onSigninSuccess }) => {
       }
 
       const responseData = await response.json();
+      console.log("responseData:", responseData);
       onSigninSuccess(responseData.tokens, responseData.email);
       setIsOpen(false);
     } catch (err) {

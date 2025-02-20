@@ -56,6 +56,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   const handleFavorite = async (e) => {
     e.stopPropagation();
     console.log("Favorite button clicked");
+    console.log("Favorite button clicked, user token is:", currentUser?.token);
     // Check for token instead of sub
     if (!currentUser?.token) {
       promptLogin?.();
