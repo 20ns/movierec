@@ -1,17 +1,13 @@
-// FavoritesSection.jsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
 
 const FavoritesSection = ({ currentUser, isAuthenticated }) => {
-  const [favorites, setFavorites] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [isOpen, setIsOpen] = useState(false);
+  // ... existing state declarations
 
   const fetchFavorites = async () => {
-    if (!currentUser?.token) return;
+    if (!currentUser?.tokens?.idToken) return;
 
     setIsLoading(true);
     setError(null);
@@ -21,17 +17,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
         {
           headers: {
-            Authorization: `Bearer ${currentUser.token}`,
+            Authorization: `Bearer ${currentUser.tokens.idToken}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch favorites');
-      }
-
-      // Our Lambda returns an array of favorite items
+      if (!response.ok) throw new Error('Failed to fetch favorites');
       const data = await response.json();
       setFavorites(data);
     } catch (err) {
@@ -46,7 +38,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
     if (isOpen && isAuthenticated) {
       fetchFavorites();
     }
-  }, [isOpen, isAuthenticated, currentUser?.token]);
+  }, [isOpen, isAuthenticated, currentUser?.tokens?.idToken]);
 
   if (!isAuthenticated) {
     return null;

@@ -1,19 +1,18 @@
-// MediaCard.jsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   StarIcon, CalendarIcon, ChartBarIcon,
   UserGroupIcon, CheckCircleIcon, HeartIcon
 } from '@heroicons/react/24/solid';
-import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils'; // Ensure this path is correct
-import { useAuth } from './auth'; // Import useAuth
+import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
+import { useAuth } from './auth';
 
-export const MediaCard = ({ result, onClick, promptLogin }) => { // Remove currentUser
+export const MediaCard = ({ result, onClick, promptLogin }) => {
   const socialProof = getSocialProof(result);
   const [isFavorited, setIsFavorited] = useState(false);
-  const { currentUser } = useAuth(); // Get currentUser from context
+  const { currentUser } = useAuth();
 
-  // Fallback genre color function (kept for robustness)
+  // Fallback genre color function
   const getGenreColorFallback = (genreIds = []) => {
     const genreColors = {
       28: '#7f1d1d', 12: '#14532d', 16: '#713f12',
@@ -27,23 +26,21 @@ export const MediaCard = ({ result, onClick, promptLogin }) => { // Remove curre
     return hexToRgb(hexColor);
   };
 
-  // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      if (!currentUser?.token) return;
+      if (!currentUser?.tokens?.idToken) return;
 
       try {
         const response = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite?mediaId=${result.id}`,
           {
             headers: {
-              Authorization: `Bearer ${currentUser.token}`
+              Authorization: `Bearer ${currentUser.tokens.idToken}`
             }
           }
         );
 
         if (!response.ok) throw new Error('Failed to check favorite status');
-
         const data = await response.json();
         setIsFavorited(data.isFavorited);
       } catch (error) {
@@ -51,18 +48,14 @@ export const MediaCard = ({ result, onClick, promptLogin }) => { // Remove curre
       }
     };
 
-    if (currentUser?.token) { // Only check if authenticated
-        checkFavoriteStatus();
+    if (currentUser?.tokens?.idToken) {
+      checkFavoriteStatus();
     }
-  }, [currentUser?.token, result.id]);
+  }, [currentUser?.tokens?.idToken, result.id]);
 
-  // Handle adding/removing favorites
   const handleFavorite = async (e) => {
     e.stopPropagation();
-    console.log("Favorite button clicked");
-    console.log("Favorite button clicked, user token is:", currentUser?.token);
-
-    if (!currentUser?.token) {
+    if (!currentUser?.tokens?.idToken) {
       promptLogin?.();
       return;
     }
@@ -76,7 +69,7 @@ export const MediaCard = ({ result, onClick, promptLogin }) => { // Remove curre
           method,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentUser.token}`
+            Authorization: `Bearer ${currentUser.tokens.idToken}`
           },
           body: JSON.stringify({
             media: {
@@ -90,7 +83,6 @@ export const MediaCard = ({ result, onClick, promptLogin }) => { // Remove curre
       );
 
       if (!response.ok) throw new Error(`Failed to ${method} favorite`);
-
       setIsFavorited(!isFavorited);
     } catch (error) {
       console.error("Error updating favorite:", error);
