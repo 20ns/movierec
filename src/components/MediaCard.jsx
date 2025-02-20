@@ -27,7 +27,8 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      if (!currentUser?.sub) return;
+      // If you still want to check for sub, update here. Otherwise, you can skip this check entirely.
+      if (!currentUser?.token) return;
 
       try {
         const response = await fetch(
@@ -49,14 +50,13 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     };
 
     checkFavoriteStatus();
-    // Updated dependency array to use currentUser.token
   }, [currentUser?.token, result.id]);
 
   // Handle adding/removing favorites
   const handleFavorite = async (e) => {
     e.stopPropagation();
     console.log("Favorite button clicked");
-    // Updated to check for currentUser.token
+    // Check for token instead of sub
     if (!currentUser?.token) {
       promptLogin?.();
       return;
@@ -124,7 +124,11 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
             {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
           </span>
           <button onClick={handleFavorite} className="focus:outline-none">
-            <HeartIcon className={`w-6 h-6 ${isFavorited ? 'text-red-500 animate-pulse' : 'text-gray-300 hover:text-red-300'}`} />
+            <HeartIcon
+              className={`w-6 h-6 ${
+                isFavorited ? 'text-red-500 animate-pulse' : 'text-gray-300 hover:text-red-300'
+              }`}
+            />
           </button>
         </motion.div>
         {socialProof.friendsLiked > 0 && (
