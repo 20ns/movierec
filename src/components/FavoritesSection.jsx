@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
-import { ErrorBoundary } from 'react-error-boundary';  // Import ErrorBoundary
+import { ErrorBoundary } from 'react-error-boundary';
 
 function FallbackComponent({ error }) {
   return (
@@ -12,11 +12,10 @@ function FallbackComponent({ error }) {
   );
 }
 
-
 const FavoritesSection = ({ currentUser, isAuthenticated }) => {
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState([]);  // Initialize as empty array
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);  // Keep local error state for UI messages
+  const [error, setError] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
@@ -26,7 +25,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
     }
 
     setIsLoading(true);
-    setError(null);  // Clear previous errors
+    setError(null);
 
     try {
       const response = await fetch(
@@ -34,30 +33,38 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
         {
           headers: {
             Authorization: `Bearer ${currentUser.tokens.idToken}`,
-            // 'Content-Type' is not needed for GET requests
           }
         }
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch favorites');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch favorites: ${response.status}`);
       }
 
       const data = await response.json();
 
-      // Ensure data is always an array
-      if (!Array.isArray(data)) {
-        throw new Error('Invalid favorites data format');
+      // Ensure data is an array before setting state
+      if (data === null || data === undefined) {
+        setFavorites([]);
+      } else if (Array.isArray(data)) {
+        setFavorites(data);
+      } else if (typeof data === 'object') {
+        // If it's an object with values we want to convert
+        const dataArray = Object.values(data);
+        if (Array.isArray(dataArray)) {
+          setFavorites(dataArray);
+        } else {
+          setFavorites([]);
+        }
+      } else {
+        setFavorites([]);
       }
-
-      setFavorites(data);
 
     } catch (err) {
       console.error('Error fetching favorites:', err);
-      setError(err.message || 'Failed to load favorites. Please try again later.'); // Set local error
-      //  setError(err);  // Use err directly if sending to an error reporting service
-      // No need to re-throw, ErrorBoundary will catch it.
+      setError(err.message || 'Failed to load favorites. Please try again later.');
+      setFavorites([]); // Reset to empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -69,13 +76,17 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
     }
   }, [isOpen, isAuthenticated, currentUser?.tokens?.idToken]);
 
+  // Ensure favorites is always an array before mapping
+  const safeFavorites = Array.isArray(favorites) ? favorites : [];
+
   if (!isAuthenticated) {
-    return null;  // Or a "Login to see favorites" message
+    return null;
   }
 
   return (
     <ErrorBoundary FallbackComponent={FallbackComponent}>
       <div className="fixed right-20 top-4 z-50">
+        {/* Button code remains the same */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
           className="group relative px-6 py-3 rounded-full text-white border-2 border-red-500 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 transition-all duration-500 ease-in-out overflow-hidden hover:border-red-400 hover:shadow-lg hover:shadow-red-500/50"
@@ -124,15 +135,14 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
                     </div>
                   )}
 
-                  {/* Display local error message */}
                   {error && (
-                      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-                          {error}
-                      </div>
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                      {error}
+                    </div>
                   )}
 
                   <div className="space-y-4">
-                    {!isLoading && favorites.length === 0 && (
+                    {!isLoading && safeFavorites.length === 0 && (
                       <div className="text-center py-8">
                         <HeartIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                         <p className="text-gray-600">No favorites yet</p>
@@ -142,14 +152,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
                       </div>
                     )}
 
-                    {favorites.map((fav) => {
-                      // Map the favorite item to the format expected by MediaCard
+                    {safeFavorites.map((fav) => {
                       const result = {
                         id: fav.mediaId,
                         title: fav.title,
                         poster_path: fav.posterPath,
                         media_type: fav.mediaType,
-                        // Add other fields as necessary
                       };
                       return (
                         <motion.div
@@ -162,10 +170,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
                           <MediaCard
                             result={result}
                             currentUser={currentUser}
-                            onFavoriteToggle={() => {
-                              // Refresh favorites list after toggling favorite status
-                              fetchFavorites();
-                            }}
+                            onFavoriteToggle={fetchFavorites}
                           />
                         </motion.div>
                       );
