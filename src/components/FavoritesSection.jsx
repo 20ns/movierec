@@ -21,50 +21,35 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   const fetchFavorites = async () => {
     if (!currentUser?.tokens?.idToken) {
       setError('Authentication required');
+      setFavorites([]);
       return;
     }
-
+  
     setIsLoading(true);
     setError(null);
-
+  
     try {
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
         {
+          method: 'GET', // Explicitly set method
           headers: {
             Authorization: `Bearer ${currentUser.tokens.idToken}`,
-          }
+          },
         }
       );
-
+  
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Failed to fetch favorites: ${response.status}`);
       }
-
+  
       const data = await response.json();
-
-      // Ensure data is an array before setting state
-      if (data === null || data === undefined) {
-        setFavorites([]);
-      } else if (Array.isArray(data)) {
-        setFavorites(data);
-      } else if (typeof data === 'object') {
-        // If it's an object with values we want to convert
-        const dataArray = Object.values(data);
-        if (Array.isArray(dataArray)) {
-          setFavorites(dataArray);
-        } else {
-          setFavorites([]);
-        }
-      } else {
-        setFavorites([]);
-      }
-
+      setFavorites(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching favorites:', err);
       setError(err.message || 'Failed to load favorites. Please try again later.');
-      setFavorites([]); // Reset to empty array on error
+      setFavorites([]);
     } finally {
       setIsLoading(false);
     }
