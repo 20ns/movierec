@@ -13,13 +13,13 @@ function FallbackComponent({ error }) {
 }
 
 const FavoritesSection = ({ currentUser, isAuthenticated }) => {
-  const [favorites, setFavorites] = useState([]);  // Initialize as empty array
+  const [favorites, setFavorites] = useState([]);  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    if (!currentUser?.tokens?.idToken) {
+    if (!currentUser?.tokens?.accessToken) {
       setError('Authentication required');
       setFavorites([]);
       return;
@@ -32,9 +32,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
         {
-          method: 'GET', // Explicitly set method
+          method: 'GET',
           headers: {
-            Authorization: `Bearer ${currentUser.tokens.idToken}`,
+            Authorization: `Bearer ${currentUser.tokens.accessToken}`,
           },
         }
       );
@@ -59,9 +59,8 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
     if (isOpen && isAuthenticated) {
       fetchFavorites();
     }
-  }, [isOpen, isAuthenticated, currentUser?.tokens?.idToken]);
+  }, [isOpen, isAuthenticated, currentUser?.tokens?.accessToken]);
 
-  // Ensure favorites is always an array before mapping
   const safeFavorites = Array.isArray(favorites) ? favorites : [];
 
   if (!isAuthenticated) {
@@ -71,7 +70,6 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   return (
     <ErrorBoundary FallbackComponent={FallbackComponent}>
       <div className="fixed right-20 top-4 z-50">
-        {/* Button code remains the same */}
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
           className="group relative px-6 py-3 rounded-full text-white border-2 border-red-500 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 transition-all duration-500 ease-in-out overflow-hidden hover:border-red-400 hover:shadow-lg hover:shadow-red-500/50"
