@@ -9,6 +9,7 @@ import { useAuth } from '../auth/auth';
 import PropTypes from 'prop-types';
 import { ErrorBoundary } from 'react-error-boundary';
 
+// Fallback component for ErrorBoundary
 function MediaCardFallback({ error }) {
   return (
     <div className="bg-yellow-100 p-2 rounded mb-2">
@@ -17,27 +18,13 @@ function MediaCardFallback({ error }) {
   );
 }
 
-// Add this useEffect at the top of your MediaCard component
-useEffect(() => {
-  if (!currentUser?.tokens?.accessToken) {
-    console.log("No access token available");
-    return;
-  }
-  
-  // Verify token format
-  console.log("Access token structure:", 
-    currentUser.tokens.accessToken.split('.')[0], 
-    currentUser.tokens.accessToken.length
-  );
-}, [currentUser]);
-
 export const MediaCard = ({ result, onClick, promptLogin }) => {
   // Ensure required fields exist and provide fallbacks
   const safeResult = {
     id: result?.id || '',
     title: result?.title || result?.name || 'Untitled',
-    poster_path: result?.poster_path || '',  
-    media_type: result?.media_type || 'movie', 
+    poster_path: result?.poster_path || '',
+    media_type: result?.media_type || 'movie',
     overview: result?.overview || 'No overview available.',
     vote_average: result?.vote_average || 0,
     release_date: result?.release_date || result?.first_air_date || '',
@@ -51,6 +38,27 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
   const socialProof = getSocialProof(safeResult);
   const [isFavorited, setIsFavorited] = useState(false);
   const { currentUser } = useAuth();
+
+  // **useEffect Hook 1**: Check for access token availability and log its structure
+  useEffect(() => {
+    if (!currentUser) {
+      console.log("currentUser is undefined");
+      return;
+    }
+    if (!currentUser.tokens) {
+      console.log("currentUser.tokens is undefined");
+      return;
+    }
+    if (!currentUser.tokens.accessToken) {
+      console.log("No access token available");
+      return;
+    }
+
+    console.log("Access token structure:", 
+      currentUser.tokens.accessToken.split('.')[0], 
+      currentUser.tokens.accessToken.length
+    );
+  }, [currentUser]);
 
   // Fallback genre color function
   const getGenreColorFallback = (genreIds = []) => {
@@ -66,6 +74,7 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
     return hexToRgb(hexColor);
   };
 
+  // Token validation function
   const isTokenValid = () => {
     const token = currentUser?.tokens?.accessToken;
     if (!token) return false;
@@ -78,12 +87,11 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
     }
   };
 
-  // Use the access token for authorization
+  // **useEffect Hook 2**: Check favorite status using access token
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       if (!isTokenValid()) {
         alert('Session expired. Please login again.');
-        // Trigger logout
         return;
       }
       if (!currentUser?.tokens?.accessToken) return;
@@ -109,6 +117,7 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
     }
   }, [currentUser?.tokens?.accessToken, safeResult.id]);
 
+  // Handle favorite/unfavorite action
   const handleFavorite = async (e) => {
     e.stopPropagation();
     if (!currentUser?.tokens?.accessToken) {
