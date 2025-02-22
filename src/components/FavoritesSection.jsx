@@ -19,78 +19,79 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    // Check if the user is authenticated
+    // Check if user is authenticated
     if (!currentUser?.tokens?.accessToken) {
-      setError('Authentication required');
-      setFavorites([]);
-      return;
+        setError('Authentication required');
+        setFavorites([]);
+        return;
     }
 
-    // Set loading state and clear any previous errors
+    // Initialize loading state
     setIsLoading(true);
     setError(null);
 
-    // Log the current user's tokens for debugging
-    console.log("Current user tokens:", currentUser?.tokens);
+    // Log request details for debugging
+    console.log("Current access token:", currentUser?.tokens?.accessToken);
+    console.log("Making request to:", `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`);
 
     try {
-      // Make the API request to fetch favorites
-      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${currentUser.tokens.accessToken}`,
-          },
+        // Make the fetch request
+        const response = await fetch(
+            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${currentUser.tokens.accessToken}`,
+                },
+            }
+        );
+
+        console.log("Response status:", response.status);
+
+        // Parse response body as JSON once
+        let data;
+        try {
+            data = await response.json();
+            console.log("Parsed response data:", data);
+        } catch (jsonError) {
+            console.error("Failed to parse JSON:", jsonError);
+            throw new Error("Invalid response format");
         }
-      );
 
-      // Log the raw response object for debugging
-      console.log("Raw response:", response);
+        // Handle 401 Unauthorized specifically
+        if (response.status === 401) {
+            localStorage.removeItem('currentUser');
+            window.location.reload();
+            return;
+        }
 
-      // Parse the response as JSON (since the API returns JSON)
-      const data = await response.json();
-      // Log the parsed response data for debugging
-      console.log("Parsed response data:", data);
+        // Handle other error statuses
+        if (!response.ok) {
+            throw new Error(data.error || `Failed to fetch favorites: ${response.status}`);
+        }
 
-      // Handle 401 Unauthorized response
-      if (response.status === 401) {
-        localStorage.removeItem('currentUser');
-        window.location.reload();
-        return;
-      }
+        // Set favorites if successful
+        setFavorites(Array.isArray(data) ? data : []);
 
-      // Check if the response is not OK
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
-      }
-
-      // Set the favorites state, ensuring it's an array
-      setFavorites(Array.isArray(data) ? data : []);
-    } catch (error) {
-      // Log the full error for debugging
-      console.error("Full fetch error:", error);
-      // Set the error state with a user-friendly message
-      setError(error.toString());
-      // Clear favorites on error
-      setFavorites([]);
+    } catch (err) {
+        // Handle all errors
+        console.error('Error fetching favorites:', err);
+        setError(err.message || 'Failed to load favorites. Please try again later.');
+        setFavorites([]);
     } finally {
-      // Always set loading state to false
-      setIsLoading(false);
+        // Cleanup loading state
+        setIsLoading(false);
     }
-  };
-
-  // Use effect to fetch favorites when the panel is opened and user is authenticated
+};
   useEffect(() => {
     if (isOpen && isAuthenticated) {
       fetchFavorites();
     }
   }, [isOpen, isAuthenticated, currentUser?.tokens?.accessToken]);
 
-  // Ensure favorites is always an array for rendering
+
   const safeFavorites = Array.isArray(favorites) ? favorites : [];
 
-  // If not authenticated, render nothing
   if (!isAuthenticated) {
     return null;
   }
