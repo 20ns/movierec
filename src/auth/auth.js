@@ -17,19 +17,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const handleSigninSuccess = (tokens, email) => {
-    const user = { 
-      email,
-      tokens: {
-        idToken: tokens.idToken,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken
-      }
-    };
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    setIsAuthenticated(true);
-    setCurrentUser(user);
+// Updated handleSigninSuccess in AuthProvider
+const handleSigninSuccess = (tokens, email) => {
+  const user = { 
+    email,
+    tokens: {
+      idToken: tokens.IdToken,
+      accessToken: tokens.AccessToken,  // Capitalized to match Cognito response
+      refreshToken: tokens.RefreshToken
+    }
   };
+  localStorage.setItem('currentUser', JSON.stringify(user));
+  setIsAuthenticated(true);
+  setCurrentUser(user);
+};
 
   const handleSignout = () => {
     localStorage.removeItem('currentUser');

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Auth } from 'aws-amplify';
+import { Amplify, Auth } from 'aws-amplify'; // Import Amplify as well
 
 function PrintAccessToken() {
   useEffect(() => {
@@ -10,6 +10,9 @@ function PrintAccessToken() {
         console.log("Access Token:", accessToken);
       } catch (error) {
         console.error("Error fetching access token:", error);
+        if (error === "No current user") {
+          console.log("User is not logged in.  Please log in to obtain a token.");
+        }
       }
     }
     fetchToken();

@@ -17,6 +17,7 @@ function MediaCardFallback({ error }) {
   );
 }
 
+
 export const MediaCard = ({ result, onClick, promptLogin }) => {
   // Ensure required fields exist and provide fallbacks
   const safeResult = {
@@ -52,9 +53,26 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
     return hexToRgb(hexColor);
   };
 
+  const isTokenValid = () => {
+    const token = currentUser?.tokens?.accessToken;
+    if (!token) return false;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 > Date.now();
+    } catch {
+      return false;
+    }
+  };
+
   // Use the access token for authorization
   useEffect(() => {
     const checkFavoriteStatus = async () => {
+      if (!isTokenValid()) {
+        alert('Session expired. Please login again.');
+        // Trigger logout
+        return;
+      }
       if (!currentUser?.tokens?.accessToken) return;
       try {
         const response = await fetch(
