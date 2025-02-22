@@ -13,7 +13,7 @@ function FallbackComponent({ error }) {
 }
 
 const FavoritesSection = ({ currentUser, isAuthenticated }) => {
-  const [favorites, setFavorites] = useState([]);  
+  const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -24,10 +24,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
       setFavorites([]);
       return;
     }
-  
+
     setIsLoading(true);
     setError(null);
-  
+
+    console.log("Current access token:", currentUser?.tokens?.accessToken); // Log the token
+    console.log("Making request to:", `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`); // Log the URL
+
     try {
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
@@ -38,12 +41,21 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
           },
         }
       );
-  
+
+      console.log("Response status:", response.status); // Log response status
+
+      if (response.status === 401) {
+        localStorage.removeItem('currentUser'); // Clear local storage
+        window.location.reload(); // Force page reload for re-authentication
+        return; // Important: Stop execution after redirect
+      }
+
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Failed to fetch favorites: ${response.status}`);
       }
-  
+
       const data = await response.json();
       setFavorites(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -60,6 +72,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
       fetchFavorites();
     }
   }, [isOpen, isAuthenticated, currentUser?.tokens?.accessToken]);
+
 
   const safeFavorites = Array.isArray(favorites) ? favorites : [];
 
