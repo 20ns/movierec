@@ -5,6 +5,7 @@ import AuthPage from './auth/authPage';
 import SignInModal from './components/SigninForm';
 import UserMenu from './account/UserMenu';
 import FavoritesSection from './components/FavoritesSection';
+import PrintAccessToken from './components/PrintAccessToken'; // Added import
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/auth'; // Import both from auth.js
 
@@ -41,9 +42,12 @@ function App() {
           </div>
         </header>
 
-        {/* Favorites section only shows for authenticated users */}
+        {/* Favorites section and PrintAccessToken only show for authenticated users */}
         {isAuthenticated && (
-          <FavoritesSection currentUser={currentUser} isAuthenticated={isAuthenticated} />
+          <>
+            <FavoritesSection currentUser={currentUser} isAuthenticated={isAuthenticated} />
+            <PrintAccessToken />
+          </>
         )}
 
         <main className="relative z-10">
