@@ -18,13 +18,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
 // Updated handleSigninSuccess in AuthProvider
+// In your AuthProvider.js, update the success handlers:
 const handleSigninSuccess = (tokens, email) => {
   const user = { 
     email,
     tokens: {
-      idToken: tokens.IdToken,
-      accessToken: tokens.AccessToken,  // Capitalized to match Cognito response
-      refreshToken: tokens.RefreshToken
+      idToken: tokens.IdToken,    // Capital I
+      accessToken: tokens.AccessToken,  // Capital A
+      refreshToken: tokens.RefreshToken // Capital R
     }
   };
   localStorage.setItem('currentUser', JSON.stringify(user));

@@ -17,6 +17,19 @@ function MediaCardFallback({ error }) {
   );
 }
 
+// Add this useEffect at the top of your MediaCard component
+useEffect(() => {
+  if (!currentUser?.tokens?.accessToken) {
+    console.log("No access token available");
+    return;
+  }
+  
+  // Verify token format
+  console.log("Access token structure:", 
+    currentUser.tokens.accessToken.split('.')[0], 
+    currentUser.tokens.accessToken.length
+  );
+}, [currentUser]);
 
 export const MediaCard = ({ result, onClick, promptLogin }) => {
   // Ensure required fields exist and provide fallbacks
