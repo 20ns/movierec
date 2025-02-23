@@ -4,7 +4,7 @@ import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
 import SignInModal from './components/SigninForm';
 import UserMenu from './account/UserMenu';
-import FavoritesSection from './components/FavoritesSection';
+import FavoritesSection from './components/FavouritesSection';
 import PrintAccessToken from './components/PrintAccessToken'; // Added import
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/auth'; // Import both from auth.js
