@@ -37,7 +37,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
     try {
         // Make the fetch request
         const response = await fetch(
-            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
+            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
             {
                 method: 'GET',
                 headers: {
