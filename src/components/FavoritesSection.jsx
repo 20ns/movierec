@@ -32,7 +32,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
 
     // Log request details for debugging
     console.log("Current access token:", currentUser?.tokens?.accessToken);
-    console.log("Making request to:", `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`);
+    console.log("Making request to:", `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`);
 
     try {
         // Make the fetch request
