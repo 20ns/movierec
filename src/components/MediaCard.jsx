@@ -97,7 +97,7 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
       if (!currentUser?.tokens?.accessToken) return;
       try {
         const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite?mediaId=${safeResult.id}`,
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${safeResult.id}`,
           {
             headers: {
               Authorization: `Bearer ${currentUser.tokens.accessToken}`
@@ -127,7 +127,7 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
           method: isFavorited ? 'DELETE' : 'POST',
           headers: {
