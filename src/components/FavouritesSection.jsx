@@ -19,70 +19,27 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    // Check if user is authenticated
-    if (!currentUser?.tokens?.accessToken) {
-        setError('Authentication required');
-        setFavorites([]);
-        return;
-    }
-
-    // Initialize loading state
-    setIsLoading(true);
-    setError(null);
-
-    // Log request details for debugging
-    console.log("Current access token:", currentUser?.tokens?.accessToken);
-    console.log("Making request to:", `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`);
-
     try {
-        // Make the fetch request
-        const response = await fetch(
-            `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${currentUser.tokens.accessToken}`,
-                },
-            }
-        );
-
-        console.log("Response status:", response.status);
-
-        // Parse response body as JSON once
-        let data;
-        try {
-            data = await response.json();
-            console.log("Parsed response data:", data);
-        } catch (jsonError) {
-            console.error("Failed to parse JSON:", jsonError);
-            throw new Error("Invalid response format");
-        }
-
-        // Handle 401 Unauthorized specifically
-        if (response.status === 401) {
-            localStorage.removeItem('currentUser');
-            window.location.reload();
-            return;
-        }
-
-        // Handle other error statuses
-        if (!response.ok) {
-            throw new Error(data.error || `Failed to fetch favorites: ${response.status}`);
-        }
-
-        // Set favorites if successful
-        setFavorites(Array.isArray(data) ? data : []);
-
-    } catch (err) {
-        // Handle all errors
-        console.error('Error fetching favorites:', err);
-        setError(err.message || 'Failed to load favorites. Please try again later.');
-        setFavorites([]);
+      const response = await authFetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
+        { method: 'GET' },
+        { refreshAuthToken, currentUser }
+      );
+  
+      const data = await response.json();
+      setFavorites(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setError(error.message);
+      if (error.message.includes('Session expired')) {
+        localStorage.removeItem('currentUser');
+        window.location.reload();
+      }
     } finally {
-        // Cleanup loading state
-        setIsLoading(false);
+      setIsLoading(false);
     }
-};
+  };
+  
+  // Update useEffect
   useEffect(() => {
     if (isOpen && isAuthenticated) {
       fetchFavorites();

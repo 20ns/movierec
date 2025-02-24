@@ -120,40 +120,46 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
   // Handle favorite/unfavorite action
   const handleFavorite = async (e) => {
     e.stopPropagation();
-    if (!currentUser?.tokens?.accessToken) {
-      promptLogin?.();
-      return;
-    }
-
+    if (!currentUser) return promptLogin?.();
+  
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
           method: isFavorited ? 'DELETE' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentUser.tokens.accessToken}`
-          },
+          headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
             media: {
               id: safeResult.id,
+              media_type: safeResult.media_type,
               title: safeResult.title,
-              poster_path: safeResult.poster_path,
-              media_type: safeResult.media_type
+              poster_path: safeResult.poster_path
             }
           })
-        }
+        },
+        { refreshAuthToken, currentUser }
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update favorite');
-      }
-
+  
       setIsFavorited(!isFavorited);
     } catch (error) {
-      console.error("Error updating favorite:", error);
-      alert(`Failed to ${isFavorited ? 'remove from' : 'add to'} favorites. Please try again.`);
+      console.error("Favorite update failed:", error);
+      alert(error.message);
+    }
+  };
+  
+  // In useEffect for checking favorite status
+  const checkFavoriteStatus = async () => {
+    try {
+      const response = await authFetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${safeResult.id}`,
+        { method: 'GET' },
+        { refreshAuthToken, currentUser }
+      );
+      
+      const data = await response.json();
+      setIsFavorited(data.isFavorited);
+    } catch (error) {
+      console.error("Favorite check failed:", error);
     }
   };
 

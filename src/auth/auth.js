@@ -11,6 +11,35 @@ const normalizeTokens = (tokens) => {
   };
 };
 
+const refreshAuthToken = async () => {
+  const storedUser = localStorage.getItem('currentUser');
+  if (!storedUser) return null;
+
+  const user = JSON.parse(storedUser);
+  if (!user?.tokens?.refreshToken) return null;
+
+  try {
+    const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/refresh`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ refreshToken: user.tokens.refreshToken })
+    });
+
+    const newTokens = await response.json();
+    const updatedUser = {
+      ...user,
+      tokens: normalizeTokens({ ...user.tokens, ...newTokens })
+    };
+    
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    return newTokens.accessToken;
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    handleSignout();
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -63,6 +92,7 @@ export const AuthProvider = ({ children }) => {
     onSigninSuccess: handleSigninSuccess,
     onSignout: handleSignout,
     onSignupSuccess: handleSignupSuccess,
+    refreshAuthToken
   };
 
   return (
