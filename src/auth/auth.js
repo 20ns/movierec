@@ -94,12 +94,29 @@ export const AuthProvider = ({ children }) => {
     onSignupSuccess: handleSignupSuccess,
     refreshAuthToken
   };
-
-  return (
-    <AuthContext.Provider value={authContextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  refreshAuthToken: async () => {
+    const storedUser = localStorage.getItem('currentUser');
+    if (!storedUser) return null;
+    
+    const user = JSON.parse(storedUser);
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/refresh`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ refreshToken: user.tokens.refreshToken })
+        }
+      );
+      const newTokens = await response.json();
+      // Update user context
+      handleSigninSuccess(newTokens, user.email);
+      return newTokens.accessToken;
+    } catch (error) {
+      handleSignout();
+      return null;
+    }
+  }
 };
 
 export const useAuth = () => {

@@ -7,6 +7,7 @@ import {
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
 import { useAuth } from '../auth/auth';
 import PropTypes from 'prop-types';
+import { authFetch } from '../auth/api'; 
 import { ErrorBoundary } from 'react-error-boundary';
 
 // Fallback component for ErrorBoundary
@@ -90,25 +91,20 @@ export const MediaCard = ({ result, onClick, promptLogin }) => {
   // **useEffect Hook 2**: Check favorite status using access token
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      if (!isTokenValid()) {
-        alert('Session expired. Please login again.');
-        return;
-      }
-      if (!currentUser?.tokens?.accessToken) return;
       try {
-        const response = await fetch(
+        const response = await authFetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${safeResult.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${currentUser.tokens.accessToken}`
-            }
+          { method: 'GET' },
+          { 
+            refreshAuthToken: useAuth().refreshAuthToken,
+            currentUser: useAuth().currentUser
           }
         );
-        if (!response.ok) throw new Error('Failed to check favorite status');
+        
         const data = await response.json();
         setIsFavorited(data.isFavorited);
       } catch (error) {
-        console.error("Error checking favorite status:", error);
+        console.error("Favorite check failed:", error);
       }
     };
 
