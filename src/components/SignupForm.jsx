@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Auth } from '@aws-amplify/auth';
 
 const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
   const [password, setPassword] = useState('');

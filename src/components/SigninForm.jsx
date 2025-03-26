@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
+import { Auth } from '@aws-amplify/auth';
 
 const SignInModal = ({ onSigninSuccess }) => {
   const [email, setEmail] = useState('');
