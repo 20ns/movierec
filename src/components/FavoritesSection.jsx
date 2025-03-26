@@ -11,19 +11,19 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    if (!currentUser?.signInUserSession?.idToken?.jwtToken) return;
-
-    setIsLoading(true);
-    setError(null);
+    if (!currentUser?.signInUserSession?.idToken?.jwtToken) {
+      console.error('No JWT token available');
+      setError('Authentication token missing');
+      return;
+    }
 
     try {
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
-          headers: {
-            Authorization: `Bearer ${currentUser.signInUserSession.idToken.jwtToken}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { 
+            Authorization: `Bearer ${currentUser.signInUserSession.idToken.jwtToken}`
+          }
         }
       );
 
@@ -43,10 +43,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   };
 
   useEffect(() => {
-    if (isOpen && isAuthenticated && currentUser?.signInUserSession?.idToken?.jwtToken) {
+    if (isOpen && isAuthenticated && currentUser?.signInUserSession) {
       fetchFavorites();
     }
-  }, [isOpen, isAuthenticated, currentUser?.signInUserSession?.idToken?.jwtToken]);
+  }, [isOpen, isAuthenticated, currentUser?.signInUserSession]);
 
   if (!isAuthenticated) {
     return null;
@@ -56,13 +56,17 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
     <div className="fixed right-20 top-4 z-50">
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="group relative px-6 py-3 rounded-full text-white border-2 border-red-500 bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 transition-all duration-500 ease-in-out overflow-hidden hover:border-red-400 hover:shadow-lg hover:shadow-red-500/50"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        disabled={!currentUser?.signInUserSession}
+        className={`... ${!currentUser?.signInUserSession ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-600 to-pink-500 opacity-30 blur-lg z-[-1] transition-opacity duration-500 ease-in-out group-hover:opacity-50"></div>
-        <HeartIcon className="w-6 h-6 inline-block mr-2" />
-        Favorites
+        {currentUser?.signInUserSession ? (
+          <>
+            <HeartIcon className="w-6 h-6 inline-block mr-2" />
+            Favorites
+          </>
+        ) : (
+          'Loading auth...'
+        )}
       </motion.button>
 
       <AnimatePresence>
