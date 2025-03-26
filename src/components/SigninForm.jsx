@@ -29,7 +29,12 @@ const SignInModal = ({ onSigninSuccess }) => {
     setError('');
     
     try {
-      const user = await Auth.signIn(email, password);
+      const user = await Auth.signIn({
+        username: email,
+        password: password
+      });
+      
+      console.log('Sign in successful:', user);
       onSigninSuccess(user);
       setIsOpen(false);
     } catch (error) {
