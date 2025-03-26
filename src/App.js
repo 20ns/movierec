@@ -7,7 +7,6 @@ import UserMenu from './account/UserMenu';
 import FavoritesSection from './components/FavoritesSection';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
-import { Auth } from 'aws-amplify';
 
 function AppContent() {
   const {

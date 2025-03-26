@@ -3,6 +3,7 @@ import SignupForm from '../components/SignupForm';
 import SigninForm from '../components/SigninForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { Amplify } from 'aws-amplify';
 import { Auth } from 'aws-amplify';
 
 const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
