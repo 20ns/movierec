@@ -14,6 +14,7 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [showSignUp, setShowSignUp] = useState(false);
 
   const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
+  console.log('Secret:', CLIENT_SECRET);
 
   const calculateSecretHash = (username) => {
     const message = username + awsconfig.Auth.userPoolWebClientId;
