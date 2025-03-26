@@ -11,7 +11,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    if (!currentUser?.token) return;
+    if (!currentUser?.signInUserSession?.idToken?.jwtToken) return;
 
     setIsLoading(true);
     setError(null);
@@ -21,7 +21,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
           headers: {
-            Authorization: `Bearer ${currentUser.token}`,
+            Authorization: `Bearer ${currentUser.signInUserSession.idToken.jwtToken}`,
             'Content-Type': 'application/json',
           },
         }
@@ -43,10 +43,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   };
 
   useEffect(() => {
-    if (isOpen && isAuthenticated) {
+    if (isOpen && isAuthenticated && currentUser?.signInUserSession?.idToken?.jwtToken) {
       fetchFavorites();
     }
-  }, [isOpen, isAuthenticated, currentUser?.token]);
+  }, [isOpen, isAuthenticated, currentUser?.signInUserSession?.idToken?.jwtToken]);
 
   if (!isAuthenticated) {
     return null;
