@@ -18,7 +18,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite`,
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
           headers: {
             Authorization: `Bearer ${currentUser.token}`,
