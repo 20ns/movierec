@@ -11,17 +11,32 @@ const SignInModal = ({ onSigninSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-  
     try {
-      const user = await Auth.signIn(email, password);
-      console.log('Authenticated user:', user);
-      onSigninSuccess(user);
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Sign in error:', error);
-      setError(error.message || 'Sign in failed');
-    }
+      await Auth.signIn({
+        username: email,
+        password,
+        clientMetadata: {
+          'SECRET_HASH': await generateSecretHash(email)
+        }
+      });
+    } catch (error) { /* ... */ }
+  };
+  
+  // Add secret hash generator
+  const generateSecretHash = async (username) => {
+    const encoder = new TextEncoder();
+    const data = new Uint8Array(
+      encoder.encode(username + 'YOUR_CLIENT_ID')
+    );
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode('YOUR_CLIENT_SECRET'),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', key, data);
+    return btoa(String.fromCharCode(...new Uint8Array(signature)));
   };
 
   return (
