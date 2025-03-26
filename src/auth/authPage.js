@@ -1,23 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SignupForm from '../components/SignupForm';
 import SigninForm from '../components/SigninForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { Auth } from 'aws-amplify';
 
 const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const initialMode = searchParams.get('mode') === 'signup';
   const [showSignupForm, setShowSignupForm] = useState(initialMode);
+  const [authError, setAuthError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleToggleForm = (mode) => {
     setShowSignupForm(mode === 'signup');
-    navigate(`/signin?mode=${mode}`);
+    navigate(`/auth?mode=${mode}`);
+    setAuthError('');
+  };
+
+  // Handle authentication success properly
+  const handleAuthSuccess = async (authResult, isSignup = false) => {
+    setIsLoading(true);
+    try {
+      const cognitoUser = await Auth.currentAuthenticatedUser();
+      if (isSignup) {
+        onSignupSuccess?.(cognitoUser);
+      } else {
+        onSigninSuccess?.(cognitoUser);
+      }
+      navigate(location.state?.from || '/', { replace: true });
+    } catch (error) {
+      console.error('Auth confirmation error:', error);
+      setAuthError('Authentication verification failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen pt-20 px-4 flex items-center justify-center"> {/* Added flexbox centering */}
-      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg"> {/* Added w-full */}
+    <div className="min-h-screen pt-20 px-4 flex items-center justify-center">
+      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        )}
+
         <div className="flex justify-around mb-4">
           <button
             onClick={() => handleToggleForm('signup')}
@@ -41,6 +71,12 @@ const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
           </button>
         </div>
 
+        {authError && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+            {authError}
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {showSignupForm ? (
             <motion.div
@@ -50,7 +86,10 @@ const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
               transition={{ duration: 0.2 }}
               key="signup-form"
             >
-              <SignupForm onSignupSuccess={onSignupSuccess} />
+              <SignupForm 
+                onSignupSuccess={(user) => handleAuthSuccess(user, true)}
+                onError={setAuthError}
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -60,8 +99,10 @@ const AuthPage = ({ onSignupSuccess, onSigninSuccess }) => {
               transition={{ duration: 0.2 }}
               key="signin-form"
             >
-                {/*  No changes to how SigninForm is rendered!  */}
-              <SigninForm onSigninSuccess={onSigninSuccess} />
+              <SigninForm 
+                onSigninSuccess={handleAuthSuccess}
+                onError={setAuthError}
+              />
             </motion.div>
           )}
         </AnimatePresence>

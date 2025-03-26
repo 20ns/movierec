@@ -11,40 +11,15 @@ const SignInModal = ({ onSigninSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    console.log('Attempting to sign in with:', {
-      emailLength: email.length,
-      passwordLength: password.length,
-      apiUrl: process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signin',
-    });
-
+  
     try {
-      const apiEndpoint = process.env.REACT_APP_API_GATEWAY_INVOKE_URL + '/signin';
-      console.log('Making request to:', apiEndpoint);
-
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ username: email, password }),
-      });
-
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || 'Signin failed');
-        return;
-      }
-
-      const responseData = await response.json();
-      console.log("responseData:", responseData);
-      onSigninSuccess(responseData.tokens, responseData.email);
+      const user = await Auth.signIn(email, password);
+      console.log('Authenticated user:', user);
+      onSigninSuccess(user);
       setIsOpen(false);
-    } catch (err) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (error) {
+      console.error('Sign in error:', error);
+      setError(error.message || 'Sign in failed');
     }
   };
 

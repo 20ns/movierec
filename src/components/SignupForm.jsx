@@ -10,72 +10,23 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
+  
     try {
-      if (!process.env.REACT_APP_API_GATEWAY_INVOKE_URL) {
-        setError("API endpoint is not configured. Check your .env file.");
-        return;
-      }
-
-      const endpoint = `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/signup`;
-      
-      console.log('Sending request to:', endpoint);
-      console.log('Request payload:', {
-        email: email.trim(),
-        passwordLength: password.length
-      });
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password
-        })
-      });
-
-      const data = await response.json();
-      console.log('Response status:', response.status);
-      console.log('Response data:', data);
-
-      if (!response.ok) {
-        // Handle specific error cases
-        if (data.code === 'UsernameExistsException') {
-          setError('This email is already registered');
-        } else if (data.code === 'InvalidPasswordException') {
-          setError('Password must be at least 8 characters with uppercase, lowercase, number, and special character');
-        } else if (data.code === 'InvalidParameterException') {
-          setError('Please provide a valid email address');
-        } else if (data.error) {
-          setError(data.error);
-        } else {
-          setError('Signup failed. Please try again.');
+      const { user } = await Auth.signUp({
+        username: email,
+        password,
+        attributes: {
+          email
         }
-        return;
-      }
-
-      // Handle successful signup
-      if (data.message && data.message.includes('verification')) {
-        onSignupSuccess();
-        alert('Please check your email for a verification code!');
-        onClose();
-      } else {
-        onSignupSuccess();
-        alert('Signup successful!');
-        onClose();
-      }
-
-    } catch (err) {
-      console.error('Signup error:', err);
-      
-      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-        setError('Unable to connect to the server. Please check your internet connection.');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
+      });
+  
+      console.log('Signed up user:', user);
+      alert('Please check your email for verification code!');
+      onSignupSuccess();
+      onClose();
+    } catch (error) {
+      console.error('Sign up error:', error);
+      setError(error.message || 'Sign up failed');
     } finally {
       setIsLoading(false);
     }

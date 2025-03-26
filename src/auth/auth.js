@@ -1,46 +1,51 @@
 // auth.js
 import { useState, useEffect } from 'react';
+import { Auth } from 'aws-amplify';
 
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      setIsAuthenticated(true);
-      setCurrentUser(JSON.parse(storedUser));
-    }
+    checkAuthState();
   }, []);
 
-  const handleSigninSuccess = (tokens, email, sub) => {
-    // Ensure sub is included from the Cognito response
-    const user = { token: tokens.accessToken, email, sub };
-    localStorage.setItem('currentUser', JSON.stringify(user));
+  const checkAuthState = async () => {
+    try {
+      const user = await Auth.currentAuthenticatedUser();
+      setIsAuthenticated(true);
+      setCurrentUser(user);
+    } catch (error) {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSigninSuccess = async (user) => {
     setIsAuthenticated(true);
     setCurrentUser(user);
   };
 
-  const handleSignout = () => {
-    localStorage.removeItem('currentUser');
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    
-  };
-
-  const handleSignupSuccess = (tokens, email, sub) => {
-    const user = { token: tokens.accessToken, email, sub };
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    setIsAuthenticated(true);
-    setCurrentUser(user);
+  const handleSignout = async () => {
+    try {
+      await Auth.signOut();
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return {
     isAuthenticated,
     currentUser,
-    handleSignupSuccess,
+    loading,
     handleSigninSuccess,
-    handleSignout
+    handleSignout,
+    checkAuthState
   };
 };
 
