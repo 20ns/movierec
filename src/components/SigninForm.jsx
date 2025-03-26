@@ -23,6 +23,18 @@ const SignInModal = ({ onSigninSuccess }) => {
     const signature = await crypto.subtle.sign('HMAC', key, data);
     return btoa(String.fromCharCode(...new Uint8Array(signature)));
   };
+  const CLIENT_ID = process.env.REACT_APP_COGNITO_CLIENT_ID;
+  const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
+  
+
+  
+  const calculateSecretHash = (username) => {
+    const crypto = require('crypto');
+    const message = username + CLIENT_ID;
+    const hmac = crypto.createHmac('SHA256', CLIENT_SECRET);
+    hmac.update(message);
+    return hmac.digest('base64');
+  };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +43,10 @@ const SignInModal = ({ onSigninSuccess }) => {
     try {
       const user = await Auth.signIn({
         username: email,
-        password: password
+        password: password,
+        clientMetadata: {
+          SECRET_HASH: calculateSecretHash(email)
+        }
       });
       
       console.log('Sign in successful:', user);
