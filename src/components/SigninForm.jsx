@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
-import { Auth } from 'aws-amplify'; 
+import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
+import awsconfig from '../aws-exports';
 import { createHmac } from 'crypto-browserify';
 import { Buffer } from 'buffer';
 
@@ -11,49 +12,46 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
 
-  // Add these constants at the top (replace with your actual values)
-  const generateSecretHash = async (username) => {
-    const message = username + CLIENT_ID;
-    const messageBuffer = Buffer.from(message);
-    const keyBuffer = Buffer.from(CLIENT_SECRET);
-    
-    const encoder = new TextEncoder();
-    const data = encoder.encode(messageBuffer);
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(keyBuffer),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const signature = await crypto.subtle.sign('HMAC', key, data);
-    return Buffer.from(signature).toString('base64');
-  };
+  // Client configuration
   const CLIENT_ID = process.env.REACT_APP_COGNITO_CLIENT_ID;
   const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
-  
 
-  
   const calculateSecretHash = (username) => {
     const message = username + CLIENT_ID;
     const hmac = createHmac('sha256', CLIENT_SECRET);
     hmac.update(message);
     return hmac.digest('base64');
   };
-  
-  const handleSubmit = async (e) => {
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    
-    try {
-      const user = await Auth.signIn(email, password); // Change this line
-      console.log('Sign in successful:', user);
-      onSigninSuccess(user);
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Sign in error:', error);
-      setError(error.message || 'Authentication failed');
-    }
+    const poolData = {
+      UserPoolId: awsconfig.aws_user_pools_id,
+      ClientId: CLIENT_ID,
+    };
+    const userPool = new CognitoUserPool(poolData);
+    const userData = {
+      Username: email,
+      Pool: userPool,
+    };
+    const authDetails = new AuthenticationDetails({
+      Username: email,
+      Password: password,
+      SecretHash: calculateSecretHash(email),
+    });
+    const cognitoUser = new CognitoUser(userData);
+    cognitoUser.authenticateUser(authDetails, {
+      onSuccess: (result) => {
+        console.log('Sign in successful:', result);
+        onSigninSuccess(result);
+        setIsOpen(false);
+      },
+      onFailure: (err) => {
+        console.error('Sign in error:', err);
+        setError(err.message || 'Authentication failed');
+      }
+    });
   };
 
   return (
@@ -71,7 +69,6 @@ const SignInModal = ({ onSigninSuccess }) => {
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Modal Overlay */}
         <div
           className={`fixed inset-0 bg-black bg-opacity-80 transition-opacity duration-500 ease-in-out ${
             isOpen ? 'opacity-100' : 'opacity-0'
@@ -80,7 +77,6 @@ const SignInModal = ({ onSigninSuccess }) => {
           aria-hidden="true"
         ></div>
 
-        {/* Modal Content */}
         <div
           className={`relative bg-gray-900 rounded-2xl shadow-lg w-full max-w-lg p-8 transform transition-all duration-500 ease-in-out ${
             isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-8 opacity-0'
