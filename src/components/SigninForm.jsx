@@ -1,7 +1,12 @@
+// Updated SignInForm to correctly reference aws-exports file
+
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
+
+// Update this import path to match the actual location of aws-exports.js
+import awsconfig from '../aws-config.js';
+
 import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
-import awsconfig from '../aws-exports';
 import { createHmac } from 'crypto-browserify';
 import { Buffer } from 'buffer';
 
@@ -12,7 +17,9 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
 
-  // Client configuration
+  // Because the user reported missing module '../aws-exports', ensure
+  // you have the aws-exports.js file in the src folder, or update the 
+  // path to reflect your actual file location.
   const CLIENT_ID = process.env.REACT_APP_COGNITO_CLIENT_ID;
   const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
 
@@ -26,6 +33,7 @@ const SignInModal = ({ onSigninSuccess }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+
     const poolData = {
       UserPoolId: awsconfig.aws_user_pools_id,
       ClientId: CLIENT_ID,
@@ -91,25 +99,25 @@ const SignInModal = ({ onSigninSuccess }) => {
             )}
 
             <div className="mb-6">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
-                  placeholder="Email"
-                  required
-                />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
+                placeholder="Email"
+                required
+              />
             </div>
 
             <div className="mb-8">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
-                  placeholder="Password"
-                  required
-                />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
+                placeholder="Password"
+                required
+              />
             </div>
 
             <div className="flex items-center justify-between space-x-4">
