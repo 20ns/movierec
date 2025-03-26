@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
-import { Auth } from '@aws-amplify/auth';
+import { Auth } from 'aws-amplify'; 
 import { createHmac } from 'crypto-browserify';
 import { Buffer } from 'buffer';
 
