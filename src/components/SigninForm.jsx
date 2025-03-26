@@ -9,34 +9,42 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await Auth.signIn({
-        username: email,
-        password,
-        clientMetadata: {
-          'SECRET_HASH': await generateSecretHash(email)
-        }
-      });
-    } catch (error) { /* ... */ }
-  };
+  // Add these constants at the top (replace with your actual values)
+  const CLIENT_ID = '3ob6cukt0hlea5bef9l233rv5k';
+  const CLIENT_SECRET = '52t2i8jqmnc7dij1ecghsu9niv6tpkskkkitqs3ffqqbir456ao';
   
-  // Add secret hash generator
   const generateSecretHash = async (username) => {
     const encoder = new TextEncoder();
-    const data = new Uint8Array(
-      encoder.encode(username + 'YOUR_CLIENT_ID')
-    );
+    const data = encoder.encode(username + CLIENT_ID);
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode('YOUR_CLIENT_SECRET'),
+      encoder.encode(CLIENT_SECRET),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     );
     const signature = await crypto.subtle.sign('HMAC', key, data);
     return btoa(String.fromCharCode(...new Uint8Array(signature)));
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    try {
+      const user = await Auth.signIn({
+        username: email,
+        password,
+        clientMetadata: {
+          SecretHash: await generateSecretHash(email) // Case-sensitive
+        }
+      });
+      onSigninSuccess(user);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Sign in error:', error);
+      setError(error.message || 'Authentication failed');
+    }
   };
 
   return (
