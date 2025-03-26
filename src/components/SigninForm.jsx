@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import SignupModal from './SignupForm';
 import { Auth } from '@aws-amplify/auth';
+import { createHmac } from 'crypto-browserify';
+import { Buffer } from 'buffer';
 
 const SignInModal = ({ onSigninSuccess }) => {
   const [email, setEmail] = useState('');
@@ -11,17 +13,21 @@ const SignInModal = ({ onSigninSuccess }) => {
 
   // Add these constants at the top (replace with your actual values)
   const generateSecretHash = async (username) => {
+    const message = username + CLIENT_ID;
+    const messageBuffer = Buffer.from(message);
+    const keyBuffer = Buffer.from(CLIENT_SECRET);
+    
     const encoder = new TextEncoder();
-    const data = encoder.encode(username + CLIENT_ID);
+    const data = encoder.encode(messageBuffer);
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(CLIENT_SECRET),
+      encoder.encode(keyBuffer),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
     );
     const signature = await crypto.subtle.sign('HMAC', key, data);
-    return btoa(String.fromCharCode(...new Uint8Array(signature)));
+    return Buffer.from(signature).toString('base64');
   };
   const CLIENT_ID = process.env.REACT_APP_COGNITO_CLIENT_ID;
   const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
@@ -29,9 +35,8 @@ const SignInModal = ({ onSigninSuccess }) => {
 
   
   const calculateSecretHash = (username) => {
-    const crypto = require('crypto');
     const message = username + CLIENT_ID;
-    const hmac = crypto.createHmac('SHA256', CLIENT_SECRET);
+    const hmac = createHmac('sha256', CLIENT_SECRET);
     hmac.update(message);
     return hmac.digest('base64');
   };
@@ -41,14 +46,7 @@ const SignInModal = ({ onSigninSuccess }) => {
     setError('');
     
     try {
-      const user = await Auth.signIn({
-        username: email,
-        password: password,
-        clientMetadata: {
-          SECRET_HASH: calculateSecretHash(email)
-        }
-      });
-      
+      const user = await Auth.signIn(email, password); // Change this line
       console.log('Sign in successful:', user);
       onSigninSuccess(user);
       setIsOpen(false);

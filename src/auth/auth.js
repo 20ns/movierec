@@ -1,7 +1,7 @@
 // auth.js
 import { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
-import { Auth } from 'aws-amplify';
+import { signIn, signOut, getCurrentUser } from '@aws-amplify/auth';
 
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
