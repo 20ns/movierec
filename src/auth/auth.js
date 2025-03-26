@@ -25,6 +25,7 @@ const useAuth = () => {
     localStorage.removeItem('currentUser');
     setIsAuthenticated(false);
     setCurrentUser(null);
+    
   };
 
   const handleSignupSuccess = (tokens, email, sub) => {
