@@ -29,7 +29,6 @@ const SignInModal = ({ onSigninSuccess }) => {
     setError('');
     
     try {
-      // Simplified sign-in call
       const user = await Auth.signIn(email, password);
       onSigninSuccess(user);
       setIsOpen(false);
