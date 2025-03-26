@@ -10,9 +10,6 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [showSignUp, setShowSignUp] = useState(false);
 
   // Add these constants at the top (replace with your actual values)
-  const CLIENT_ID = '3ob6cukt0hlea5bef9l233rv5k';
-  const CLIENT_SECRET = '52t2i8jqmnc7dij1ecghsu9niv6tpkskkkitqs3ffqqbir456ao';
-  
   const generateSecretHash = async (username) => {
     const encoder = new TextEncoder();
     const data = encoder.encode(username + CLIENT_ID);
@@ -32,13 +29,8 @@ const SignInModal = ({ onSigninSuccess }) => {
     setError('');
     
     try {
-      const user = await Auth.signIn({
-        username: email,
-        password,
-        clientMetadata: {
-          SecretHash: await generateSecretHash(email) // Case-sensitive
-        }
-      });
+      // Simplified sign-in call
+      const user = await Auth.signIn(email, password);
       onSigninSuccess(user);
       setIsOpen(false);
     } catch (error) {
