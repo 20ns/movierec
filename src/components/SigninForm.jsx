@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import SignupModal from './SignupForm';
 import awsconfig from '../aws-config.js';
 import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
-import { createHmac } from 'crypto-browserify';
-import { Buffer } from 'buffer';
+import crypto from 'crypto-browserify';
 
 const SignInModal = ({ onSigninSuccess }) => {
   const [email, setEmail] = useState('');
@@ -13,30 +12,32 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [showSignUp, setShowSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get the client secret from environment variables
-  const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
-  console.log('Secret:', CLIENT_SECRET);
-
-  // Improved secret hash calculation function
+  // Calculate the secret hash properly
   const calculateSecretHash = (username) => {
     try {
-      if (!CLIENT_SECRET) {
-        console.error('Client secret is missing');
-        return '';
+      // Get client secret and client ID
+      const clientSecret = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
+      const clientId = awsconfig.Auth.userPoolWebClientId;
+      
+      if (!clientSecret || !clientId) {
+        console.error('Missing clientSecret or clientId');
+        return null;
       }
       
-      const clientId = awsconfig.Auth.userPoolWebClientId;
+      // Create message string as required by AWS Cognito
       const message = username + clientId;
       
-      // Create HMAC with sha256
-      const hmac = createHmac('sha256', CLIENT_SECRET);
+      // Create HMAC using sha256
+      const hmac = crypto.createHmac('sha256', clientSecret);
       hmac.update(message);
       
       // Get base64 encoded hash
-      return hmac.digest('base64');
+      const secretHash = hmac.digest('base64');
+      console.log('Generated secret hash successfully');
+      return secretHash;
     } catch (error) {
       console.error('Error calculating secret hash:', error);
-      return '';
+      return null;
     }
   };
 
@@ -46,33 +47,37 @@ const SignInModal = ({ onSigninSuccess }) => {
     setIsLoading(true);
 
     try {
+      // Normalize email to ensure consistent format
+      const normalizedEmail = email.toLowerCase().trim();
+      
       const poolData = {
         UserPoolId: awsconfig.Auth.userPoolId,
         ClientId: awsconfig.Auth.userPoolWebClientId,
       };
       const userPool = new CognitoUserPool(poolData);
       
-      // Calculate the secret hash
-      const secretHash = calculateSecretHash(email);
-      console.log('Using client ID:', awsconfig.Auth.userPoolWebClientId);
-      console.log('Generated hash for authentication');
+      // Calculate secret hash
+      const secretHash = calculateSecretHash(normalizedEmail);
+      console.log('Secret hash available:', !!secretHash);
       
       const userData = {
-        Username: email,
+        Username: normalizedEmail,
         Pool: userPool,
       };
       
-      // Create authentication details with secret hash
+      // Include secret hash in authentication details
       const authenticationData = {
-        Username: email,
-        Password: password,
+        Username: normalizedEmail,
+        Password: password
       };
       
-      // Only add SecretHash if we have one
+      // Only add SecretHash if it was successfully calculated
       if (secretHash) {
         authenticationData.SecretHash = secretHash;
       } else {
-        console.warn('No secret hash was generated');
+        setError('Failed to generate authentication data. Please try again.');
+        setIsLoading(false);
+        return;
       }
       
       const authDetails = new AuthenticationDetails(authenticationData);
