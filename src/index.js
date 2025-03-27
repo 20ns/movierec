@@ -1,14 +1,21 @@
-import { Amplify } from 'aws-amplify';
-import awsConfig from './aws-config';
 import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
+import ReactDOM from 'react-dom/client';
 import './index.css';
+import App from './App';
+import { Amplify } from 'aws-amplify';
+import awsconfig from './aws-config';
 
+// Configure Amplify with the secret hash config
+Amplify.configure({
+  ...awsconfig,
+  Auth: {
+    ...awsconfig.Auth,
+    // This is the critical part - providing the client secret
+    clientSecret: process.env.REACT_APP_COGNITO_CLIENT_SECRET
+  }
+});
 
-Amplify.configure(awsConfig);
-
-const root = createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <App />

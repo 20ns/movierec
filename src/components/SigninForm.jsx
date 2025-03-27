@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
+import { Auth } from 'aws-amplify';
 import SignupModal from './SignupForm';
-import awsconfig from '../aws-config.js';
-import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
-import crypto from 'crypto-browserify';
 
 const SignInModal = ({ onSigninSuccess }) => {
   const [email, setEmail] = useState('');
@@ -12,40 +10,7 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [showSignUp, setShowSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Calculate the secret hash properly
-  const calculateSecretHash = (username) => {
-    try {
-      // Get client secret and client ID
-      const clientSecret = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
-      const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
-      
-      console.log("Client ID:", clientId);
-      console.log("Secret available:", !!clientSecret);
-      
-      if (!clientSecret || !clientId) {
-        console.error('Missing clientSecret or clientId');
-        return null;
-      }
-      
-      // Create message string as required by AWS Cognito
-      const message = username + clientId;
-      
-      // Create HMAC using sha256
-      const hmac = crypto.createHmac('sha256', clientSecret);
-      hmac.update(message);
-      
-      // Get base64 encoded hash
-      const secretHash = hmac.digest('base64');
-      console.log('Generated secret hash');
-      return secretHash;
-    } catch (error) {
-      console.error('Error calculating secret hash:', error);
-      console.error('Error details:', error.message, error.stack);
-      return null;
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
@@ -54,65 +19,35 @@ const SignInModal = ({ onSigninSuccess }) => {
       // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
-      const poolData = {
-        UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
-        ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
-      };
+      // Use Amplify Auth which handles SECRET_HASH automatically when configured
+      const user = await Auth.signIn(normalizedEmail, password);
+      console.log('Authentication successful');
       
-      console.log("Pool data:", poolData);
-      const userPool = new CognitoUserPool(poolData);
-      
-      // Calculate secret hash
-      const secretHash = calculateSecretHash(normalizedEmail);
-      console.log('Secret hash generated:', !!secretHash);
-      
-      if (!secretHash) {
-        setError('Failed to generate authentication data. Please try again.');
-        setIsLoading(false);
-        return;
+      if (onSigninSuccess) {
+        onSigninSuccess(user);
       }
       
-      const userData = {
-        Username: normalizedEmail,
-        Pool: userPool,
-      };
-      
-      // Include secret hash in authentication details
-      const authenticationData = {
-        Username: normalizedEmail,
-        Password: password,
-        SecretHash: secretHash
-      };
-      
-      console.log('Authentication data prepared');
-      const authDetails = new AuthenticationDetails(authenticationData);
-      const cognitoUser = new CognitoUser(userData);
-
-      cognitoUser.authenticateUser(authDetails, {
-        onSuccess: (result) => {
-          console.log('Authentication successful');
-          if (onSigninSuccess) onSigninSuccess(result);
-          setIsOpen(false);
-          setIsLoading(false);
-        },
-        onFailure: (err) => {
-          console.error('Sign-in error:', err);
-          setError(err.message || 'Sign-in failed.');
-          setIsLoading(false);
-        },
-        newPasswordRequired: (userAttributes, requiredAttributes) => {
-          console.log('New password required');
-          setError('You need to change your password. Please contact support.');
-          setIsLoading(false);
-        }
-      });
+      setIsOpen(false);
+      setIsLoading(false);
     } catch (error) {
-      console.error('Unexpected error during authentication:', error);
-      setError('An unexpected error occurred. Please try again.');
+      console.error('Sign-in error:', error);
+      
+      // Handle specific error cases
+      if (error.code === 'UserNotConfirmedException') {
+        setError('Please confirm your account by clicking the link in your email.');
+      } else if (error.code === 'PasswordResetRequiredException') {
+        setError('You need to reset your password.');
+      } else if (error.code === 'NotAuthorizedException') {
+        setError('Incorrect username or password.');
+      } else if (error.code === 'UserNotFoundException') {
+        setError('Account not found. Please sign up first.');
+      } else {
+        setError(error.message || 'An error occurred during sign in.');
+      }
+      
       setIsLoading(false);
     }
   };
-
 
   return (
     <>
