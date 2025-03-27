@@ -44,19 +44,29 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
   
     try {
       const normalizedEmail = email.toLowerCase().trim();
-      const secretHash = calculateSecretHash(normalizedEmail);
-  
+      // Our overridden Auth.signUp will add SECRET_HASH
       const { user } = await Auth.signUp({
         username: normalizedEmail,
         password,
-        attributes: { email: normalizedEmail },
-        SECRET_HASH: secretHash // Correct parameter name
+        attributes: { email: normalizedEmail }
       });
   
       setConfirmPhase(true);
       setIsLoading(false);
     } catch (error) {
-      // Error handling remains the same
+      console.error('Sign up error:', error);
+      
+      if (error.code === 'UsernameExistsException') {
+        setError('An account with this email already exists.');
+      } else if (error.code === 'InvalidParameterException') {
+        setError('Password must have at least 8 characters including uppercase, lowercase, number and special character.');
+      } else if (error.code === 'InvalidPasswordException') {
+        setError('Password does not meet requirements. It must have at least 8 characters including uppercase, lowercase, number and special character.');
+      } else {
+        setError(error.message || 'Sign up failed. Please try again.');
+      }
+      
+      setIsLoading(false);
     }
   };
   const handleConfirmation = async (e) => {
@@ -68,23 +78,15 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
       // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
-      // Calculate secret hash for confirmation
-      const secretHash = calculateSecretHash(normalizedEmail);
-      
-      // Include the secret hash in the confirm sign-up call
-      await Auth.confirmSignUp(normalizedEmail, confirmationCode, { 
-        secretHash: secretHash 
-      });
+      // Use Auth.confirmSignUp without additional parameters
+      // The overridden method in aws-amplify-overrides.js will add SECRET_HASH
+      await Auth.confirmSignUp(normalizedEmail, confirmationCode);
       console.log('Email verified successfully');
       
       // Automatically sign in after successful confirmation
       try {
-        // Also include secret hash for sign-in after confirmation
-        const user = await Auth.signIn({
-          username: normalizedEmail,
-          password: password,
-          secretHash: secretHash
-        });
+        // Sign in - our override will add SECRET_HASH
+        const user = await Auth.signIn(normalizedEmail, password);
         
         console.log('Signed in after confirmation');
         
