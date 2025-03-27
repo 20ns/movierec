@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Auth } from 'aws-amplify'; // Using full aws-amplify for consistency
+import { Auth } from 'aws-amplify';
+import crypto from 'crypto-browserify';
 
 const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
   const [password, setPassword] = useState('');
@@ -8,6 +9,33 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [confirmPhase, setConfirmPhase] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
+
+  // Calculate secret hash for Cognito
+  const calculateSecretHash = (username) => {
+    try {
+      // Get client secret and client ID
+      const clientSecret = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
+      const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
+      
+      if (!clientSecret || !clientId) {
+        console.error('Missing clientSecret or clientId');
+        return null;
+      }
+      
+      // Create message string as required by AWS Cognito
+      const message = username + clientId;
+      
+      // Create HMAC using sha256
+      const hmac = crypto.createHmac('sha256', clientSecret);
+      hmac.update(message);
+      
+      // Get base64 encoded hash
+      return hmac.digest('base64');
+    } catch (error) {
+      console.error('Error calculating secret hash:', error);
+      return null;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,12 +46,25 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
       // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
+      // Calculate secret hash for this user
+      const secretHash = calculateSecretHash(normalizedEmail);
+      if (!secretHash) {
+        setError('Failed to generate authentication data.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Include the SECRET_HASH in the sign-up parameters
       const { user } = await Auth.signUp({
         username: normalizedEmail,
         password,
         attributes: {
           email: normalizedEmail
-        }
+        },
+        clientMetadata: {}, 
+        validationData: {},
+        // Essential: include the secret hash
+        secretHash: secretHash
       });
   
       console.log('Signed up user successfully');
@@ -56,12 +97,24 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
       // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
-      await Auth.confirmSignUp(normalizedEmail, confirmationCode);
+      // Calculate secret hash for confirmation
+      const secretHash = calculateSecretHash(normalizedEmail);
+      
+      // Include the secret hash in the confirm sign-up call
+      await Auth.confirmSignUp(normalizedEmail, confirmationCode, { 
+        secretHash: secretHash 
+      });
       console.log('Email verified successfully');
       
       // Automatically sign in after successful confirmation
       try {
-        const user = await Auth.signIn(normalizedEmail, password);
+        // Also include secret hash for sign-in after confirmation
+        const user = await Auth.signIn({
+          username: normalizedEmail,
+          password: password,
+          secretHash: secretHash
+        });
+        
         console.log('Signed in after confirmation');
         
         if (onSignupSuccess) {
@@ -93,13 +146,17 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
     setError('');
     try {
       const normalizedEmail = email.toLowerCase().trim();
-      await Auth.resendSignUp(normalizedEmail);
+      const secretHash = calculateSecretHash(normalizedEmail);
+      
+      // Include the secret hash in the resendSignUp call
+      await Auth.resendSignUp(normalizedEmail, { secretHash: secretHash });
       alert('A new confirmation code has been sent to your email');
     } catch (error) {
       console.error('Error resending code:', error);
       setError('Failed to resend code: ' + error.message);
     }
   };
+
 
   if (!isOpen) return null;
 
