@@ -58,12 +58,16 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
         disabled={!currentUser?.signInUserSession}
-        className={`... ${!currentUser?.signInUserSession ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors duration-300 shadow-md ${
+          !currentUser?.signInUserSession ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
+        }`}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
       >
         {currentUser?.signInUserSession ? (
           <>
-            <HeartIcon className="w-6 h-6 inline-block mr-2" />
-            Favorites
+            <HeartIcon className="w-6 h-6 inline-block mr-2 text-red-200" />
+            <span className="font-medium">Favorites</span>
           </>
         ) : (
           'Loading auth...'
