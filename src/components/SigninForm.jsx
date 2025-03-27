@@ -17,7 +17,10 @@ const SignInModal = ({ onSigninSuccess }) => {
     try {
       // Get client secret and client ID
       const clientSecret = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
-      const clientId = awsconfig.Auth.userPoolWebClientId;
+      const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
+      
+      console.log("Client ID:", clientId);
+      console.log("Secret available:", !!clientSecret);
       
       if (!clientSecret || !clientId) {
         console.error('Missing clientSecret or clientId');
@@ -33,10 +36,11 @@ const SignInModal = ({ onSigninSuccess }) => {
       
       // Get base64 encoded hash
       const secretHash = hmac.digest('base64');
-      console.log('Generated secret hash successfully');
+      console.log('Generated secret hash');
       return secretHash;
     } catch (error) {
       console.error('Error calculating secret hash:', error);
+      console.error('Error details:', error.message, error.stack);
       return null;
     }
   };
@@ -51,14 +55,22 @@ const SignInModal = ({ onSigninSuccess }) => {
       const normalizedEmail = email.toLowerCase().trim();
       
       const poolData = {
-        UserPoolId: awsconfig.Auth.userPoolId,
-        ClientId: awsconfig.Auth.userPoolWebClientId,
+        UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
+        ClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
       };
+      
+      console.log("Pool data:", poolData);
       const userPool = new CognitoUserPool(poolData);
       
       // Calculate secret hash
       const secretHash = calculateSecretHash(normalizedEmail);
-      console.log('Secret hash available:', !!secretHash);
+      console.log('Secret hash generated:', !!secretHash);
+      
+      if (!secretHash) {
+        setError('Failed to generate authentication data. Please try again.');
+        setIsLoading(false);
+        return;
+      }
       
       const userData = {
         Username: normalizedEmail,
@@ -68,18 +80,11 @@ const SignInModal = ({ onSigninSuccess }) => {
       // Include secret hash in authentication details
       const authenticationData = {
         Username: normalizedEmail,
-        Password: password
+        Password: password,
+        SecretHash: secretHash
       };
       
-      // Only add SecretHash if it was successfully calculated
-      if (secretHash) {
-        authenticationData.SecretHash = secretHash;
-      } else {
-        setError('Failed to generate authentication data. Please try again.');
-        setIsLoading(false);
-        return;
-      }
-      
+      console.log('Authentication data prepared');
       const authDetails = new AuthenticationDetails(authenticationData);
       const cognitoUser = new CognitoUser(userData);
 
@@ -107,6 +112,7 @@ const SignInModal = ({ onSigninSuccess }) => {
       setIsLoading(false);
     }
   };
+
 
   return (
     <>
