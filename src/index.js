@@ -1,22 +1,18 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
+// index.js
 import { Amplify } from 'aws-amplify';
 import awsconfig from './aws-config';
 
-// Configure Amplify with the secret hash
+// Custom authentication flow with secret hash
 Amplify.configure({
   ...awsconfig,
   Auth: {
     ...awsconfig.Auth,
-    clientSecret: process.env.REACT_APP_COGNITO_CLIENT_SECRET
+    authenticationFlowType: 'USER_PASSWORD_AUTH',
+    clientSecret: process.env.REACT_APP_COGNITO_CLIENT_SECRET,
+    oauth: {
+      ...awsconfig.Auth.oauth,
+      redirectSignIn: window.location.origin,
+      redirectSignOut: window.location.origin
+    }
   }
 });
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
