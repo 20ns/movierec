@@ -10,33 +10,6 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
   const [confirmPhase, setConfirmPhase] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
 
-  // Calculate secret hash for Cognito
-  const calculateSecretHash = (username) => {
-    try {
-      // Get client secret and client ID
-      const clientSecret = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
-      const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
-      
-      if (!clientSecret || !clientId) {
-        console.error('Missing clientSecret or clientId');
-        return null;
-      }
-      
-      // Create message string as required by AWS Cognito
-      const message = username + clientId;
-      
-      // Create HMAC using sha256
-      const hmac = crypto.createHmac('sha256', clientSecret);
-      hmac.update(message);
-      
-      // Get base64 encoded hash
-      return hmac.digest('base64');
-    } catch (error) {
-      console.error('Error calculating secret hash:', error);
-      return null;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -46,25 +19,13 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
       // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
-      // Calculate secret hash for this user
-      const secretHash = calculateSecretHash(normalizedEmail);
-      if (!secretHash) {
-        setError('Failed to generate authentication data.');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Include the SECRET_HASH in the sign-up parameters
+      // Removed secretHash references
       const { user } = await Auth.signUp({
         username: normalizedEmail,
         password,
         attributes: {
           email: normalizedEmail
-        },
-        clientMetadata: {}, 
-        validationData: {},
-        // Essential: include the secret hash
-        secretHash: secretHash
+        }
       });
   
       console.log('Signed up user successfully');
@@ -97,23 +58,14 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
       // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
-      // Calculate secret hash for confirmation
-      const secretHash = calculateSecretHash(normalizedEmail);
-      
-      // Include the secret hash in the confirm sign-up call
-      await Auth.confirmSignUp(normalizedEmail, confirmationCode, { 
-        secretHash: secretHash 
-      });
+      // Removed secretHash references
+      await Auth.confirmSignUp(normalizedEmail, confirmationCode);
       console.log('Email verified successfully');
       
       // Automatically sign in after successful confirmation
       try {
-        // Also include secret hash for sign-in after confirmation
-        const user = await Auth.signIn({
-          username: normalizedEmail,
-          password: password,
-          secretHash: secretHash
-        });
+        // Removed secretHash references
+        const user = await Auth.signIn(normalizedEmail, password);
         
         console.log('Signed in after confirmation');
         
@@ -146,10 +98,8 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
     setError('');
     try {
       const normalizedEmail = email.toLowerCase().trim();
-      const secretHash = calculateSecretHash(normalizedEmail);
-      
-      // Include the secret hash in the resendSignUp call
-      await Auth.resendSignUp(normalizedEmail, { secretHash: secretHash });
+      // Removed secretHash references
+      await Auth.resendSignUp(normalizedEmail);
       alert('A new confirmation code has been sent to your email');
     } catch (error) {
       console.error('Error resending code:', error);
