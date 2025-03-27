@@ -10,6 +10,12 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [showSignUp, setShowSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Handle sign up button click
+  const handleSignUpClick = () => {
+    setShowSignUp(true);
+    setIsOpen(false); // Close the sign in modal when opening sign up
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -135,7 +141,7 @@ const SignInModal = ({ onSigninSuccess }) => {
                   <button
                     type="button"
                     className="text-purple-400 hover:text-purple-300"
-                    onClick={() => setShowSignUp(true)}
+                    onClick={handleSignUpClick}
                     disabled={isLoading}
                   >
                     Sign Up
@@ -144,10 +150,15 @@ const SignInModal = ({ onSigninSuccess }) => {
               </form>
             </div>
           </div>
-
-          {showSignUp && <SignupModal onClose={() => setShowSignUp(false)} />}
         </>
       )}
+
+      {/* Render the SignupModal with the correct props */}
+      <SignupModal 
+        isOpen={showSignUp} 
+        onClose={() => setShowSignUp(false)} 
+        onSignupSuccess={onSigninSuccess}
+      />
     </>
   );
 };
