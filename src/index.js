@@ -1,8 +1,12 @@
-// index.js
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 import { Amplify } from 'aws-amplify';
 import awsconfig from './aws-config';
+import App from './App';
+import './index.css';
+import configureAuth from './aws-amplify-overrides';
 
-// Custom authentication flow with secret hash
+// Configure Amplify with the AWS configuration
 Amplify.configure({
   ...awsconfig,
   Auth: {
@@ -15,3 +19,15 @@ Amplify.configure({
     }
   }
 });
+
+// Apply the custom Auth overrides
+configureAuth();
+
+// Render the app
+const container = document.getElementById('root');
+const root = createRoot(container);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

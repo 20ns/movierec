@@ -16,7 +16,6 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
     setIsLoading(true);
   
     try {
-      // Normalize email to ensure consistent format
       const normalizedEmail = email.toLowerCase().trim();
       
       // Removed secretHash references
@@ -28,19 +27,17 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
         }
       });
   
-      console.log('Signed up user successfully');
-      setConfirmPhase(true); // Switch to confirmation code phase
+      setConfirmPhase(true);
       setIsLoading(false);
     } catch (error) {
       console.error('Sign up error:', error);
       
-      // Better error handling with specific messages
       if (error.code === 'UsernameExistsException') {
-        setError('This email is already registered. Please sign in instead.');
-      } else if (error.code === 'InvalidPasswordException') {
-        setError('Password does not meet requirements: ' + error.message);
+        setError('An account with this email already exists.');
       } else if (error.code === 'InvalidParameterException') {
-        setError('Invalid input: ' + error.message);
+        setError('Password must have at least 8 characters including uppercase, lowercase, number and special character.');
+      } else if (error.code === 'InvalidPasswordException') {
+        setError('Password does not meet requirements. It must have at least 8 characters including uppercase, lowercase, number and special character.');
       } else {
         setError(error.message || 'Sign up failed. Please try again.');
       }
@@ -48,7 +45,6 @@ const SignupModal = ({ isOpen, onClose, onSignupSuccess }) => {
       setIsLoading(false);
     }
   };
-
   const handleConfirmation = async (e) => {
     e.preventDefault();
     setError('');
