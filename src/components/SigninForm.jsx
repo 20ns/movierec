@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import SignupModal from './SignupForm'; // [src/components/SignupForm.jsx](src/components/SignupForm.jsx)
-
-import awsconfig from '../aws-config.js'; // [src/aws-config.js](src/aws-config.js)
+import SignupModal from './SignupForm';
+import awsconfig from '../aws-config.js';
 import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
 import { createHmac } from 'crypto-browserify';
 import { Buffer } from 'buffer';
@@ -12,47 +11,96 @@ const SignInModal = ({ onSigninSuccess }) => {
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Get the client secret from environment variables
   const CLIENT_SECRET = process.env.REACT_APP_COGNITO_CLIENT_SECRET;
   console.log('Secret:', CLIENT_SECRET);
 
+  // Improved secret hash calculation function
   const calculateSecretHash = (username) => {
-    const message = username + awsconfig.Auth.userPoolWebClientId;
-    const hmac = createHmac('sha256', CLIENT_SECRET);
-    hmac.update(message);
-    return hmac.digest('base64');
+    try {
+      if (!CLIENT_SECRET) {
+        console.error('Client secret is missing');
+        return '';
+      }
+      
+      const clientId = awsconfig.Auth.userPoolWebClientId;
+      const message = username + clientId;
+      
+      // Create HMAC with sha256
+      const hmac = createHmac('sha256', CLIENT_SECRET);
+      hmac.update(message);
+      
+      // Get base64 encoded hash
+      return hmac.digest('base64');
+    } catch (error) {
+      console.error('Error calculating secret hash:', error);
+      return '';
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    const poolData = {
-      UserPoolId: awsconfig.Auth.userPoolId,
-      ClientId: awsconfig.Auth.userPoolWebClientId,
-    };
-    const userPool = new CognitoUserPool(poolData);
-    const userData = {
-      Username: email,
-      Pool: userPool,
-    };
-    const authDetails = new AuthenticationDetails({
-      Username: email,
-      Password: password,
-      SecretHash: calculateSecretHash(email),
-    });
-    const cognitoUser = new CognitoUser(userData);
-
-    cognitoUser.authenticateUser(authDetails, {
-      onSuccess: (result) => {
-        if (onSigninSuccess) onSigninSuccess(result);
-        setIsOpen(false);
-      },
-      onFailure: (err) => {
-        console.error('Sign-in error:', err);
-        setError(err.message || 'Sign-in failed.');
+    try {
+      const poolData = {
+        UserPoolId: awsconfig.Auth.userPoolId,
+        ClientId: awsconfig.Auth.userPoolWebClientId,
+      };
+      const userPool = new CognitoUserPool(poolData);
+      
+      // Calculate the secret hash
+      const secretHash = calculateSecretHash(email);
+      console.log('Using client ID:', awsconfig.Auth.userPoolWebClientId);
+      console.log('Generated hash for authentication');
+      
+      const userData = {
+        Username: email,
+        Pool: userPool,
+      };
+      
+      // Create authentication details with secret hash
+      const authenticationData = {
+        Username: email,
+        Password: password,
+      };
+      
+      // Only add SecretHash if we have one
+      if (secretHash) {
+        authenticationData.SecretHash = secretHash;
+      } else {
+        console.warn('No secret hash was generated');
       }
-    });
+      
+      const authDetails = new AuthenticationDetails(authenticationData);
+      const cognitoUser = new CognitoUser(userData);
+
+      cognitoUser.authenticateUser(authDetails, {
+        onSuccess: (result) => {
+          console.log('Authentication successful');
+          if (onSigninSuccess) onSigninSuccess(result);
+          setIsOpen(false);
+          setIsLoading(false);
+        },
+        onFailure: (err) => {
+          console.error('Sign-in error:', err);
+          setError(err.message || 'Sign-in failed.');
+          setIsLoading(false);
+        },
+        newPasswordRequired: (userAttributes, requiredAttributes) => {
+          console.log('New password required');
+          setError('You need to change your password. Please contact support.');
+          setIsLoading(false);
+        }
+      });
+    } catch (error) {
+      console.error('Unexpected error during authentication:', error);
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -98,6 +146,7 @@ const SignInModal = ({ onSigninSuccess }) => {
                     className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
                     placeholder="Email"
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -109,6 +158,7 @@ const SignInModal = ({ onSigninSuccess }) => {
                     className="block w-full px-4 py-3 border-b-2 border-gray-700 bg-transparent text-gray-200 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all duration-300 ease-in-out"
                     placeholder="Password"
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -117,14 +167,20 @@ const SignInModal = ({ onSigninSuccess }) => {
                     type="button"
                     onClick={() => setIsOpen(false)}
                     className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-full transition-colors duration-300 ease-in-out"
+                    disabled={isLoading}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-full transition-colors duration-300 ease-in-out"
+                    className={`flex-1 px-6 py-3 ${
+                      isLoading 
+                        ? 'bg-purple-400 cursor-not-allowed' 
+                        : 'bg-purple-600 hover:bg-purple-700'
+                    } text-white font-semibold rounded-full transition-colors duration-300 ease-in-out`}
+                    disabled={isLoading}
                   >
-                    Sign In
+                    {isLoading ? 'Signing In...' : 'Sign In'}
                   </button>
                 </div>
 
@@ -134,6 +190,7 @@ const SignInModal = ({ onSigninSuccess }) => {
                     type="button"
                     className="text-purple-400 hover:text-purple-300"
                     onClick={() => setShowSignUp(true)}
+                    disabled={isLoading}
                   >
                     Sign Up
                   </button>
