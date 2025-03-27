@@ -17,7 +17,11 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
       return;
     }
 
+    setIsLoading(true); // Set loading state when starting fetch
+    
     try {
+      console.log('Fetching favorites from API...');
+      // Using the correct endpoint based on your Lambda function
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
@@ -29,12 +33,21 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch favorites');
+        console.error('Error response:', response.status, response.statusText);
+        throw new Error(`Failed to fetch favorites: ${response.status} ${response.statusText}`);
       }
 
-      // Our Lambda returns an array of favorite items
+      // Parse the response according to what your Lambda returns
       const data = await response.json();
-      setFavorites(data);
+      console.log('Favorites data received:', data);
+      
+      // Check if the data has the expected structure
+      if (data && data.items) {
+        setFavorites(data.items);
+      } else {
+        console.warn('Unexpected response format:', data);
+        setFavorites(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
       console.error('Error fetching favorites:', err);
       setError('Failed to load favorites. Please try again later.');
@@ -135,7 +148,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
                       title: fav.title,
                       poster_path: fav.posterPath,
                       media_type: fav.mediaType,
-                      // Add other fields as necessary
+                      overview: fav.overview || "No description available"
                     };
                     return (
                       <motion.div
@@ -144,14 +157,16 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
+                        className="mb-4"
                       >
                         <MediaCard
                           result={result}
-                          currentUser={currentUser}
-                          onFavoriteToggle={() => {
-                            // Refresh favorites list after toggling favorite status
-                            fetchFavorites();
+                          currentUser={{
+                            ...currentUser,
+                            token: currentUser.signInUserSession.idToken.jwtToken
                           }}
+                          promptLogin={() => {}}
+                          onClick={() => {}}
                         />
                       </motion.div>
                     );
