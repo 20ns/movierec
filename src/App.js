@@ -12,7 +12,7 @@ import GenreResults from './components/GenreResults';
 import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
-import { DiamondIcon } from '@heroicons/react/24/solid';
+import { SparklesIcon } from '@heroicons/react/24/solid';
 
 function AppContent() {
   const {
@@ -101,7 +101,7 @@ function AppContent() {
             className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg flex items-center justify-center"
             title="Complete your preference questionnaire"
           >
-            <DiamondIcon className="w-6 h-6" />
+            <SparklesIcon className="w-6 h-6" />
           </button>
         </div>
       )}
