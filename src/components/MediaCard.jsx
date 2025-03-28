@@ -14,7 +14,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   const getGenreColorFallback = (genreIds = []) => {
     const genreColors = {
       28: '#7f1d1d', 12: '#14532d', 16: '#713f12',
-      35: '#4c1d95', 80: '#1e293b', 18: '#1e3a8a',
+      35: '#4c1d95', 80: '#1e3a8a', 18: '#1e3a8a',
       10751: '#134e4a', 14: '#581c87', 27: '#3c1513',
       9648: '#312e81', 10749: '#831843', 878: '#0c4a6e',
       default: '#1e1b4b'
@@ -27,12 +27,13 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      // If you still want to check for sub, update here. Otherwise, you can skip this check entirely.
+      // Skip if no token available
       if (!currentUser?.token) return;
 
       try {
+        // Note: Using the British spelling 'favourite' to match your API
         const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favorite?mediaId=${result.id}`,
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${result.id}`,
           {
             headers: {
               Authorization: `Bearer ${currentUser.token}`
@@ -57,7 +58,8 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     e.stopPropagation();
     console.log("Favorite button clicked");
     console.log("Favorite button clicked, user token is:", currentUser?.token);
-    // Check for token instead of sub
+    
+    // Check for token
     if (!currentUser?.token) {
       promptLogin?.();
       return;
@@ -66,6 +68,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     const method = isFavorited ? 'DELETE' : 'POST';
 
     try {
+      // Match the structure expected by your Lambda function
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
@@ -75,12 +78,11 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
             Authorization: `Bearer ${currentUser.token}`
           },
           body: JSON.stringify({
-            media: {
-              id: result.id,
-              title: result.title || result.name,
-              poster_path: result.poster_path,
-              media_type: result.media_type
-            }
+            mediaId: result.id.toString(),
+            title: result.title || result.name,
+            mediaType: result.media_type,
+            posterPath: result.poster_path,
+            overview: result.overview
           })
         }
       );

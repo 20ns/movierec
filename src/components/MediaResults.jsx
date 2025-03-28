@@ -37,7 +37,16 @@ const ResultsGrid = ({ isLoading, displayedResults, hasSearched }) => {
       className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 pb-4"
     >
       {displayedResults.map((result) => (
-        <MediaCard key={result.id} result={result} />
+        <MediaCard
+          key={result.id}
+          result={result}
+          currentUser={{
+            ...currentUser,
+            token: currentUser?.signInUserSession?.accessToken?.jwtToken
+          }}
+          promptLogin={() => {/* Your login prompt function */}}
+          onClick={handleResultClick}
+        />
       ))}
     </motion.div>
   );
