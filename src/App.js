@@ -53,7 +53,7 @@ function AppContent() {
 
       <header className="relative z-10 pt-8">
         <div className="w-full max-w-4xl mx-auto">
-          <SearchBar />
+          <SearchBar currentUser={currentUser} />
         </div>
       </header>
 

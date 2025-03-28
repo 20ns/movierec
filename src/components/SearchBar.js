@@ -9,7 +9,7 @@ import { useSearch } from './useSearch';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
 
-export const SearchBar = () => {
+export const SearchBar = ({ currentUser }) => {
   const [showFilters, setShowFilters] = useState(true);
   const {
     query,
@@ -90,6 +90,7 @@ export const SearchBar = () => {
         isLoading={isLoading}
         displayedResults={displayedResults}
         handleResultClick={handleResultClick}
+        currentUser={currentUser}
       />
 
       {/* Load More Button */}

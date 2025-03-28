@@ -26,13 +26,17 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
 
   // Helper function to extract token from various user object structures
   const extractToken = (user) => {
-    if (!user) return null;
+    if (!user) {
+      console.log("User object is null in MediaCard");
+      return null;
+    }
     
     // Log the user object structure to help debug
     console.log("Current user object structure:", JSON.stringify({
       hasToken: !!user.token,
       hasSignIn: !!user.signInUserSession,
       hasAccessToken: user.signInUserSession?.accessToken !== undefined,
+      userEmail: user.attributes?.email || 'not found',
       keys: Object.keys(user)
     }));
     
@@ -54,6 +58,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
       return user;
     }
     
+    console.log("Could not extract token from user object:", user);
     return null;
   };
 
