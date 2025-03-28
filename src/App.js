@@ -10,7 +10,7 @@ import PersonalizedRecommendations from './components/PersonalizedRecommendation
 import CategoryBrowser from './components/CategoryBrowser';
 import GenreResults from './components/GenreResults';
 import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
-import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 
@@ -189,7 +189,7 @@ function AppContent() {
               isAuthenticated ? (
                 <OnboardingQuestionnaire currentUser={currentUser} />
               ) : (
-                navigate('/auth')
+                <Navigate to="/auth" replace />
               )
             }
           />
