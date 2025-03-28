@@ -9,6 +9,7 @@ import TrendingSection from './components/TrendingSection';
 import PersonalizedRecommendations from './components/PersonalizedRecommendations';
 import CategoryBrowser from './components/CategoryBrowser';
 import GenreResults from './components/GenreResults';
+import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
 
@@ -18,7 +19,8 @@ function AppContent() {
     currentUser,
     handleSigninSuccess,
     handleSignout,
-    loading
+    loading,
+    isNewUser
   } = useAuth();
   const navigate = useNavigate();
   const [selectedGenre, setSelectedGenre] = useState(null);
@@ -27,12 +29,17 @@ function AppContent() {
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
-        navigate('/');
+        // If user is authenticated but is a new user, direct to onboarding
+        if (isNewUser) {
+          navigate('/onboarding');
+        } else {
+          navigate('/');
+        }
       } else {
         navigate('/auth');
       }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, navigate, isNewUser]);
 
   if (loading) {
     return (
@@ -46,35 +53,41 @@ function AppContent() {
     <div className="min-h-screen relative">
       <Bg />
 
-      <nav className="fixed top-4 right-4 z-50">
-        {!isAuthenticated ? (
-          <SignInModal onSigninSuccess={handleSigninSuccess} />
-        ) : (
-          <UserMenu 
-            userEmail={currentUser?.attributes?.email} 
-            onSignout={handleSignout} 
-          />
-        )}
-      </nav>
+      {/* Only show nav on non-onboarding pages */}
+      {window.location.pathname !== '/onboarding' && (
+        <nav className="fixed top-4 right-4 z-50">
+          {!isAuthenticated ? (
+            <SignInModal onSigninSuccess={handleSigninSuccess} />
+          ) : (
+            <UserMenu 
+              userEmail={currentUser?.attributes?.email} 
+              onSignout={handleSignout} 
+            />
+          )}
+        </nav>
+      )}
 
-      <header className="relative z-10 pt-8">
-        <div className="w-full max-w-4xl mx-auto px-4 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-white">Movie Recommendations</h1>
-          <button 
-            onClick={() => setShowSearch(!showSearch)} 
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full transition-colors"
-          >
-            {showSearch ? 'Hide Search' : 'Search Movies & TV'}
-          </button>
-        </div>
-        {showSearch && (
-          <div className="w-full max-w-4xl mx-auto mt-4">
-            <SearchBar currentUser={currentUser} />
+      {/* Only show header on non-onboarding pages */}
+      {window.location.pathname !== '/onboarding' && (
+        <header className="relative z-10 pt-8">
+          <div className="w-full max-w-4xl mx-auto px-4 flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-white">Movie Recommendations</h1>
+            <button 
+              onClick={() => setShowSearch(!showSearch)} 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full transition-colors"
+            >
+              {showSearch ? 'Hide Search' : 'Search Movies & TV'}
+            </button>
           </div>
-        )}
-      </header>
+          {showSearch && (
+            <div className="w-full max-w-4xl mx-auto mt-4">
+              <SearchBar currentUser={currentUser} />
+            </div>
+          )}
+        </header>
+      )}
 
-      {isAuthenticated && (
+      {isAuthenticated && window.location.pathname !== '/onboarding' && (
         <FavoritesSection 
           currentUser={currentUser} 
           isAuthenticated={isAuthenticated} 
@@ -90,6 +103,16 @@ function AppContent() {
                 onSignupSuccess={handleSigninSuccess}
                 onSigninSuccess={handleSigninSuccess}
               />
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              isAuthenticated ? (
+                <OnboardingQuestionnaire currentUser={currentUser} />
+              ) : (
+                navigate('/auth')
+              )
             }
           />
           <Route

@@ -8,6 +8,54 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [favoriteGenres, setFavoriteGenres] = useState([]);
   const [userFavorites, setUserFavorites] = useState([]);
+  const [userPreferences, setUserPreferences] = useState(null);
+
+  // Fetch user preferences
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Try to get preferences from localStorage first for immediate display
+    const localPrefs = localStorage.getItem('userPrefs');
+    if (localPrefs) {
+      try {
+        const parsedPrefs = JSON.parse(localPrefs);
+        setUserPreferences(parsedPrefs);
+      } catch (e) {
+        console.error('Failed to parse local preferences', e);
+      }
+    }
+    
+    // Then fetch the most up-to-date preferences from the server
+    const fetchPreferences = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`,
+          {
+            headers: {
+              Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data) {
+            setUserPreferences(data);
+            localStorage.setItem('userPrefs', JSON.stringify(data));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user preferences:', error);
+      }
+    };
+    
+    fetchPreferences();
+  }, [currentUser, isAuthenticated]);
 
   // Fetch user favorites
   useEffect(() => {
@@ -68,9 +116,23 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
     fetchFavorites();
   }, [currentUser, isAuthenticated]);
 
-  // Fetch recommendations based on favorite genres
+  // Fetch recommendations based on preferences and favorites
   useEffect(() => {
-    if (!favoriteGenres.length) {
+    if (!isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Determine which genres to use - preferences first, then favorites as fallback
+    let genresToUse = [];
+    
+    if (userPreferences?.favoriteGenres?.length > 0) {
+      genresToUse = userPreferences.favoriteGenres;
+    } else if (favoriteGenres.length > 0) {
+      genresToUse = favoriteGenres;
+    }
+    
+    if (genresToUse.length === 0) {
       setIsLoading(false);
       return;
     }
@@ -78,13 +140,32 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
     const fetchRecommendations = async () => {
       try {
         setIsLoading(true);
+        
+        // Determine content type from preferences
+        const mediaType = userPreferences?.contentType === 'movies' ? 'movie' : 
+                          userPreferences?.contentType === 'tv' ? 'tv' : 
+                          Math.random() > 0.5 ? 'movie' : 'tv';
+        
+        const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+        
         const response = await axios.get(
-          'https://api.themoviedb.org/3/discover/movie',
+          `https://api.themoviedb.org/3/discover/${endpoint}`,
           {
             params: {
               api_key: process.env.REACT_APP_TMDB_API_KEY,
-              with_genres: favoriteGenres.join(','),
-              sort_by: 'popularity.desc'
+              with_genres: genresToUse.join(','),
+              sort_by: 'popularity.desc',
+              // Add year filtering based on era preferences
+              ...(userPreferences?.eraPreferences?.includes('classic') && {
+                'release_date.lte': '1980-12-31'
+              }),
+              ...(userPreferences?.eraPreferences?.includes('modern') && {
+                'release_date.gte': '1980-01-01',
+                'release_date.lte': '2010-12-31'
+              }),
+              ...(userPreferences?.eraPreferences?.includes('recent') && {
+                'release_date.gte': '2011-01-01'
+              })
             }
           }
         );
@@ -95,7 +176,7 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
           .filter(item => !favoriteIds.has(item.id.toString()))
           .map(item => ({
             ...item,
-            media_type: 'movie',
+            media_type: mediaType,
             score: Math.round((item.vote_average / 10) * 100)
           }))
           .slice(0, 6);
@@ -109,9 +190,9 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
     };
     
     fetchRecommendations();
-  }, [favoriteGenres, userFavorites]);
+  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated]);
 
-  if (!isAuthenticated || !recommendations.length) {
+  if (!isAuthenticated || (!isLoading && recommendations.length === 0)) {
     return null;
   }
 
