@@ -73,20 +73,27 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
     setIsLoading(true);
     
     try {
+      // Get the token from the current user session
+      const token = currentUser.signInUserSession.accessToken.jwtToken;
+      
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`
+            'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify(preferences)
+          body: JSON.stringify(preferences),
+          credentials: 'include',
+          mode: 'cors'
         }
       );
       
       if (!response.ok) {
-        throw new Error('Failed to save preferences');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API error response:', errorData);
+        throw new Error(errorData.message || 'Failed to save preferences');
       }
       
       // Save to local storage as backup and for immediate use
@@ -121,31 +128,46 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
     try {
       setIsSubmitting(true);
       
-      // Gather all preferences
-      const preferences = {
+      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+        throw new Error('Authentication token not available. Please sign in again.');
+      }
+      
+      // Get the token from the current user session
+      const token = currentUser.signInUserSession.accessToken.jwtToken;
+      
+      // Use the current preferences from state, don't shadow with a new variable
+      const preferencesData = {
         favoriteGenres: preferences.favoriteGenres,
         contentType: preferences.contentType,
         eraPreferences: preferences.eraPreferences,
         moodPreferences: preferences.moodPreferences,
       };
       
+      console.log('Sending preferences data:', preferencesData);
+      
       // Save to API/database
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(preferences),
-        credentials: 'include'
+        body: JSON.stringify(preferencesData),
+        credentials: 'include',
+        mode: 'cors'
       });
       
       if (!response.ok) {
-        throw new Error('Failed to save preferences');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API error details:', errorData);
+        throw new Error(errorData.message || 'Failed to save preferences');
       }
 
+      const data = await response.json();
+      console.log('API response:', data);
+
       // Save to localStorage for client-side use
-      localStorage.setItem('userPrefs', JSON.stringify(preferences));
+      localStorage.setItem('userPrefs', JSON.stringify(preferencesData));
       localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
       // Notify parent component of completion
