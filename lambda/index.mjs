@@ -7,7 +7,7 @@ export const handler = async (event) => {
         'Access-Control-Allow-Origin': 'https://account.d1akezqpdr5wgr.amplifyapp.com',
         'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-        'Access-Control-Allow-Methods': 'GET,OPTIONS'
+        'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
     };
 
     // Handle preflight OPTIONS request

@@ -28,7 +28,8 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
           headers: {
             Authorization: `Bearer ${currentUser.signInUserSession.idToken.jwtToken}`,
             'Content-Type': 'application/json',
-          }
+          },
+          credentials: 'include'
         }
       );
 
