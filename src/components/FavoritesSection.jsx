@@ -11,22 +11,21 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
-    if (!currentUser?.signInUserSession?.idToken?.jwtToken) {
-      console.error('No JWT token available');
+    if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      console.error('No access token available');
       setError('Authentication token missing');
       return;
     }
-
-    setIsLoading(true); // Set loading state when starting fetch
+  
+    setIsLoading(true);
     
     try {
       console.log('Fetching favorites from API...');
-      // Using the correct endpoint based on your Lambda function
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
           headers: {
-            Authorization: `Bearer ${currentUser.signInUserSession.idToken.jwtToken}`,
+            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
             'Content-Type': 'application/json',
           },
           credentials: 'include'
@@ -164,7 +163,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
                           result={result}
                           currentUser={{
                             ...currentUser,
-                            token: currentUser.signInUserSession.idToken.jwtToken
+                            token: currentUser.signInUserSession.accessToken.jwtToken
                           }}
                           promptLogin={() => {}}
                           onClick={() => {}}
