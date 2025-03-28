@@ -85,6 +85,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(preferences),
+          credentials: 'include',
           mode: 'cors'
         }
       );
@@ -152,6 +153,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(preferencesData),
+        credentials: 'include',
         mode: 'cors'
       });
       
