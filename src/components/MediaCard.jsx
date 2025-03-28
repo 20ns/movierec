@@ -79,8 +79,11 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${result.id}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`
-            }
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            mode: 'cors' // Explicitly set CORS mode
           }
         );
 
@@ -90,6 +93,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
         setIsFavorited(data.isFavorited);
       } catch (error) {
         console.error("Error checking favorite status:", error);
+        // Don't show error to user for status checks - silent fail
       }
     };
 
@@ -109,6 +113,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     if (!token) {
       console.error("No authentication token available. User may not be properly signed in.");
       console.error("Current user object:", currentUser);
+      alert("Please sign in to save favorites");
       promptLogin?.();
       return;
     }
@@ -123,8 +128,10 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
           method,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}` 
           },
+          credentials: 'include',
+          mode: 'cors', // Explicitly set CORS mode
           body: JSON.stringify({
             mediaId: result.id.toString(),
             title: result.title || result.name,
@@ -135,12 +142,34 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
         }
       );
 
-      if (!response.ok) throw new Error(`Failed to ${method} favorite`);
+      if (!response.ok) {
+        // Try to get error details from response
+        let errorMessage = "Unknown error";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || `HTTP error ${response.status}`;
+        } catch (e) {
+          errorMessage = `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
+      }
 
       setIsFavorited(!isFavorited);
+      
+      // Show success message
+      alert(isFavorited ? 
+        "Removed from favorites" : 
+        "Added to favorites");
+      
     } catch (error) {
       console.error("Error updating favorite:", error);
-      alert(`Failed to ${isFavorited ? 'remove from' : 'add to'} favorites. Please try again.`);
+      
+      // Show more helpful error message
+      if (error.message.includes("NetworkError") || error.message.includes("Failed to fetch")) {
+        alert("Network error. This might be due to CORS settings in AWS.");
+      } else {
+        alert(`Failed to ${isFavorited ? 'remove from' : 'add to'} favorites: ${error.message}`);
+      }
     }
   };
 
