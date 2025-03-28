@@ -44,9 +44,15 @@ function AppContent() {
             Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
             'Content-Type': 'application/json',
           },
-          credentials: 'include'
+          credentials: 'include',
+          mode: 'cors' // Explicitly set CORS mode
         })
-          .then(response => response.json())
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+          })
           .then(data => {
             const hasCompleted = !!data && Object.keys(data).length > 0;
             setHasCompletedQuestionnaire(hasCompleted);
@@ -54,6 +60,12 @@ function AppContent() {
           })
           .catch(error => {
             console.error('Error checking questionnaire status:', error);
+            // Fallback to local storage if API fails
+            console.log('Using fallback for questionnaire status due to API error');
+            const fallbackStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+            if (fallbackStatus) {
+              setHasCompletedQuestionnaire(fallbackStatus === 'true');
+            }
           });
       }
     }
