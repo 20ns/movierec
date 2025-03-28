@@ -225,12 +225,32 @@ export const fetchEnhancedRecommendations = async (primaryResult) => {
             return true;
         });
 
+        // Optionally read user preferences (e.g., favorite genres) from localStorage
+        const userPrefs = JSON.parse(localStorage.getItem('userPrefs') || '{}');
 
         // Scoring and Sorting (Keep as is, already quite optimized)
         let scoredResults = uniqueResults
             .map(item => ({ ...item, ...calculateMatchScore(item, targetDetails) })) // Combine score and reasons in one pass
             .sort((a, b) => b.score - a.score);
 
+        // After scoring your combinedResults, do a final re-weight based on user preferences
+        scoredResults = scoredResults.map(item => {
+            let boostedScore = item.score;
+            if (userPrefs.favoriteGenres && item.genre_ids.some(g => userPrefs.favoriteGenres.includes(g))) {
+                boostedScore += 5; // small boost for favorite genres
+                item.reasons.push("Matched your favorite genre");
+            }
+            // New: boost score if user rated similar items highly
+            const ratings = JSON.parse(localStorage.getItem('userRatings') || '{}');
+            if (ratings.similar && ratings.similar.length > 0) {
+                const hasSimilarRatedItems = ratings.similar.some(r => item.genre_ids.includes(r.genreId) && r.rating >= 4);
+                if (hasSimilarRatedItems) {
+                    boostedScore += 3;
+                    item.reasons.push("Boost from similar highly rated items");
+                }
+            }
+            return { ...item, score: boostedScore };
+        }).sort((a, b) => b.score - a.score);
 
         // Genre Diversity Filtering (Optimized with Set and early break)
         let finalResults = [];
