@@ -32,7 +32,7 @@ const ERA_OPTIONS = [
   { id: 'recent', name: 'Recent (2010-Present)' },
 ];
 
-const OnboardingQuestionnaire = ({ currentUser }) => {
+const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +42,8 @@ const OnboardingQuestionnaire = ({ currentUser }) => {
     moodPreferences: [],
     eraPreferences: [],
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   
   const updatePreference = (field, value) => {
     setPreferences(prev => ({
@@ -113,6 +115,55 @@ const OnboardingQuestionnaire = ({ currentUser }) => {
   const skipOnboarding = () => {
     // Still save any partial preferences
     savePreferences();
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Gather all preferences
+      const preferences = {
+        favoriteGenres: preferences.favoriteGenres,
+        contentType: preferences.contentType,
+        eraPreferences: preferences.eraPreferences,
+        moodPreferences: preferences.moodPreferences,
+      };
+      
+      // Save to API/database
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save preferences');
+      }
+
+      // Save to localStorage for client-side use
+      localStorage.setItem('userPrefs', JSON.stringify(preferences));
+      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+      
+      // Notify parent component of completion
+      if (onComplete) {
+        onComplete();
+      }
+      
+      // If not modal, redirect to home
+      if (!isModal) {
+        navigate('/');
+      }
+      
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      setError('Failed to save preferences. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -298,15 +349,24 @@ const OnboardingQuestionnaire = ({ currentUser }) => {
               </button>
             ) : (
               <button
-                onClick={savePreferences}
-                disabled={isLoading}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-500 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className={`px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full transition-colors ${
+                  isSubmitting ? 'opacity-70 cursor-wait' : ''
+                }`}
               >
-                {isLoading ? 'Saving...' : 'Finish'}
+                {isSubmitting ? 'Saving...' : 'Complete Setup'}
               </button>
             )}
           </div>
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="mt-4 p-3 bg-red-900 text-white rounded-lg">
+            {error}
+          </div>
+        )}
       </motion.div>
     </div>
   );

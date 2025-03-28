@@ -1,26 +1,58 @@
-# Movie Suggest
+# MovieRec - Personalized Movie & TV Show Recommendations
 
-Welcome to Movie Suggest! This is a web application that suggests movies based on your preferences. You can search for movies, watch trailers, and get recommendations.
+![MovieRec Banner](https://via.placeholder.com/1200x300/3730A3/FFFFFF?text=MovieRec)
 
-## Features
+## Overview
 
-- Search for movies
-- Watch trailers
-- Get movie recommendations
+MovieRec is an intelligent movie and TV show recommendation platform that helps users discover content tailored to their preferences. With features like personalized recommendations, trending content, and an intuitive search experience, MovieRec makes finding your next favorite movie or TV show effortless.
 
+## ✨ Features
+
+- **Personalized Recommendations**: Get content suggestions based on your viewing history and preferences
+- **Advanced Search**: Find movies and TV shows with smart filters for genre, time period, and media type
+- **User Accounts**: Create an account to save favorites and receive personalized recommendations
+- **Favorites**: Save movies and TV shows to your favorites for later viewing
+- **Genre Exploration**: Browse content by categories like Action, Comedy, Drama, and more
+- **Trending Content**: Stay updated with what's trending today or this week
+- **Responsive Design**: Enjoy a seamless experience across all devices
+- **Onboarding Questionnaire**: Refine recommendations by answering a few questions about your preferences
+- **Preference Center**: Access the preference questionnaire anytime via the diamond icon to update your preferences
+
+## 🛠️ Technologies
+
+### Frontend
+- **React**: Core UI library
+- **React Router DOM**: Navigation and routing
+- **Framer Motion**: Smooth animations and transitions
+- **TailwindCSS**: Utility-first CSS framework for styling
+- **Axios**: HTTP client for API requests
+- **HeadlessUI/HeroIcons**: UI components and icons
+
+### Backend & Infrastructure
+- **AWS Amplify**: Authentication, API, and hosting services
+- **AWS Cognito**: User authentication and management
+- **DynamoDB**: NoSQL database for storing user preferences and favorites
+- **Lambda**: Serverless functions for backend processing
+- **API Gateway**: RESTful API endpoints
+
+### Build Tools
+- **Webpack**: Module bundling
+- **Babel**: JavaScript transpilation
+- **PostCSS**: CSS processing
+
+### APIs
+- **TMDB API**: The Movie Database API for content information
+
+## 📋 Prerequisites
+
+- Node.js (v14.x or higher)
+- npm or yarn
+- AWS account (for deployment)
+- TMDB API key
 
 ## Deployment
 
-This project is deployed on Netlify. You can access the live version of the website [here](https://moviessuggest.netlify.app/).
-
-## Built With
-
-- [React](https://reactjs.org/) - The web framework used
-- [Tailwind CSS](https://tailwindcss.com/) - For styling
-- [Babel](https://babeljs.io/) - For JavaScript transpilation
-- [PostCSS](https://postcss.org/) - For CSS transformations
-- [Webpack](https://webpack.js.org/) - For module bundling
-- [Netlify](https://www.netlify.com/) - For deployment
+This project is deployed on AWS Amplify. You can access the live version of the website [here](https://main.d1akezqpdr5wgr.amplifyapp.com/).
 
 ## Acknowledgments
 

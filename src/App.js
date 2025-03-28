@@ -12,6 +12,7 @@ import GenreResults from './components/GenreResults';
 import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
+import { DiamondIcon } from '@heroicons/react/24/solid';
 
 function AppContent() {
   const {
@@ -25,11 +26,43 @@ function AppContent() {
   const navigate = useNavigate();
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+
+  // Check if user has completed questionnaire
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      // Check local storage first for quick UI response
+      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+      
+      if (completionStatus === 'true') {
+        setHasCompletedQuestionnaire(true);
+      } else {
+        // Alternatively, fetch from API/database
+        fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+          headers: {
+            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include'
+        })
+          .then(response => response.json())
+          .then(data => {
+            const hasCompleted = !!data && Object.keys(data).length > 0;
+            setHasCompletedQuestionnaire(hasCompleted);
+            localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
+          })
+          .catch(error => {
+            console.error('Error checking questionnaire status:', error);
+          });
+      }
+    }
+  }, [isAuthenticated, currentUser]);
 
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
-        // If user is authenticated but is a new user, direct to onboarding
+        // If user is a new user, direct to onboarding
         if (isNewUser) {
           navigate('/onboarding');
         } else {
@@ -40,6 +73,13 @@ function AppContent() {
       }
     }
   }, [isAuthenticated, loading, navigate, isNewUser]);
+
+  // Handler for questionnaire completion
+  const handleQuestionnaireComplete = () => {
+    setHasCompletedQuestionnaire(true);
+    setShowQuestionnaire(false);
+    localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+  };
 
   if (loading) {
     return (
@@ -53,6 +93,19 @@ function AppContent() {
     <div className="min-h-screen relative">
       <Bg />
 
+      {/* Questionnaire diamond icon */}
+      {isAuthenticated && !hasCompletedQuestionnaire && window.location.pathname !== '/onboarding' && (
+        <div className="fixed top-4 left-4 z-50">
+          <button 
+            onClick={() => setShowQuestionnaire(true)}
+            className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg flex items-center justify-center"
+            title="Complete your preference questionnaire"
+          >
+            <DiamondIcon className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+
       {/* Only show nav on non-onboarding pages */}
       {window.location.pathname !== '/onboarding' && (
         <nav className="fixed top-4 right-4 z-50">
@@ -65,6 +118,31 @@ function AppContent() {
             />
           )}
         </nav>
+      )}
+
+      {/* Questionnaire Modal */}
+      {showQuestionnaire && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75">
+          <div className="w-full max-w-4xl bg-gray-900 p-6 rounded-xl shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-white">Your Preferences</h2>
+              <button 
+                onClick={() => setShowQuestionnaire(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <OnboardingQuestionnaire 
+              currentUser={currentUser} 
+              onComplete={handleQuestionnaireComplete}
+              isModal={true}
+            />
+          </div>
+        </div>
       )}
 
       {/* Only show header on non-onboarding pages */}
