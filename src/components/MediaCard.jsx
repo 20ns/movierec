@@ -27,8 +27,11 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
+      // Extract token from different possible structures
+      const token = currentUser?.token || currentUser?.signInUserSession?.accessToken?.jwtToken;
+      
       // Skip if no token available
-      if (!currentUser?.token) return;
+      if (!token) return;
 
       try {
         // Note: Using the British spelling 'favourite' to match your API
@@ -36,7 +39,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${result.id}`,
           {
             headers: {
-              Authorization: `Bearer ${currentUser.token}`
+              Authorization: `Bearer ${token}`
             }
           }
         );
@@ -51,16 +54,21 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     };
 
     checkFavoriteStatus();
-  }, [currentUser?.token, result.id]);
+  }, [currentUser, result.id]);
 
   // Handle adding/removing favorites
   const handleFavorite = async (e) => {
     e.stopPropagation();
+    
+    // Extract token from different possible structures
+    const token = currentUser?.token || currentUser?.signInUserSession?.accessToken?.jwtToken;
+    
     console.log("Favorite button clicked");
-    console.log("Favorite button clicked, user token is:", currentUser?.token);
+    console.log("Favorite button clicked, user token is:", token);
     
     // Check for token
-    if (!currentUser?.token) {
+    if (!token) {
+      console.error("No authentication token available. User may not be properly signed in.");
       promptLogin?.();
       return;
     }
@@ -75,7 +83,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
           method,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentUser.token}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
             mediaId: result.id.toString(),
