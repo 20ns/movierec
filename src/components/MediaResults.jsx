@@ -4,7 +4,7 @@ import Skeleton from 'react-loading-skeleton';
 import { MediaCard } from './MediaCard';
 import { FaceFrownIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-export const MediaResults = ({ hasSearched, isLoading, displayedResults }) => (
+export const MediaResults = ({ hasSearched, isLoading, displayedResults, currentUser = null, handleResultClick = () => {} }) => (
   <div className="relative w-full mt-8" style={{ zIndex: 40 }}>
     <AnimatePresence mode='wait'>
       {hasSearched ? (
@@ -12,6 +12,8 @@ export const MediaResults = ({ hasSearched, isLoading, displayedResults }) => (
           isLoading={isLoading} 
           displayedResults={displayedResults}
           hasSearched={hasSearched}
+          currentUser={currentUser}
+          handleResultClick={handleResultClick}
         />
       ) : (
         <EmptyState />
@@ -20,7 +22,7 @@ export const MediaResults = ({ hasSearched, isLoading, displayedResults }) => (
   </div>
 );
 
-const ResultsGrid = ({ isLoading, displayedResults, hasSearched }) => {
+const ResultsGrid = ({ isLoading, displayedResults, hasSearched, currentUser = null, handleResultClick = () => {} }) => {
   if (isLoading) {
     return <LoadingSkeletons />;
   }
@@ -40,10 +42,10 @@ const ResultsGrid = ({ isLoading, displayedResults, hasSearched }) => {
         <MediaCard
           key={result.id}
           result={result}
-          currentUser={{
+          currentUser={currentUser ? {
             ...currentUser,
             token: currentUser?.signInUserSession?.accessToken?.jwtToken
-          }}
+          } : null}
           promptLogin={() => {/* Your login prompt function */}}
           onClick={handleResultClick}
         />
