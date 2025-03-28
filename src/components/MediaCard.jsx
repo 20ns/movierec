@@ -24,14 +24,49 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     return hexToRgb(hexColor);
   };
 
+  // Helper function to extract token from various user object structures
+  const extractToken = (user) => {
+    if (!user) return null;
+    
+    // Log the user object structure to help debug
+    console.log("Current user object structure:", JSON.stringify({
+      hasToken: !!user.token,
+      hasSignIn: !!user.signInUserSession,
+      hasAccessToken: user.signInUserSession?.accessToken !== undefined,
+      keys: Object.keys(user)
+    }));
+    
+    // Case 1: Direct token property
+    if (user.token) return user.token;
+    
+    // Case 2: Cognito user session (most common)
+    if (user.signInUserSession?.accessToken?.jwtToken) {
+      return user.signInUserSession.accessToken.jwtToken;
+    }
+    
+    // Case 3: Different naming (some versions use idToken instead)
+    if (user.signInUserSession?.idToken?.jwtToken) {
+      return user.signInUserSession.idToken.jwtToken;
+    }
+    
+    // Case 4: Raw JWT passed directly
+    if (typeof user === 'string' && user.split('.').length === 3) {
+      return user;
+    }
+    
+    return null;
+  };
+
   // Check favorite status on component mount and when user/result changes
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      // Extract token from different possible structures
-      const token = currentUser?.token || currentUser?.signInUserSession?.accessToken?.jwtToken;
+      const token = extractToken(currentUser);
       
       // Skip if no token available
-      if (!token) return;
+      if (!token) {
+        console.log("No token available for favorite status check");
+        return;
+      }
 
       try {
         // Note: Using the British spelling 'favourite' to match your API
@@ -60,8 +95,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
   const handleFavorite = async (e) => {
     e.stopPropagation();
     
-    // Extract token from different possible structures
-    const token = currentUser?.token || currentUser?.signInUserSession?.accessToken?.jwtToken;
+    const token = extractToken(currentUser);
     
     console.log("Favorite button clicked");
     console.log("Favorite button clicked, user token is:", token);
@@ -69,6 +103,7 @@ export const MediaCard = ({ result, onClick, currentUser, promptLogin }) => {
     // Check for token
     if (!token) {
       console.error("No authentication token available. User may not be properly signed in.");
+      console.error("Current user object:", currentUser);
       promptLogin?.();
       return;
     }

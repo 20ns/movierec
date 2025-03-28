@@ -44,7 +44,10 @@ const ResultsGrid = ({ isLoading, displayedResults, hasSearched, currentUser = n
           result={result}
           currentUser={currentUser ? {
             ...currentUser,
-            token: currentUser?.signInUserSession?.accessToken?.jwtToken
+            // Ensure token is extracted from all possible locations
+            token: currentUser?.token || 
+                  currentUser?.signInUserSession?.accessToken?.jwtToken ||
+                  currentUser?.signInUserSession?.idToken?.jwtToken
           } : null}
           promptLogin={() => {/* Your login prompt function */}}
           onClick={handleResultClick}
