@@ -144,30 +144,68 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
       
       console.log('Sending preferences data:', preferencesData);
       
-      // Save to API/database
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(preferencesData),
-        mode: 'cors'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('API error details:', errorData);
-        throw new Error(errorData.message || 'Failed to save preferences');
-      }
-
-      const data = await response.json();
-      console.log('API response:', data);
-
-      // Save to localStorage for client-side use
+      // Save to localStorage first as a fallback
       localStorage.setItem('userPrefs', JSON.stringify(preferencesData));
       localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
+      let apiSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      while (!apiSuccess && retryCount <= maxRetries) {
+        try {
+          // Save to API/database with retry logic
+          const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(preferencesData),
+            // Use mode: 'cors' but don't include credentials to avoid CORS issues
+            mode: 'cors'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('API response:', data);
+            apiSuccess = true;
+          } else {
+            // Parse error response if possible
+            let errorMessage = 'Failed to save preferences';
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.message || errorData.error || errorMessage;
+              console.error('API error details:', errorData);
+            } catch (e) {
+              console.error('Could not parse error response:', e);
+            }
+            
+            // For 401/403 errors, throw immediately as retrying won't help
+            if (response.status === 401 || response.status === 403) {
+              throw new Error(`Authentication error: ${errorMessage}`);
+            }
+            
+            // Otherwise, retry for server errors
+            if (retryCount < maxRetries) {
+              console.log(`Retrying API call, attempt ${retryCount + 1} of ${maxRetries}`);
+              retryCount++;
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+            } else {
+              throw new Error(errorMessage);
+            }
+          }
+        } catch (fetchError) {
+          console.error('Fetch error:', fetchError);
+          if (retryCount >= maxRetries) {
+            throw fetchError;
+          }
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      // Even if API failed, we already saved to localStorage, so we can proceed
       // Notify parent component of completion
       if (onComplete) {
         onComplete();
@@ -180,7 +218,26 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
       
     } catch (error) {
       console.error('Error saving preferences:', error);
-      setError('Failed to save preferences. Please try again.');
+      
+      // Use localStorage as fallback even if API fails
+      const fallbackSucceeded = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`) === 'true';
+      
+      setError(error.message || 'Failed to save preferences. Please try again.');
+      
+      // If localStorage fallback succeeded, we can still proceed after showing the error
+      if (fallbackSucceeded) {
+        setTimeout(() => {
+          // Notify parent after showing error briefly
+          if (onComplete) {
+            onComplete();
+          }
+          
+          // If not modal, redirect to home
+          if (!isModal) {
+            navigate('/');
+          }
+        }, 3000); // Show error for 3 seconds before proceeding
+      }
     } finally {
       setIsSubmitting(false);
     }
