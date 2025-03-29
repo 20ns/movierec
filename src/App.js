@@ -44,8 +44,8 @@ function AppContent() {
             Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
             'Content-Type': 'application/json',
           },
-          mode: 'cors', // Explicitly set CORS mode
-          // Remove credentials: 'include' since we're using Bearer token authentication
+          mode: 'cors',
+          credentials: 'include' // For cookies/authorization headers
         })
           .then(response => {
             // Add specific detection for CORS errors

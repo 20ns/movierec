@@ -86,7 +86,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
           },
           body: JSON.stringify(preferences),
           mode: 'cors',
-          // Remove credentials: 'include' - we're using Bearer token authentication
+          credentials: 'include' // For cookies/authorization headers
         }
       );
       
@@ -173,8 +173,8 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(preferencesData),
-            mode: 'cors'
-            // Consistently NOT using credentials: 'include'
+            mode: 'cors',
+            credentials: 'include' // For cookies/authorization headers
           });
           
           // Add specific CORS error detection
