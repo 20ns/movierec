@@ -44,10 +44,16 @@ function AppContent() {
             Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
             'Content-Type': 'application/json',
           },
-          credentials: 'include',
-          mode: 'cors' // Explicitly set CORS mode
+          mode: 'cors', // Explicitly set CORS mode
+          // Remove credentials: 'include' since we're using Bearer token authentication
         })
           .then(response => {
+            // Add specific detection for CORS errors
+            if (response.status === 0 || response.type === 'opaque') {
+              console.error('CORS error detected when checking preferences');
+              throw new Error('Request blocked by CORS policy');
+            }
+            
             if (!response.ok) {
               throw new Error(`HTTP error! Status: ${response.status}`);
             }
@@ -60,6 +66,14 @@ function AppContent() {
           })
           .catch(error => {
             console.error('Error checking questionnaire status:', error);
+            
+            // Add specific logging for CORS errors
+            if (error.message.includes('CORS') || 
+                error.message.includes('blocked') || 
+                error.message.includes('NetworkError')) {
+              console.error('This appears to be a CORS-related error');
+            }
+            
             // Fallback to local storage if API fails
             console.log('Using fallback for questionnaire status due to API error');
             const fallbackStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);

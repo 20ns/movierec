@@ -85,18 +85,28 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(preferences),
-          mode: 'cors'
+          mode: 'cors',
+          // Remove credentials: 'include' - we're using Bearer token authentication
         }
       );
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API error response:', errorData);
+        
+        // Add specific CORS error handling
+        if (response.status === 0 || response.type === 'opaque') {
+          throw new Error('CORS error: The request was blocked due to CORS policy');
+        }
+        
         throw new Error(errorData.message || 'Failed to save preferences');
       }
       
       // Save to local storage as backup and for immediate use
       localStorage.setItem('userPrefs', JSON.stringify(preferences));
+      
+      // Mark questionnaire as completed on success
+      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
       // Redirect to home page
       navigate('/');
@@ -164,7 +174,14 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
             },
             body: JSON.stringify(preferencesData),
             mode: 'cors'
+            // Consistently NOT using credentials: 'include'
           });
+          
+          // Add specific CORS error detection
+          if (response.status === 0 || response.type === 'opaque') {
+            console.error('Possible CORS error detected');
+            throw new Error('Request was blocked - possible CORS issue');
+          }
           
           if (response.ok) {
             const data = await response.json();
@@ -211,6 +228,15 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
           }
         } catch (fetchError) {
           console.error('Fetch error:', fetchError);
+          
+          // Add specific handling for CORS errors
+          if (fetchError.message.includes('NetworkError') || 
+              fetchError.message.includes('CORS') || 
+              fetchError.message.includes('blocked')) {
+            console.error('CORS issue detected. Make sure your API allows requests from this origin.');
+            // You might want to provide a more user-friendly error message
+          }
+          
           if (retryCount >= maxRetries) {
             throw fetchError;
           }
