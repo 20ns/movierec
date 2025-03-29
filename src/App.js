@@ -107,7 +107,7 @@ function AppContent() {
 
       {/* Questionnaire diamond icon */}
       {isAuthenticated && !hasCompletedQuestionnaire && window.location.pathname !== '/onboarding' && (
-        <div className="fixed top-4 left-4 z-50">
+        <div className="fixed top-4 left-4 z-50 animate-pulse">
           <button 
             onClick={() => setShowQuestionnaire(true)}
             className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg flex items-center justify-center"
@@ -115,6 +115,9 @@ function AppContent() {
           >
             <SparklesIcon className="w-6 h-6" />
           </button>
+          <div className="mt-2 text-xs text-white bg-purple-700 p-1 rounded text-center">
+            Set Preferences
+          </div>
         </div>
       )}
 

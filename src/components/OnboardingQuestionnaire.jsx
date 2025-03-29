@@ -144,9 +144,10 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
       
       console.log('Sending preferences data:', preferencesData);
       
-      // Save to localStorage first as a fallback
+      // Save preferences to localStorage but don't mark as completed yet
       localStorage.setItem('userPrefs', JSON.stringify(preferencesData));
-      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+      // Remove this line - we'll set it only after API success
+      // localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
       let apiSuccess = false;
       let retryCount = 0;
@@ -162,7 +163,6 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(preferencesData),
-            // Use mode: 'cors' but don't include credentials to avoid CORS issues
             mode: 'cors'
           });
           
@@ -170,8 +170,22 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
             const data = await response.json();
             console.log('API response:', data);
             apiSuccess = true;
+            
+            // Mark questionnaire as completed ONLY on API success
+            localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+            
+            // Notify parent component of completion
+            if (onComplete) {
+              onComplete();
+            }
+            
+            // If not modal, redirect to home
+            if (!isModal) {
+              navigate('/');
+            }
+            
           } else {
-            // Parse error response if possible
+            // ...existing error handling code...
             let errorMessage = 'Failed to save preferences';
             try {
               const errorData = await response.json();
@@ -205,39 +219,22 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
         }
       }
       
-      // Even if API failed, we already saved to localStorage, so we can proceed
-      // Notify parent component of completion
-      if (onComplete) {
-        onComplete();
-      }
-      
-      // If not modal, redirect to home
-      if (!isModal) {
-        navigate('/');
+      // If we reach here without apiSuccess, we need to handle the failure case
+      if (!apiSuccess) {
+        throw new Error('Failed to save preferences after multiple attempts');
       }
       
     } catch (error) {
       console.error('Error saving preferences:', error);
       
-      // Use localStorage as fallback even if API fails
-      const fallbackSucceeded = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`) === 'true';
+      // Make sure we explicitly set questionnaire as NOT completed on error
+      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'false');
       
       setError(error.message || 'Failed to save preferences. Please try again.');
       
-      // If localStorage fallback succeeded, we can still proceed after showing the error
-      if (fallbackSucceeded) {
-        setTimeout(() => {
-          // Notify parent after showing error briefly
-          if (onComplete) {
-            onComplete();
-          }
-          
-          // If not modal, redirect to home
-          if (!isModal) {
-            navigate('/');
-          }
-        }, 3000); // Show error for 3 seconds before proceeding
-      }
+      // Don't proceed on error - let the user try again by keeping them on this page
+      // Remove the fallbackSucceeded logic that allowed proceeding on error
+      
     } finally {
       setIsSubmitting(false);
     }
