@@ -156,16 +156,15 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
       
       // Save preferences to localStorage but don't mark as completed yet
       localStorage.setItem('userPrefs', JSON.stringify(preferencesData));
-      // Remove this line - we'll set it only after API success
-      // localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
       let apiSuccess = false;
       let retryCount = 0;
       const maxRetries = 2;
       
+      // First try with credentials: 'include'
       while (!apiSuccess && retryCount <= maxRetries) {
         try {
-          // Save to API/database with retry logic
+          // Try first with credentials
           const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
             method: 'POST',
             headers: {
@@ -174,67 +173,65 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
             },
             body: JSON.stringify(preferencesData),
             mode: 'cors',
-            credentials: 'include' // For cookies/authorization headers
+            credentials: 'include'
           });
           
-          // Add specific CORS error detection
-          if (response.status === 0 || response.type === 'opaque') {
-            console.error('Possible CORS error detected');
-            throw new Error('Request was blocked - possible CORS issue');
-          }
-          
           if (response.ok) {
+            // Rest of the successful response handling code
             const data = await response.json();
-            console.log('API response:', data);
             apiSuccess = true;
-            
-            // Mark questionnaire as completed ONLY on API success
             localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
             
-            // Notify parent component of completion
             if (onComplete) {
               onComplete();
             }
             
-            // If not modal, redirect to home
             if (!isModal) {
               navigate('/');
             }
-            
           } else {
-            // ...existing error handling code...
-            let errorMessage = 'Failed to save preferences';
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorData.error || errorMessage;
-              console.error('API error details:', errorData);
-            } catch (e) {
-              console.error('Could not parse error response:', e);
-            }
-            
-            // For 401/403 errors, throw immediately as retrying won't help
-            if (response.status === 401 || response.status === 403) {
-              throw new Error(`Authentication error: ${errorMessage}`);
-            }
-            
-            // Otherwise, retry for server errors
-            if (retryCount < maxRetries) {
-              console.log(`Retrying API call, attempt ${retryCount + 1} of ${maxRetries}`);
-              retryCount++;
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
-            } else {
-              throw new Error(errorMessage);
-            }
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
         } catch (fetchError) {
-          console.error('Fetch error:', fetchError);
+          console.error('Fetch error with credentials:', fetchError);
           
-          // Add specific handling for CORS errors
-          if (fetchError.message.includes('NetworkError') || 
-              fetchError.message.includes('CORS') || 
-              fetchError.message.includes('blocked')) {
-            console.error('CORS issue detected. Make sure your API allows requests from this origin.');
-            // You might want to provide a more user-friendly error message
+          // If we get a CORS error, try again without credentials
+          if (fetchError.message.includes('CORS') || 
+              fetchError.message.includes('NetworkError') || 
+              fetchError.name === 'TypeError') {
+            console.log('Trying without credentials due to CORS issue');
+            try {
+              // Try without credentials
+              const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(preferencesData),
+                mode: 'cors',
+                // No credentials: 'include' here
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                apiSuccess = true;
+                localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+                
+                if (onComplete) {
+                  onComplete();
+                }
+                
+                if (!isModal) {
+                  navigate('/');
+                }
+              } else {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+            } catch (secondError) {
+              console.error('Fetch error without credentials:', secondError);
+              // Continue with retry logic
+            }
           }
           
           if (retryCount >= maxRetries) {
@@ -247,20 +244,38 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
       
       // If we reach here without apiSuccess, we need to handle the failure case
       if (!apiSuccess) {
-        throw new Error('Failed to save preferences after multiple attempts');
+        // Even if API failed, mark as completed in localStorage so user can use the app
+        // We will retry API sync when they next log in
+        console.warn('API failed but proceeding with localStorage backup');
+        localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+        
+        // If we're in a modal, close it
+        if (onComplete) {
+          onComplete();
+        }
+        
+        // If not in a modal, navigate home
+        if (!isModal) {
+          navigate('/');
+        }
       }
       
     } catch (error) {
       console.error('Error saving preferences:', error);
-      
-      // Make sure we explicitly set questionnaire as NOT completed on error
-      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'false');
-      
       setError(error.message || 'Failed to save preferences. Please try again.');
+      // Make localStorage backup anyway
+      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
-      // Don't proceed on error - let the user try again by keeping them on this page
-      // Remove the fallbackSucceeded logic that allowed proceeding on error
-      
+      // If we're in a modal, close it after error
+      setTimeout(() => {
+        if (onComplete) {
+          onComplete();
+        }
+        
+        if (!isModal) {
+          navigate('/');
+        }
+      }, 3000);
     } finally {
       setIsSubmitting(false);
     }

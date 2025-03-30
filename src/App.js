@@ -38,49 +38,61 @@ function AppContent() {
       if (completionStatus === 'true') {
         setHasCompletedQuestionnaire(true);
       } else {
-        // Alternatively, fetch from API/database
-        fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
-          headers: {
-            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
-            'Content-Type': 'application/json',
-          },
-          mode: 'cors',
-          credentials: 'include' // For cookies/authorization headers
-        })
-          .then(response => {
-            // Add specific detection for CORS errors
-            if (response.status === 0 || response.type === 'opaque') {
-              console.error('CORS error detected when checking preferences');
-              throw new Error('Request blocked by CORS policy');
-            }
+        // Try first with credentials
+        const fetchPreferences = async () => {
+          try {
+            const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+              headers: {
+                Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+                'Content-Type': 'application/json',
+              },
+              mode: 'cors',
+              credentials: 'include'
+            });
             
-            if (!response.ok) {
+            if (response.ok) {
+              const data = await response.json();
+              const hasCompleted = !!data && Object.keys(data).length > 0;
+              setHasCompletedQuestionnaire(hasCompleted);
+              localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
+            } else {
               throw new Error(`HTTP error! Status: ${response.status}`);
             }
-            return response.json();
-          })
-          .then(data => {
-            const hasCompleted = !!data && Object.keys(data).length > 0;
-            setHasCompletedQuestionnaire(hasCompleted);
-            localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
-          })
-          .catch(error => {
-            console.error('Error checking questionnaire status:', error);
+          } catch (error) {
+            console.error('Error checking questionnaire status with credentials:', error);
             
-            // Add specific logging for CORS errors
-            if (error.message.includes('CORS') || 
-                error.message.includes('blocked') || 
-                error.message.includes('NetworkError')) {
-              console.error('This appears to be a CORS-related error');
+            // If CORS error, try without credentials
+            if (error.message.includes('CORS') || error.name === 'TypeError') {
+              try {
+                const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+                  headers: {
+                    Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  mode: 'cors'
+                  // No credentials: 'include'
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  const hasCompleted = !!data && Object.keys(data).length > 0;
+                  setHasCompletedQuestionnaire(hasCompleted);
+                  localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
+                }
+              } catch (secondError) {
+                console.error('Error checking questionnaire status without credentials:', secondError);
+                // Fall back to localStorage
+                console.log('Using fallback for questionnaire status due to API error');
+                const fallbackStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+                if (fallbackStatus) {
+                  setHasCompletedQuestionnaire(fallbackStatus === 'true');
+                }
+              }
             }
-            
-            // Fallback to local storage if API fails
-            console.log('Using fallback for questionnaire status due to API error');
-            const fallbackStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
-            if (fallbackStatus) {
-              setHasCompletedQuestionnaire(fallbackStatus === 'true');
-            }
-          });
+          }
+        };
+        
+        fetchPreferences();
       }
     }
   }, [isAuthenticated, currentUser]);

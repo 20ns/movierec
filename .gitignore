@@ -2,3 +2,5 @@ node_modules
 
 # Environment variables
 .env
+scripts\configure-cors.sh
+scripts/update-api-gateway.sh
