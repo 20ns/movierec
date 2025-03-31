@@ -11,8 +11,104 @@ import GenreResults from './components/GenreResults';
 import { BrowserRouter, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
 import { SparklesIcon } from '@heroicons/react/24/solid';
+import { FilmIcon, UserIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Header from './components/Header';
 import { motion } from 'framer-motion';
+
+// Landing page component for non-authenticated users
+const LandingPage = ({ onSignInClick }) => {
+  return (
+    <div className="container mx-auto px-4 py-12 flex flex-col items-center">
+      {/* Hero section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-center max-w-4xl mx-auto mb-16"
+      >
+        <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
+          Discover Your Next Favorite Movie
+        </h1>
+        <p className="text-xl text-gray-300 mb-8">
+          Get personalized movie recommendations based on your preferences and viewing history.
+          Sign in to unlock your custom movie experience.
+        </p>
+        <button 
+          onClick={onSignInClick} 
+          className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-xl font-medium transition-all shadow-lg flex items-center mx-auto"
+        >
+          Get Started <ArrowRightIcon className="w-5 h-5 ml-2" />
+        </button>
+      </motion.div>
+
+      {/* Features section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl mx-auto mb-16">
+        {[
+          {
+            icon: <FilmIcon className="w-12 h-12 text-purple-500" />,
+            title: "Personalized Recommendations",
+            description: "Our algorithm learns your preferences and suggests movies you'll love."
+          },
+          {
+            icon: <SparklesIcon className="w-12 h-12 text-indigo-500" />,
+            title: "Trending Movies",
+            description: "Stay updated with what's popular and trending in the movie world."
+          },
+          {
+            icon: <UserIcon className="w-12 h-12 text-blue-500" />,
+            title: "Save Your Favorites",
+            description: "Build your collection and keep track of movies you want to watch."
+          }
+        ].map((feature, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
+            className="bg-gray-800 bg-opacity-70 p-6 rounded-xl text-center"
+          >
+            <div className="flex justify-center mb-4">
+              {feature.icon}
+            </div>
+            <h3 className="text-xl font-semibold mb-2 text-white">{feature.title}</h3>
+            <p className="text-gray-300">{feature.description}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Preview section - sample trending movies */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+        className="w-full max-w-6xl mx-auto"
+      >
+        <h2 className="text-3xl font-bold mb-6 text-white text-center">
+          Popular Right Now
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="bg-gray-800 rounded-lg overflow-hidden shadow-lg group">
+              <div className="aspect-[2/3] bg-gradient-to-br from-purple-900/40 to-indigo-900/40 animate-pulse"></div>
+              <div className="p-3">
+                <div className="h-4 bg-gray-700 rounded animate-pulse mb-2"></div>
+                <div className="h-3 bg-gray-700 rounded animate-pulse w-2/3"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 text-center">
+          <button 
+            onClick={onSignInClick} 
+            className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-all shadow-md border border-purple-500"
+          >
+            Sign in to see more
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 function AppContent() {
   const {
@@ -98,6 +194,10 @@ function AppContent() {
     localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
   };
 
+  const handleSignInClick = () => {
+    navigate('/auth');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -164,7 +264,7 @@ function AppContent() {
             onSignout={handleSignout}
           />
           
-          {showSearch && (
+          {showSearch && isAuthenticated && (
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -227,11 +327,7 @@ function AppContent() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-center">
-                    <p className="text-lg text-white">
-                      Redirecting to authentication...
-                    </p>
-                  </div>
+                  <LandingPage onSignInClick={handleSignInClick} />
                 )}
               </div>
             }
