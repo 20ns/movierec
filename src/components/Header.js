@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MagnifyingGlassIcon as SearchIcon, 
   UserIcon, 
@@ -15,105 +17,205 @@ function Header({
   setShowFavorites,
   showFavorites,
   onSignout,
-  setShowAccountDetails // New prop for handling account details modal
+  setShowAccountDetails
 }) {
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const userMenuRef = useRef(null);
+  const [hoveredButton, setHoveredButton] = useState(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  // Animation variants
+  const iconButtonVariants = {
+    initial: { scale: 1 },
+    hover: { scale: 1.1, transition: { type: "spring", stiffness: 400, damping: 10 } }
+  };
   
-  // Close menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setShowUserMenu(false);
-      }
+  const dropdownVariants = {
+    hidden: { opacity: 0, y: -5, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: { 
+        type: "spring", 
+        stiffness: 500, 
+        damping: 30 
+      } 
+    },
+    exit: { 
+      opacity: 0,
+      y: -5,
+      scale: 0.95,
+      transition: { duration: 0.2 } 
     }
-    
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 px-4 py-3 bg-gray-900 bg-opacity-80 backdrop-blur-sm border-b border-gray-800 shadow-lg">
-      <div className="flex items-center justify-between">
+    <motion.header 
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="fixed top-0 left-0 right-0 z-40 px-4 sm:px-6 py-4 bg-gray-900/90 backdrop-blur-lg border-b border-gray-800/50 shadow-md"
+    >
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo area */}
-        <div className="flex items-center">
-          <a href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
+        <motion.div 
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 400, damping: 10 }}
+        >
+          <Link to="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
             MovieRec
-          </a>
-        </div>
+          </Link>
+        </motion.div>
 
         {/* Navigation buttons */}
-        <div className="flex items-center space-x-3">
-          {/* Toggle search button - always visible */}
-          <button 
-            onClick={() => setShowSearch(!showSearch)} 
-            className={`p-2 rounded-full ${showSearch ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white'} transition-colors`}
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Search button - always visible */}
+          <motion.button 
+            variants={iconButtonVariants}
+            initial="initial"
+            whileHover="hover"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowSearch(!showSearch)}
+            onMouseEnter={() => setHoveredButton('search')}
+            onMouseLeave={() => setHoveredButton(null)} 
+            className={`relative p-2.5 rounded-full transition-colors duration-200 ${
+              showSearch ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
+            }`}
             title="Search movies"
           >
             <SearchIcon className="w-5 h-5" />
-          </button>
+            {hoveredButton === 'search' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap px-2 py-1 bg-gray-800 text-xs text-gray-200 rounded shadow-lg pointer-events-none"
+              >
+                Search
+              </motion.div>
+            )}
+          </motion.button>
           
           {/* Only show these buttons when the user is authenticated */}
           {isAuthenticated && (
             <>
               {/* Preferences button */}
-              <button 
-                onClick={() => setShowQuestionnaire(true)} 
-                className="p-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-full transition-colors"
+              <motion.button 
+                variants={iconButtonVariants}
+                initial="initial"
+                whileHover="hover"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowQuestionnaire(true)}
+                onMouseEnter={() => setHoveredButton('preferences')}
+                onMouseLeave={() => setHoveredButton(null)}
+                className="relative p-2.5 text-gray-300 hover:bg-gray-800/70 hover:text-white rounded-full transition-colors duration-200"
                 title="Set movie preferences"
               >
                 <AdjustmentsHorizontalIcon className="w-5 h-5" />
-              </button>
+                {hoveredButton === 'preferences' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap px-2 py-1 bg-gray-800 text-xs text-gray-200 rounded shadow-lg pointer-events-none"
+                  >
+                    Preferences
+                  </motion.div>
+                )}
+              </motion.button>
               
               {/* Favorites button */}
-              <button 
-                onClick={() => setShowFavorites(!showFavorites)} 
-                className={`p-2 rounded-full ${showFavorites ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white'} transition-colors`}
+              <motion.button 
+                variants={iconButtonVariants}
+                initial="initial"
+                whileHover="hover"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowFavorites(!showFavorites)}
+                onMouseEnter={() => setHoveredButton('favorites')}
+                onMouseLeave={() => setHoveredButton(null)}
+                className={`relative p-2.5 rounded-full transition-colors duration-200 ${
+                  showFavorites ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
+                }`}
                 title="View favorites"
               >
                 <HeartIcon className="w-5 h-5" />
-              </button>
+                {hoveredButton === 'favorites' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap px-2 py-1 bg-gray-800 text-xs text-gray-200 rounded shadow-lg pointer-events-none"
+                  >
+                    Favorites
+                  </motion.div>
+                )}
+              </motion.button>
             </>
           )}
 
-          {/* User profile menu */}
+          {/* User profile button */}
           {isAuthenticated ? (
-            <div className="relative group">
-              <button 
-                onClick={() => setShowAccountDetails(true)}
-                className="p-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-full transition-colors"
-                title={`${currentUser?.attributes?.email || 'User profile'}`}
+            <div className="relative">
+              <motion.button 
+                variants={iconButtonVariants}
+                initial="initial"
+                whileHover="hover"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                onBlur={() => setTimeout(() => setShowUserDropdown(false), 100)}
+                className="p-2.5 text-gray-300 hover:bg-gray-800/70 hover:text-white rounded-full transition-colors duration-200"
+                title={currentUser?.attributes?.email || 'Account'}
               >
                 <UserIcon className="w-5 h-5" />
-              </button>
-              <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg overflow-hidden z-20 hidden group-hover:block">
-                <div 
-                  onClick={() => setShowAccountDetails(true)}
-                  className="px-4 py-2 text-sm text-gray-300 border-b border-gray-700 cursor-pointer hover:bg-gray-700"
-                >
-                  {currentUser?.attributes?.email}
-                </div>
-                <button
-                  onClick={onSignout}
-                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 w-full text-left"
-                >
-                  Sign out
-                </button>
-              </div>
+              </motion.button>
+              
+              <AnimatePresence>
+                {showUserDropdown && (
+                  <motion.div 
+                    variants={dropdownVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="absolute right-0 mt-2 w-60 bg-gray-800 rounded-lg shadow-lg border border-gray-700/50 overflow-hidden z-50"
+                  >
+                    <div 
+                      onClick={() => {
+                        setShowAccountDetails(true);
+                        setShowUserDropdown(false);
+                      }}
+                      className="px-4 py-3 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-colors duration-150"
+                    >
+                      <div className="font-medium text-white text-sm">Account</div>
+                      <div className="text-xs text-gray-300 truncate">
+                        {currentUser?.attributes?.email}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        onSignout();
+                        setShowUserDropdown(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700/50 transition-colors duration-150 flex items-center"
+                    >
+                      <span>Sign out</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
-            <a 
-              href="/auth"
-              className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-md text-sm font-medium transition-all shadow-md"
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
             >
-              Sign In
-            </a>
+              <Link 
+                to="/auth"
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium transition-all shadow-md"
+              >
+                Sign In
+              </Link>
+            </motion.div>
           )}
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
 
