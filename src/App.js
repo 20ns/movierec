@@ -109,12 +109,12 @@ function AppContent() {
     <div className="min-h-screen relative">
       <Bg />
 
-      {/* Questionnaire diamond icon */}
+      {/* Questionnaire diamond icon - highlight more prominently for new users */}
       {isAuthenticated && !hasCompletedQuestionnaire && window.location.pathname !== '/onboarding' && (
         <div className="fixed top-4 left-4 z-50 animate-pulse">
           <button 
             onClick={() => setShowQuestionnaire(true)}
-            className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg flex items-center justify-center"
+            className="p-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all shadow-lg flex items-center justify-center"
             title="Complete your preference questionnaire"
           >
             <SparklesIcon className="w-6 h-6" />

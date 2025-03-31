@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { MediaCard } from './MediaCard';
+import { SparklesIcon } from '@heroicons/react/24/solid';
 
 const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
   const [recommendations, setRecommendations] = useState([]);
@@ -9,7 +10,8 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
   const [favoriteGenres, setFavoriteGenres] = useState([]);
   const [userFavorites, setUserFavorites] = useState([]);
   const [userPreferences, setUserPreferences] = useState(null);
-
+  const [dataSource, setDataSource] = useState(null); // Track what data is being used for recommendations
+  
   // Fetch user preferences
   useEffect(() => {
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
@@ -44,7 +46,8 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
         
         if (response.ok) {
           const data = await response.json();
-          if (data) {
+          if (data && Object.keys(data).length > 0 && 
+              (data.favoriteGenres?.length > 0 || data.contentType || data.eraPreferences?.length > 0)) {
             setUserPreferences(data);
             localStorage.setItem('userPrefs', JSON.stringify(data));
           }
@@ -80,7 +83,7 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
         if (!response.ok) throw new Error('Failed to fetch favorites');
         
         const data = await response.json();
-        if (data && data.items) {
+        if (data && data.items && data.items.length > 0) {
           setUserFavorites(data.items);
           
           // Extract genres from favorites for recommendation
@@ -94,7 +97,7 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
           const allGenres = genreResults
             .filter(Boolean)
             .flatMap(res => res.data.genres?.map(g => g.id) || []);
-            
+          
           // Get most common genres
           const genreCount = {};
           allGenres.forEach(g => {
@@ -123,17 +126,18 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
       return;
     }
     
-    // Determine which genres to use - preferences first, then favorites as fallback
-    let genresToUse = [];
+    const hasPreferences = userPreferences && 
+      (userPreferences.favoriteGenres?.length > 0 || 
+       userPreferences.contentType || 
+       userPreferences.eraPreferences?.length > 0);
+       
+    const hasFavorites = favoriteGenres.length > 0;
     
-    if (userPreferences?.favoriteGenres?.length > 0) {
-      genresToUse = userPreferences.favoriteGenres;
-    } else if (favoriteGenres.length > 0) {
-      genresToUse = favoriteGenres;
-    }
-    
-    if (genresToUse.length === 0) {
+    // Exit early if we have neither preferences nor favorites
+    if (!hasPreferences && !hasFavorites) {
       setIsLoading(false);
+      setDataSource('none');
+      fetchGenericRecommendations();
       return;
     }
 
@@ -141,12 +145,56 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
       try {
         setIsLoading(true);
         
-        // Determine content type from preferences
+        // Determine which data source to use for recommendations
+        if (hasPreferences && hasFavorites) {
+          setDataSource('both');
+        } else if (hasPreferences) {
+          setDataSource('preferences');
+        } else {
+          setDataSource('favorites');
+        }
+        
+        // Determine content type from preferences, favorites, or random if neither specifies
         const mediaType = userPreferences?.contentType === 'movies' ? 'movie' : 
-                          userPreferences?.contentType === 'tv' ? 'tv' : 
-                          Math.random() > 0.5 ? 'movie' : 'tv';
+                         userPreferences?.contentType === 'tv' ? 'tv' : 
+                         // Check if favorites has a preferred media type
+                         hasFavorites && userFavorites.filter(f => f.mediaType === 'movie').length > 
+                                        userFavorites.filter(f => f.mediaType === 'tv').length ?
+                                        'movie' : 'tv';
         
         const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+        
+        // Determine which genres to use
+        let genresToUse = [];
+        
+        if (hasPreferences && userPreferences.favoriteGenres?.length > 0) {
+          // If has both, combine some from each source, prioritizing preferences
+          if (hasFavorites) {
+            // Get unique genres from both sources, prioritizing preferences
+            const preferenceGenres = userPreferences.favoriteGenres.slice(0, 2);
+            const uniqueFavoriteGenres = favoriteGenres.filter(g => !preferenceGenres.includes(g)).slice(0, 1);
+            genresToUse = [...preferenceGenres, ...uniqueFavoriteGenres];
+          } else {
+            genresToUse = userPreferences.favoriteGenres;
+          }
+        } else if (hasFavorites) {
+          genresToUse = favoriteGenres;
+        }
+        
+        // Era preferences from the user's settings
+        let yearParams = {};
+        if (hasPreferences && userPreferences.eraPreferences?.length > 0) {
+          if (userPreferences.eraPreferences.includes('classic')) {
+            yearParams = { 'release_date.lte': '1980-12-31' };
+          } else if (userPreferences.eraPreferences.includes('modern')) {
+            yearParams = { 
+              'release_date.gte': '1980-01-01',
+              'release_date.lte': '2010-12-31'
+            };
+          } else if (userPreferences.eraPreferences.includes('recent')) {
+            yearParams = { 'release_date.gte': '2011-01-01' };
+          }
+        }
         
         const response = await axios.get(
           `https://api.themoviedb.org/3/discover/${endpoint}`,
@@ -155,17 +203,8 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
               api_key: process.env.REACT_APP_TMDB_API_KEY,
               with_genres: genresToUse.join(','),
               sort_by: 'popularity.desc',
-              // Add year filtering based on era preferences
-              ...(userPreferences?.eraPreferences?.includes('classic') && {
-                'release_date.lte': '1980-12-31'
-              }),
-              ...(userPreferences?.eraPreferences?.includes('modern') && {
-                'release_date.gte': '1980-01-01',
-                'release_date.lte': '2010-12-31'
-              }),
-              ...(userPreferences?.eraPreferences?.includes('recent') && {
-                'release_date.gte': '2011-01-01'
-              })
+              ...yearParams,
+              'vote_count.gte': 100, // Ensure some quality threshold
             }
           }
         );
@@ -184,6 +223,35 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
         setRecommendations(formattedResults);
       } catch (error) {
         console.error('Error fetching recommendations:', error);
+        fetchGenericRecommendations();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Fallback to generic trending content
+    const fetchGenericRecommendations = async () => {
+      try {
+        const response = await axios.get(
+          'https://api.themoviedb.org/3/trending/all/week',
+          {
+            params: {
+              api_key: process.env.REACT_APP_TMDB_API_KEY,
+            }
+          }
+        );
+        
+        const formattedResults = response.data.results
+          .filter(item => item.poster_path && item.overview)
+          .map(item => ({
+            ...item,
+            score: Math.round((item.vote_average / 10) * 100)
+          }))
+          .slice(0, 6);
+          
+        setRecommendations(formattedResults);
+      } catch (error) {
+        console.error('Error fetching generic recommendations:', error);
       } finally {
         setIsLoading(false);
       }
@@ -192,13 +260,32 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
     fetchRecommendations();
   }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated]);
 
-  if (!isAuthenticated || (!isLoading && recommendations.length === 0)) {
+  if (!isAuthenticated) {
     return null;
   }
-
+  
+  // Show recommendations section even if empty, to display the prompt
   return (
     <section className="mb-12 max-w-7xl mx-auto px-4">
-      <h2 className="text-2xl font-bold text-white mb-6">Recommended For You</h2>
+      <h2 className="text-2xl font-bold text-white mb-6">
+        {dataSource === 'both' ? 'Personalized Recommendations' :
+         dataSource === 'preferences' ? 'Based on Your Preferences' :
+         dataSource === 'favorites' ? 'Because You Liked' :
+         'Popular This Week'}
+      </h2>
+      
+      {dataSource === 'none' && recommendations.length === 0 && !isLoading && (
+        <div className="bg-indigo-900 bg-opacity-50 rounded-lg p-6 mb-6 flex items-center">
+          <SparklesIcon className="h-8 w-8 text-indigo-300 mr-4" />
+          <div>
+            <h3 className="text-lg font-semibold text-white">Get Personalized Recommendations</h3>
+            <p className="text-indigo-200">
+              Complete your preference questionnaire using the sparkles icon in the top left 
+              to get recommendations tailored just for you!
+            </p>
+          </div>
+        </div>
+      )}
       
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -206,7 +293,7 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
             <div key={i} className="bg-gray-800 rounded-lg h-72 animate-pulse"></div>
           ))}
         </div>
-      ) : (
+      ) : recommendations.length > 0 ? (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -223,6 +310,10 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
             />
           ))}
         </motion.div>
+      ) : (
+        <div className="text-center py-10">
+          <p className="text-gray-400">No recommendations available. Try adding some favorites!</p>
+        </div>
       )}
     </section>
   );
