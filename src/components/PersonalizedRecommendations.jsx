@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { MediaCard } from './MediaCard';
@@ -11,6 +11,34 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
   const [userFavorites, setUserFavorites] = useState([]);
   const [userPreferences, setUserPreferences] = useState(null);
   const [dataSource, setDataSource] = useState(null); // Track what data is being used for recommendations
+  
+  // Define the fetchGenericRecommendations function using useCallback before it's used
+  const fetchGenericRecommendations = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        'https://api.themoviedb.org/3/trending/all/week',
+        {
+          params: {
+            api_key: process.env.REACT_APP_TMDB_API_KEY,
+          }
+        }
+      );
+      
+      const formattedResults = response.data.results
+        .filter(item => item.poster_path && item.overview)
+        .map(item => ({
+          ...item,
+          score: Math.round((item.vote_average / 10) * 100)
+        }))
+        .slice(0, 6);
+        
+      setRecommendations(formattedResults);
+    } catch (error) {
+      console.error('Error fetching generic recommendations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
   
   // Fetch user preferences
   useEffect(() => {
@@ -96,7 +124,7 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
           const genreResults = await Promise.all(genrePromises.map(p => p.catch(e => null)));
           const allGenres = genreResults
             .filter(Boolean)
-            .flatMap(res => res.data.genres?.map(g => g.id) || []);
+            .flatMap(res => res.data?.genres?.map(g => g.id) || []);
           
           // Get most common genres
           const genreCount = {};
@@ -155,14 +183,23 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
         }
         
         // Determine content type from preferences, favorites, or random if neither specifies
-        const mediaType = userPreferences?.contentType === 'movies' ? 'movie' : 
-                         userPreferences?.contentType === 'tv' ? 'tv' : 
-                         // Check if favorites has a preferred media type
-                         hasFavorites && userFavorites.filter(f => f.mediaType === 'movie').length > 
-                                        userFavorites.filter(f => f.mediaType === 'tv').length ?
-                                        'movie' : 'tv';
+        let mediaType;
         
-        const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+        if (userPreferences?.contentType === 'movies') {
+          mediaType = 'movie';
+        } else if (userPreferences?.contentType === 'tv') {
+          mediaType = 'tv';
+        } else if (hasFavorites && userFavorites.length > 0) {
+          // Count movie vs TV favorites
+          const movieCount = userFavorites.filter(f => f.mediaType === 'movie').length;
+          const tvCount = userFavorites.filter(f => f.mediaType === 'tv').length;
+          mediaType = movieCount > tvCount ? 'movie' : 'tv';
+        } else {
+          // Default to movie if no preference is available
+          mediaType = 'movie';
+        }
+        
+        const endpoint = mediaType;
         
         // Determine which genres to use
         let genresToUse = [];
@@ -172,7 +209,9 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
           if (hasFavorites) {
             // Get unique genres from both sources, prioritizing preferences
             const preferenceGenres = userPreferences.favoriteGenres.slice(0, 2);
-            const uniqueFavoriteGenres = favoriteGenres.filter(g => !preferenceGenres.includes(g)).slice(0, 1);
+            const uniqueFavoriteGenres = favoriteGenres
+              .filter(g => !preferenceGenres.includes(String(g)))
+              .slice(0, 1);
             genresToUse = [...preferenceGenres, ...uniqueFavoriteGenres];
           } else {
             genresToUse = userPreferences.favoriteGenres;
@@ -196,69 +235,52 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
           }
         }
         
-        const response = await axios.get(
-          `https://api.themoviedb.org/3/discover/${endpoint}`,
-          {
-            params: {
-              api_key: process.env.REACT_APP_TMDB_API_KEY,
-              with_genres: genresToUse.join(','),
-              sort_by: 'popularity.desc',
-              ...yearParams,
-              'vote_count.gte': 100, // Ensure some quality threshold
+        // Only proceed with API call if we have genres to use
+        if (genresToUse.length > 0) {
+          const response = await axios.get(
+            `https://api.themoviedb.org/3/discover/${endpoint}`,
+            {
+              params: {
+                api_key: process.env.REACT_APP_TMDB_API_KEY,
+                with_genres: genresToUse.join(','),
+                sort_by: 'popularity.desc',
+                ...yearParams,
+                'vote_count.gte': 100, // Ensure some quality threshold
+              }
             }
-          }
-        );
-        
-        // Format and filter out already favorited items
-        const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
-        const formattedResults = response.data.results
-          .filter(item => !favoriteIds.has(item.id.toString()))
-          .map(item => ({
-            ...item,
-            media_type: mediaType,
-            score: Math.round((item.vote_average / 10) * 100)
-          }))
-          .slice(0, 6);
+          );
           
-        setRecommendations(formattedResults);
+          // Format and filter out already favorited items
+          const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
+          const formattedResults = response.data.results
+            .filter(item => !favoriteIds.has(item.id.toString()))
+            .map(item => ({
+              ...item,
+              media_type: mediaType,
+              score: Math.round((item.vote_average / 10) * 100)
+            }))
+            .slice(0, 6);
+          
+          if (formattedResults.length > 0) {
+            setRecommendations(formattedResults);
+          } else {
+            // If no results after filtering, get generic recommendations
+            await fetchGenericRecommendations();
+          }
+        } else {
+          // If no genres to use, get generic recommendations
+          await fetchGenericRecommendations();
+        }
       } catch (error) {
         console.error('Error fetching recommendations:', error);
-        fetchGenericRecommendations();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    // Fallback to generic trending content
-    const fetchGenericRecommendations = async () => {
-      try {
-        const response = await axios.get(
-          'https://api.themoviedb.org/3/trending/all/week',
-          {
-            params: {
-              api_key: process.env.REACT_APP_TMDB_API_KEY,
-            }
-          }
-        );
-        
-        const formattedResults = response.data.results
-          .filter(item => item.poster_path && item.overview)
-          .map(item => ({
-            ...item,
-            score: Math.round((item.vote_average / 10) * 100)
-          }))
-          .slice(0, 6);
-          
-        setRecommendations(formattedResults);
-      } catch (error) {
-        console.error('Error fetching generic recommendations:', error);
+        await fetchGenericRecommendations();
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchRecommendations();
-  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated]);
+  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations]);
 
   if (!isAuthenticated) {
     return null;
