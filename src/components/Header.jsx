@@ -6,12 +6,15 @@ import {
   UserCircleIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
+import FavoritesSection from './FavoritesSection';
 
 const Header = ({ 
   currentUser, 
   setShowSearch, 
   showSearch,
   setShowQuestionnaire,
+  showFavorites,
+  setShowFavorites,
   onSignout
 }) => {
   const [isHovering, setIsHovering] = useState(null);
@@ -34,7 +37,8 @@ const Header = ({
       id: 'favorites',
       label: 'Favorites',
       icon: <HeartIcon className="w-5 h-5" />,
-      // This is just a placeholder - favorites are handled in a separate component
+      onClick: () => setShowFavorites(!showFavorites),
+      isActive: showFavorites
     }
   ];
   
@@ -124,6 +128,17 @@ const Header = ({
           </div>
         </div>
       </div>
+      
+      {/* Favorites Panel */}
+      {showFavorites && currentUser && (
+        <div className="absolute right-0 mt-2 w-96 max-w-full">
+          <FavoritesSection 
+            currentUser={currentUser} 
+            isAuthenticated={true}
+            inHeader={true}
+          />
+        </div>
+      )}
     </motion.header>
   );
 };

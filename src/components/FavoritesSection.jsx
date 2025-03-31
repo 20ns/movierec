@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
 
-const FavoritesSection = ({ currentUser, isAuthenticated }) => {
+const FavoritesSection = ({ currentUser, isAuthenticated, inHeader = false }) => {
   const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -67,54 +67,62 @@ const FavoritesSection = ({ currentUser, isAuthenticated }) => {
   }
 
   return (
-    <div className="fixed right-20 top-4 z-50">
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={!currentUser?.signInUserSession}
-        className={`flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors duration-300 shadow-md ${
-          !currentUser?.signInUserSession ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
-        }`}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        {currentUser?.signInUserSession ? (
-          <>
-            <HeartIcon className="w-6 h-6 inline-block mr-2 text-red-200" />
-            <span className="font-medium">Favorites</span>
-          </>
-        ) : (
-          'Loading auth...'
-        )}
-      </motion.button>
+    <div className={inHeader ? "bg-gray-800 rounded-xl shadow-xl overflow-hidden" : "fixed right-20 top-4 z-50"}>
+      {!inHeader && (
+        <motion.button
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={!currentUser?.signInUserSession}
+          className={`flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors duration-300 shadow-md ${
+            !currentUser?.signInUserSession ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
+          }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {currentUser?.signInUserSession ? (
+            <>
+              <HeartIcon className="w-6 h-6 inline-block mr-2 text-red-200" />
+              <span className="font-medium">Favorites</span>
+            </>
+          ) : (
+            'Loading auth...'
+          )}
+        </motion.button>
+      )}
 
       <AnimatePresence>
-        {isOpen && (
+        {(isOpen || inHeader) && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-              onClick={() => setIsOpen(false)}
-            />
+            {!inHeader && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                onClick={() => setIsOpen(false)}
+              />
+            )}
 
             <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              initial={inHeader ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="fixed top-20 right-4 w-full max-w-md bg-white rounded-2xl shadow-xl z-50 max-h-[80vh] overflow-y-auto"
+              className={inHeader 
+                ? "w-full bg-gray-800 max-h-[70vh] overflow-y-auto" 
+                : "fixed top-20 right-4 w-full max-w-md bg-white rounded-2xl shadow-xl z-50 max-h-[80vh] overflow-y-auto"}
             >
-              <div className="p-6">
+              <div className={`p-6 ${inHeader ? 'bg-gray-800 text-white' : ''}`}>
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800">
+                  <h2 className={`text-2xl font-bold ${inHeader ? 'text-white' : 'text-gray-800'}`}>
                     Your Favorites
                   </h2>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
+                  {!inHeader && (
+                    <button
+                      onClick={() => setIsOpen(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
 
                 {isLoading && (

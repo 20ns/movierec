@@ -3,17 +3,16 @@ import SearchBar from './components/SearchBar';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
 import SignInModal from './components/SigninForm';
-import UserMenu from './account/UserMenu';
-import FavoritesSection from './components/FavoritesSection';
+import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import TrendingSection from './components/TrendingSection';
 import PersonalizedRecommendations from './components/PersonalizedRecommendations';
 import CategoryBrowser from './components/CategoryBrowser';
 import GenreResults from './components/GenreResults';
-import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import { BrowserRouter, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import Header from './components/Header';
+import { motion } from 'framer-motion';
 
 function AppContent() {
   const {
@@ -29,6 +28,7 @@ function AppContent() {
   const [showSearch, setShowSearch] = useState(false);
   const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   // Check if user has completed questionnaire
   useEffect(() => {
@@ -126,20 +126,6 @@ function AppContent() {
         </div>
       )}
 
-      {/* Only show nav on non-onboarding pages */}
-      {window.location.pathname !== '/onboarding' && (
-        <nav className="fixed top-4 right-4 z-50">
-          {!isAuthenticated ? (
-            <SignInModal onSigninSuccess={handleSigninSuccess} />
-          ) : (
-            <UserMenu 
-              userEmail={currentUser?.attributes?.email} 
-              onSignout={handleSignout} 
-            />
-          )}
-        </nav>
-      )}
-
       {/* Questionnaire Modal */}
       {showQuestionnaire && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75">
@@ -173,6 +159,8 @@ function AppContent() {
             setShowSearch={setShowSearch}
             showSearch={showSearch}
             setShowQuestionnaire={setShowQuestionnaire}
+            setShowFavorites={setShowFavorites}
+            showFavorites={showFavorites}
             onSignout={handleSignout}
           />
           
@@ -187,13 +175,6 @@ function AppContent() {
             </motion.div>
           )}
         </>
-      )}
-
-      {isAuthenticated && window.location.pathname !== '/onboarding' && (
-        <FavoritesSection 
-          currentUser={currentUser} 
-          isAuthenticated={isAuthenticated} 
-        />
       )}
 
       <main className="relative z-10 pt-8">
@@ -223,16 +204,6 @@ function AppContent() {
               <div className="container mx-auto px-4 mt-12">
                 {isAuthenticated ? (
                   <div className="space-y-12">
-                    {/* Greeting message */}
-                    <div className="text-center">
-                      <h2 className="text-2xl font-semibold text-white mb-2">
-                        Welcome, {currentUser?.attributes?.email?.split('@')[0]}
-                      </h2>
-                      <p className="text-gray-300">
-                        Discover your next favorite movie or TV show
-                      </p>
-                    </div>
-                    
                     {/* Personalized recommendations based on user's favorites */}
                     <PersonalizedRecommendations 
                       currentUser={currentUser}
