@@ -80,38 +80,28 @@ function Header({
 
           {/* User profile menu */}
           {isAuthenticated ? (
-            <div className="relative" ref={userMenuRef}>
+            <div className="relative group">
               <button 
-                onClick={() => setShowUserMenu(!showUserMenu)}
+                onClick={() => setShowAccountDetails(true)}
                 className="p-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-full transition-colors"
                 title={`${currentUser?.attributes?.email || 'User profile'}`}
               >
                 <UserIcon className="w-5 h-5" />
               </button>
-              
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-xl overflow-hidden z-20 border border-gray-700">
-                  <div 
-                    onClick={() => {
-                      setShowAccountDetails(true);
-                      setShowUserMenu(false);
-                    }}
-                    className="px-4 py-3 text-sm text-gray-300 border-b border-gray-700 hover:bg-gray-700 cursor-pointer"
-                  >
-                    <div className="font-medium">Account</div>
-                    <div className="truncate text-gray-400">{currentUser?.attributes?.email}</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      onSignout();
-                      setShowUserMenu(false);
-                    }}
-                    className="block w-full px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 text-left"
-                  >
-                    Sign out
-                  </button>
+              <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg overflow-hidden z-20 hidden group-hover:block">
+                <div 
+                  onClick={() => setShowAccountDetails(true)}
+                  className="px-4 py-2 text-sm text-gray-300 border-b border-gray-700 cursor-pointer hover:bg-gray-700"
+                >
+                  {currentUser?.attributes?.email}
                 </div>
-              )}
+                <button
+                  onClick={onSignout}
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 w-full text-left"
+                >
+                  Sign out
+                </button>
+              </div>
             </div>
           ) : (
             <a 
