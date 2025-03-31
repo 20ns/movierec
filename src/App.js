@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import SearchBar from './components/SearchBar';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
@@ -14,7 +14,7 @@ import { SparklesIcon } from '@heroicons/react/24/solid';
 import { FilmIcon, UserIcon, ArrowRightIcon, MagnifyingGlassIcon as SearchIcon } from '@heroicons/react/24/outline';
 import Header from './components/Header';
 import AccountDetailsModal from './components/AccountDetailsModal'; // Import the new component
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Landing page component for non-authenticated users
 const LandingPage = ({ onSignInClick }) => {
@@ -127,6 +127,9 @@ function AppContent() {
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false); // New state for account details modal
+  const [showPreferencesPrompt, setShowPreferencesPrompt] = useState(false);
+  const preferenceModalRef = useRef(null);
+  const accountModalRef = useRef(null);
 
   // Check if user has completed questionnaire
   useEffect(() => {
@@ -171,8 +174,23 @@ function AppContent() {
         
         fetchPreferences();
       }
+      
+      // Handle the preferences prompt - only show once
+      const hasShownPrompt = localStorage.getItem(`preference_prompt_shown_${currentUser.attributes.sub}`);
+      if (!hasShownPrompt && !hasCompletedQuestionnaire) {
+        setShowPreferencesPrompt(true);
+        // Mark as shown
+        localStorage.setItem(`preference_prompt_shown_${currentUser.attributes.sub}`, 'true');
+        
+        // Auto-hide after 10 seconds
+        const timer = setTimeout(() => {
+          setShowPreferencesPrompt(false);
+        }, 10000);
+        
+        return () => clearTimeout(timer);
+      }
     }
-  }, [isAuthenticated, currentUser]);
+  }, [isAuthenticated, currentUser, hasCompletedQuestionnaire]);
 
   useEffect(() => {
     if (!loading) {
@@ -215,6 +233,13 @@ function AppContent() {
     return () => document.removeEventListener('open-preferences', handleOpenPreferences);
   }, []);
 
+  // Handle backdrop clicks for modals
+  const handleModalBackdropClick = (e, ref, closeAction) => {
+    if (ref.current && !ref.current.contains(e.target)) {
+      closeAction();
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -226,6 +251,39 @@ function AppContent() {
   return (
     <>
       <Bg />
+
+      {/* Dynamic preferences prompt - only shows once */}
+      {isAuthenticated && !hasCompletedQuestionnaire && showPreferencesPrompt && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-gray-800 px-4 py-3 rounded-lg shadow-lg border border-purple-500/30 flex items-center gap-3 max-w-md"
+        >
+          <SparklesIcon className="w-6 h-6 text-purple-400 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm text-white">Set your movie preferences to get personalized recommendations</p>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                setShowPreferencesPrompt(false);
+                setShowQuestionnaire(true);
+              }}
+              className="text-sm px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded"
+            >
+              Set Now
+            </button>
+            <button 
+              onClick={() => setShowPreferencesPrompt(false)}
+              className="text-sm px-2 py-1 text-gray-300 hover:text-white"
+            >
+              Later
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Questionnaire diamond icon - highlight more prominently for new users */}
       {isAuthenticated && !hasCompletedQuestionnaire && window.location.pathname !== '/onboarding' && (
@@ -243,14 +301,19 @@ function AppContent() {
         </div>
       )}
 
-      {/* Improved Questionnaire Modal */}
+      {/* Improved Questionnaire Modal with backdrop click handling */}
       {showQuestionnaire && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75">
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75"
+          onClick={(e) => handleModalBackdropClick(e, preferenceModalRef, () => setShowQuestionnaire(false))}
+        >
           <motion.div 
+            ref={preferenceModalRef}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className="w-full max-w-4xl bg-gray-900 p-6 rounded-xl shadow-2xl border border-gray-700"
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
@@ -281,10 +344,12 @@ function AppContent() {
 
       {/* Account Details Modal */}
       {showAccountDetails && isAuthenticated && (
-        <AccountDetailsModal 
-          currentUser={currentUser} 
-          onClose={() => setShowAccountDetails(false)}
-        />
+        <AnimatePresence>
+          <AccountDetailsModal 
+            currentUser={currentUser} 
+            onClose={() => setShowAccountDetails(false)}
+          />
+        </AnimatePresence>
       )}
 
       {/* Only show header on non-onboarding pages */}

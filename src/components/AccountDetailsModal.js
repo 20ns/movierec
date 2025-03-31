@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 function AccountDetailsModal({ currentUser, onClose }) {
   const [activeTab, setActiveTab] = useState('profile');
-
+  const modalRef = useRef(null);
+  
+  // Close when clicking outside
+  const handleBackdropClick = (e) => {
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      onClose();
+    }
+  };
+  
   // Format date to be more readable
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -18,14 +26,33 @@ function AccountDetailsModal({ currentUser, onClose }) {
     });
   };
 
+  // Get user creation date from a more reliable source
+  const creationDate = currentUser?.attributes?.email_verified_at || 
+                      currentUser?.attributes?.created || 
+                      currentUser?.signInUserSession?.idToken?.payload?.auth_time;
+  
+  // Format user id for display
+  const userId = currentUser?.attributes?.sub || 
+                currentUser?.username || 
+                currentUser?.signInUserSession?.idToken?.payload?.sub || 
+                'N/A';
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-75">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-75"
+      onClick={handleBackdropClick}
+    >
       <motion.div 
+        ref={modalRef}
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.25 }}
         className="w-full max-w-2xl bg-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden"
+        onClick={e => e.stopPropagation()} // Prevent clicks from reaching the backdrop
       >
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-700 bg-gray-800">
@@ -60,24 +87,30 @@ function AccountDetailsModal({ currentUser, onClose }) {
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm text-gray-400">Email</h3>
-                <p className="text-white">{currentUser?.attributes?.email || 'N/A'}</p>
+                <p className="text-white">{currentUser?.attributes?.email || currentUser?.signInUserSession?.idToken?.payload?.email || 'N/A'}</p>
               </div>
               
               <div>
                 <h3 className="text-sm text-gray-400">User ID</h3>
                 <p className="text-white font-mono text-xs bg-gray-800 p-2 rounded overflow-x-auto">
-                  {currentUser?.attributes?.sub || 'N/A'}
+                  {userId}
                 </p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm text-gray-400">Created</h3>
-                  <p className="text-white">{formatDate(currentUser?.attributes?.created)}</p>
+                  <h3 className="text-sm text-gray-400">Account Created</h3>
+                  <p className="text-white">
+                    {creationDate ? formatDate(creationDate * 1000) : 'N/A'}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="text-sm text-gray-400">Last Updated</h3>
-                  <p className="text-white">{formatDate(currentUser?.attributes?.updated)}</p>
+                  <h3 className="text-sm text-gray-400">Last Session</h3>
+                  <p className="text-white">
+                    {currentUser?.signInUserSession ? 
+                      formatDate(currentUser.signInUserSession.idToken.payload.auth_time * 1000) : 
+                      'N/A'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -113,7 +146,7 @@ function AccountDetailsModal({ currentUser, onClose }) {
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
