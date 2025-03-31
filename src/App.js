@@ -35,10 +35,13 @@ function AppContent() {
       // Check local storage first for quick UI response
       const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
       
+      // Set initial state from localStorage
       if (completionStatus === 'true') {
         setHasCompletedQuestionnaire(true);
       } else {
-        // Try first with credentials
+        setHasCompletedQuestionnaire(false);
+        
+        // Fetch from API regardless of local storage to ensure we have the latest status
         const fetchPreferences = async () => {
           try {
             const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
@@ -47,48 +50,23 @@ function AppContent() {
                 'Content-Type': 'application/json',
               },
               mode: 'cors',
-              credentials: 'include'
             });
             
             if (response.ok) {
               const data = await response.json();
-              const hasCompleted = !!data && Object.keys(data).length > 0;
+              // Check if data has the questionnaireCompleted field or fallback to checking properties
+              const hasCompleted = data.questionnaireCompleted === true || 
+                (!!data && Object.keys(data).filter(key => key !== 'userId' && key !== 'updatedAt').length > 0);
+              
               setHasCompletedQuestionnaire(hasCompleted);
               localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
             } else {
-              throw new Error(`HTTP error! Status: ${response.status}`);
+              console.error(`HTTP error! Status: ${response.status}`);
+              // Keep current state from localStorage if API fails
             }
           } catch (error) {
-            console.error('Error checking questionnaire status with credentials:', error);
-            
-            // If CORS error, try without credentials
-            if (error.message.includes('CORS') || error.name === 'TypeError') {
-              try {
-                const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
-                  headers: {
-                    Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
-                    'Content-Type': 'application/json',
-                  },
-                  mode: 'cors'
-                  // No credentials: 'include'
-                });
-                
-                if (response.ok) {
-                  const data = await response.json();
-                  const hasCompleted = !!data && Object.keys(data).length > 0;
-                  setHasCompletedQuestionnaire(hasCompleted);
-                  localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
-                }
-              } catch (secondError) {
-                console.error('Error checking questionnaire status without credentials:', secondError);
-                // Fall back to localStorage
-                console.log('Using fallback for questionnaire status due to API error');
-                const fallbackStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
-                if (fallbackStatus) {
-                  setHasCompletedQuestionnaire(fallbackStatus === 'true');
-                }
-              }
-            }
+            console.error('Error checking questionnaire status:', error);
+            // Keep the state from localStorage if there's an error
           }
         };
         
