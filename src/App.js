@@ -13,6 +13,7 @@ import useAuth from './auth/auth';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { FilmIcon, UserIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Header from './components/Header';
+import AccountDetailsModal from './components/AccountDetailsModal'; // Import the new component
 import { motion } from 'framer-motion';
 
 // Landing page component for non-authenticated users
@@ -125,6 +126,7 @@ function AppContent() {
   const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showAccountDetails, setShowAccountDetails] = useState(false); // New state for account details modal
 
   // Check if user has completed questionnaire
   useEffect(() => {
@@ -181,9 +183,9 @@ function AppContent() {
         } else {
           navigate('/');
         }
-      } else {
-        navigate('/auth');
       }
+      // Remove the automatic redirect to /auth for non-authenticated users
+      // This allows them to see the landing page
     }
   }, [isAuthenticated, loading, navigate, isNewUser]);
 
@@ -192,6 +194,14 @@ function AppContent() {
     setHasCompletedQuestionnaire(true);
     setShowQuestionnaire(false);
     localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+  };
+
+  // New handler for skipping the questionnaire
+  const handleSkipQuestionnaire = () => {
+    setShowQuestionnaire(false);
+    // Set a temporary flag to remind the user later
+    localStorage.setItem(`questionnaire_skipped_${currentUser.attributes.sub}`, 'true');
+    // Don't mark as completed, so the user will be prompted again later
   };
 
   const handleSignInClick = () => {
@@ -226,15 +236,22 @@ function AppContent() {
         </div>
       )}
 
-      {/* Questionnaire Modal */}
+      {/* Improved Questionnaire Modal */}
       {showQuestionnaire && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-75">
-          <div className="w-full max-w-4xl bg-gray-900 p-6 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-white">Your Preferences</h2>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full max-w-4xl bg-gray-900 p-6 rounded-xl shadow-2xl border border-gray-700"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
+                Your Movie Preferences
+              </h2>
               <button 
                 onClick={() => setShowQuestionnaire(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800 transition-colors"
               >
                 <span className="sr-only">Close</span>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -242,13 +259,25 @@ function AppContent() {
                 </svg>
               </button>
             </div>
+            <p className="text-gray-300 mb-6">
+              Help us understand what kinds of movies you enjoy so we can provide better recommendations.
+            </p>
             <OnboardingQuestionnaire 
               currentUser={currentUser} 
               onComplete={handleQuestionnaireComplete}
+              onSkip={handleSkipQuestionnaire} // Pass the skip handler
               isModal={true}
             />
-          </div>
+          </motion.div>
         </div>
+      )}
+
+      {/* Account Details Modal */}
+      {showAccountDetails && isAuthenticated && (
+        <AccountDetailsModal 
+          currentUser={currentUser} 
+          onClose={() => setShowAccountDetails(false)}
+        />
       )}
 
       {/* Only show header on non-onboarding pages */}
@@ -256,12 +285,14 @@ function AppContent() {
         <>
           <Header 
             currentUser={currentUser}
+            isAuthenticated={isAuthenticated} // Pass authentication status
             setShowSearch={setShowSearch}
             showSearch={showSearch}
             setShowQuestionnaire={setShowQuestionnaire}
             setShowFavorites={setShowFavorites}
             showFavorites={showFavorites}
             onSignout={handleSignout}
+            setShowAccountDetails={setShowAccountDetails} // Pass the new state setter
           />
           
           {showSearch && isAuthenticated && (
