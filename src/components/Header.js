@@ -1,5 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SearchIcon, UserIcon, AdjustmentsHorizontalIcon, HeartIcon } from '@heroicons/react/24/outline';
+import { 
+  MagnifyingGlassIcon as SearchIcon, 
+  UserIcon, 
+  AdjustmentsHorizontalIcon, 
+  HeartIcon 
+} from '@heroicons/react/24/outline';
 
 function Header({ 
   currentUser, 

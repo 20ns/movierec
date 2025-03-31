@@ -11,7 +11,7 @@ import GenreResults from './components/GenreResults';
 import { BrowserRouter, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
 import { SparklesIcon } from '@heroicons/react/24/solid';
-import { FilmIcon, UserIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { FilmIcon, UserIcon, ArrowRightIcon, MagnifyingGlassIcon as SearchIcon } from '@heroicons/react/24/outline';
 import Header from './components/Header';
 import AccountDetailsModal from './components/AccountDetailsModal'; // Import the new component
 import { motion } from 'framer-motion';
@@ -208,6 +208,13 @@ function AppContent() {
     navigate('/auth');
   };
 
+  // Listen for custom event to open preferences
+  useEffect(() => {
+    const handleOpenPreferences = () => setShowQuestionnaire(true);
+    document.addEventListener('open-preferences', handleOpenPreferences);
+    return () => document.removeEventListener('open-preferences', handleOpenPreferences);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -311,7 +318,7 @@ function AppContent() {
       <main className="relative z-10 pt-8">
         <Routes>
           <Route
-            path="/auth/*"
+            path="/auth"
             element={
               <AuthPage
                 onSignupSuccess={handleSigninSuccess}
@@ -319,16 +326,25 @@ function AppContent() {
               />
             }
           />
+          {/* Change the auth/* route to just /auth to fix 404 issues */}
+          
           <Route
             path="/onboarding"
             element={
               isAuthenticated ? (
-                <OnboardingQuestionnaire currentUser={currentUser} />
+                <OnboardingQuestionnaire 
+                  currentUser={currentUser} 
+                  onComplete={() => {
+                    setHasCompletedQuestionnaire(true);
+                    navigate('/');
+                  }}
+                />
               ) : (
                 <Navigate to="/auth" replace />
               )
             }
           />
+          
           <Route
             path="/"
             element={
@@ -362,6 +378,12 @@ function AppContent() {
                 )}
               </div>
             }
+          />
+          
+          {/* Add a catch-all redirect to handle any 404s */}
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
           />
         </Routes>
       </main>
