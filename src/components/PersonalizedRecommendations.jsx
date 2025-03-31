@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { MediaCard } from './MediaCard';
-import { SparklesIcon } from '@heroicons/react/24/solid';
+import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
   const [recommendations, setRecommendations] = useState([]);
@@ -10,7 +10,8 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
   const [favoriteGenres, setFavoriteGenres] = useState([]);
   const [userFavorites, setUserFavorites] = useState([]);
   const [userPreferences, setUserPreferences] = useState(null);
-  const [dataSource, setDataSource] = useState(null); // Track what data is being used for recommendations
+  const [dataSource, setDataSource] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Define the fetchGenericRecommendations function using useCallback before it's used
   const fetchGenericRecommendations = useCallback(async () => {
@@ -282,62 +283,180 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
     fetchRecommendations();
   }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations]);
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchGenericRecommendations();
+    setIsRefreshing(false);
+  };
+
   if (!isAuthenticated) {
     return null;
   }
   
   // Show recommendations section even if empty, to display the prompt
   return (
-    <section className="mb-12 max-w-7xl mx-auto px-4">
-      <h2 className="text-2xl font-bold text-white mb-6">
-        {dataSource === 'both' ? 'Personalized Recommendations' :
-         dataSource === 'preferences' ? 'Based on Your Preferences' :
-         dataSource === 'favorites' ? 'Because You Liked' :
-         'Popular This Week'}
-      </h2>
+    <motion.section 
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="mb-12 max-w-7xl mx-auto px-4"
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-white">
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            {dataSource === 'both' ? 'Personalized Recommendations' :
+             dataSource === 'preferences' ? 'Based on Your Preferences' :
+             dataSource === 'favorites' ? 'Because You Liked' :
+             'Popular This Week'}
+          </motion.span>
+        </h2>
+        
+        {recommendations.length > 0 && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleRefresh}
+            disabled={isLoading || isRefreshing}
+            className="flex items-center space-x-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full transition-colors"
+          >
+            <ArrowPathIcon className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </motion.button>
+        )}
+      </div>
       
-      {dataSource === 'none' && recommendations.length === 0 && !isLoading && (
-        <div className="bg-indigo-900 bg-opacity-50 rounded-lg p-6 mb-6 flex items-center">
-          <SparklesIcon className="h-8 w-8 text-indigo-300 mr-4" />
-          <div>
-            <h3 className="text-lg font-semibold text-white">Get Personalized Recommendations</h3>
-            <p className="text-indigo-200">
-              Complete your preference questionnaire using the sparkles icon in the top left 
-              to get recommendations tailored just for you!
+      <AnimatePresence mode="wait">
+        {dataSource === 'none' && recommendations.length === 0 && !isLoading && (
+          <motion.div 
+            key="prompt"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="bg-gradient-to-r from-indigo-900 to-purple-900 bg-opacity-50 rounded-xl p-6 mb-6 flex items-center shadow-lg border border-indigo-800"
+          >
+            <motion.div
+              initial={{ rotate: -10, scale: 0.9 }}
+              animate={{ rotate: 0, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <SparklesIcon className="h-10 w-10 text-indigo-300 mr-5" />
+            </motion.div>
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-2">Get Personalized Recommendations</h3>
+              <p className="text-indigo-200 leading-relaxed">
+                Complete your preference questionnaire using the sparkles icon in the top left 
+                to get recommendations tailored just for you!
+              </p>
+            </div>
+          </motion.div>
+        )}
+      
+        {isLoading ? (
+          <motion.div 
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {[...Array(6)].map((_, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ 
+                  opacity: 1, 
+                  y: 0,
+                  transition: { delay: i * 0.1 }
+                }}
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl h-[350px] animate-pulse shadow-md overflow-hidden"
+              >
+                <div className="h-3/5 bg-gray-700"></div>
+                <div className="p-4 space-y-3">
+                  <div className="h-6 bg-gray-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-700 rounded w-full"></div>
+                  <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : recommendations.length > 0 ? (
+          <motion.div 
+            key="recommendations"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { 
+                opacity: 1,
+                transition: { 
+                  staggerChildren: 0.1
+                } 
+              }
+            }}
+          >
+            {recommendations.map((item, index) => (
+              <motion.div
+                key={item.id}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { 
+                    opacity: 1, 
+                    y: 0,
+                    transition: {
+                      duration: 0.5,
+                      ease: "easeOut"
+                    }
+                  }
+                }}
+              >
+                <MediaCard
+                  result={item}
+                  currentUser={currentUser}
+                  onClick={() => {}}
+                  promptLogin={() => {}}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="empty"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="text-center py-10 bg-gray-800/30 rounded-xl p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mb-4 text-5xl opacity-50"
+            >
+              🎬
+            </motion.div>
+            <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Yet</h3>
+            <p className="text-gray-400 max-w-md mx-auto mb-6">
+              Try adding some favorites or updating your preferences to get personalized recommendations!
             </p>
-          </div>
-        </div>
-      )}
-      
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-lg h-72 animate-pulse"></div>
-          ))}
-        </div>
-      ) : recommendations.length > 0 ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          {recommendations.map(item => (
-            <MediaCard
-              key={item.id}
-              result={item}
-              currentUser={currentUser}
-              onClick={() => {}}
-              promptLogin={() => {}}
-            />
-          ))}
-        </motion.div>
-      ) : (
-        <div className="text-center py-10">
-          <p className="text-gray-400">No recommendations available. Try adding some favorites!</p>
-        </div>
-      )}
-    </section>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleRefresh}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full transition-colors"
+            >
+              Discover Popular Movies & Shows
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.section>
   );
 };
 
