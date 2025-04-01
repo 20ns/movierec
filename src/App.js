@@ -142,6 +142,7 @@ function AppContent() {
     if (!isAuthenticated || !currentUser) return;
     
     try {
+      setPreferencesLoaded(false); // Reset loading state
       // First set from localStorage for quick UI response
       const localPrefs = localStorage.getItem(`userPrefs_${currentUser.attributes.sub}`);
       if (localPrefs) {
@@ -169,6 +170,9 @@ function AppContent() {
         // Store the full preference data for recommendations
         setUserPreferences(data);
         localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(data));
+        
+        // Refresh recommendations when preferences are loaded from API
+        refreshRecommendations();
       }
     } catch (error) {
       console.error('Error fetching user preferences:', error);
@@ -267,6 +271,16 @@ function AppContent() {
     const refreshEvent = new CustomEvent('refresh-recommendations');
     document.dispatchEvent(refreshEvent);
   };
+
+  // Enhanced sign-in success handler to fetch preferences
+  const handleAuthSuccess = useCallback(async (user) => {
+    handleSigninSuccess(user);
+    
+    // Wait for auth state to be updated
+    setTimeout(() => {
+      fetchUserPreferences();
+    }, 500);
+  }, [handleSigninSuccess, fetchUserPreferences]);
 
   // Handler for questionnaire completion
   const handleQuestionnaireComplete = () => {
@@ -500,8 +514,8 @@ function AppContent() {
             path="/auth"
             element={
               <AuthPage
-                onSignupSuccess={handleSigninSuccess}
-                onSigninSuccess={handleSigninSuccess}
+                onSignupSuccess={handleAuthSuccess}
+                onSigninSuccess={handleAuthSuccess}
               />
             }
           />

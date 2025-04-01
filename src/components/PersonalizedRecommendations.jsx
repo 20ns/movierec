@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { MediaCard } from './MediaCard';
 import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 // Convert to forwardRef to accept ref from parent
-const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated, userPreferences: propUserPreferences }, ref) => {
+const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated = 0, userPreferences: propUserPreferences }, ref) => {
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [favoriteGenres, setFavoriteGenres] = useState([]);
@@ -20,6 +20,11 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   useEffect(() => {
     if (propUserPreferences) {
       setUserPreferences(propUserPreferences);
+      
+      // If we have preferences and recommendations are empty, trigger a fetch
+      if (propUserPreferences && recommendations.length === 0 && !isLoading && !isRefreshing) {
+        fetchRecommendations();
+      }
     }
   }, [propUserPreferences]);
 
@@ -275,6 +280,11 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     
     // Check if we have preferences (from props or state)
     const effectivePreferences = userPreferences || propUserPreferences;
+    
+    // Immediately use preferences if available, otherwise fetch
+    if (!effectivePreferences) {
+      await fetchLatestPreferences();
+    }
     
     const hasPreferences = effectivePreferences && 
       (effectivePreferences.favoriteGenres?.length > 0 || 
