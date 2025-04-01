@@ -425,10 +425,10 @@ function AppContent() {
             <OnboardingQuestionnaire 
               currentUser={currentUser} 
               onComplete={handleQuestionnaireComplete}
-              onSkip={handleSkipQuestionnaire} // Pass the skip handler
+              onSkip={handleSkipQuestionnaire}
               isModal={true}
               existingPreferences={userPreferences}
-              isUpdate={hasCompletedQuestionnaire}
+              isUpdate={false} // Force full questionnaire when opened from preferences button
             />
           </motion.div>
         </div>
