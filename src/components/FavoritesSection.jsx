@@ -9,6 +9,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   const [userFavorites, setUserFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [removedId, setRemovedId] = useState(null);
 
   const fetchFavorites = async () => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
@@ -72,6 +73,18 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       onClose();
     } else {
       setIsOpen(false);
+    }
+  };
+
+  // Handle favorite toggle callback from MediaCard
+  const handleFavoriteToggle = (mediaId, isFavorite) => {
+    if (!isFavorite) {
+      // If removed from favorites, update the UI immediately
+      setUserFavorites(prev => prev.filter(fav => fav.mediaId !== mediaId));
+    } else {
+      // If added to favorites and we're showing the favorites section,
+      // we might want to refresh the list
+      fetchFavorites();
     }
   };
 
@@ -157,42 +170,50 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {userFavorites.map((fav) => {
-                    // Fix the data issues while maintaining the existing visual style
-                    const result = {
-                      id: fav.mediaId,
-                      title: fav.title,
-                      poster_path: fav.posterPath,
-                      media_type: fav.mediaType,
-                      overview: fav.overview || "No description available",
-                      // Add these fields to fix NaN issues
-                      release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
-                      first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
-                      vote_average: fav.voteAverage || fav.rating || 7.0,
-                      popularity: fav.popularity || 50
-                    };
-                    return (
-                      <motion.div
-                        key={fav.mediaId}
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="mb-4"
-                      >
-                        <MediaCard
-                          result={result}
-                          currentUser={{
-                            ...currentUser,
-                            token: currentUser.signInUserSession.accessToken.jwtToken
+                  <AnimatePresence mode="popLayout">
+                    {userFavorites.map((fav) => {
+                      // Fix the data issues while maintaining the existing visual style
+                      const result = {
+                        id: fav.mediaId,
+                        title: fav.title,
+                        poster_path: fav.posterPath,
+                        media_type: fav.mediaType,
+                        overview: fav.overview || "No description available",
+                        // Add these fields to fix NaN issues
+                        release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
+                        first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
+                        vote_average: fav.voteAverage || fav.rating || 7.0,
+                        popularity: fav.popularity || 50
+                      };
+                      return (
+                        <motion.div
+                          key={fav.mediaId}
+                          layout
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                          transition={{ 
+                            type: "spring", 
+                            stiffness: 300, 
+                            damping: 30 
                           }}
-                          promptLogin={() => {}}
-                          onClick={() => {}}
-                          simplifiedView={true} // Add this prop to use a simplified view
-                        />
-                      </motion.div>
-                    );
-                  })}
+                          className="mb-4"
+                        >
+                          <MediaCard
+                            result={result}
+                            currentUser={{
+                              ...currentUser,
+                              token: currentUser.signInUserSession.accessToken.jwtToken
+                            }}
+                            promptLogin={() => {}}
+                            onClick={() => {}}
+                            simplifiedView={true}
+                            onFavoriteToggle={handleFavoriteToggle}
+                          />
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
                 </div>
               </div>
             </motion.div>

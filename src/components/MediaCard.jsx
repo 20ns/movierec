@@ -24,7 +24,8 @@ export const MediaCard = ({
   onClick, 
   promptLogin, 
   currentUser, 
-  simplifiedView = false // New prop for simplified view in favorites
+  simplifiedView = false, // New prop for simplified view in favorites
+  onFavoriteToggle  // Add this new prop
 }) => {
   const socialProof = getSocialProof(result);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -276,10 +277,10 @@ export const MediaCard = ({
       // Force refresh global cache on next page load
       lastFetchTime = 0;
       
-      // Show success message
-      alert(isFavorited ? 
-        "Removed from favorites" : 
-        "Added to favorites");
+      // Call the callback instead of showing an alert
+      if (onFavoriteToggle) {
+        onFavoriteToggle(result.id.toString(), !isFavorited);
+      }
       
     } catch (error) {
       console.error("Error updating favorite:", error);
