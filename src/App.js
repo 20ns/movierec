@@ -193,7 +193,7 @@ function AppContent() {
       }
     }
   }, [isAuthenticated, currentUser, hasCompletedQuestionnaire]);
-yes
+
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
@@ -268,9 +268,21 @@ yes
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
+      <>
+        <Bg /> {/* Add background component to loading state */}
+        <div className="fixed inset-0 z-10 flex items-center justify-center">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col items-center"
+          >
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+            <p className="text-white text-sm font-medium">Loading your experience...</p>
+          </motion.div>
+        </div>
+      </>
     );
   }
 
