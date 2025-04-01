@@ -5,7 +5,7 @@ import { MediaCard } from './MediaCard';
 import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 // Convert to forwardRef to accept ref from parent
-const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated }, ref) => {
+const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated, userPreferences: propUserPreferences }, ref) => {
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [favoriteGenres, setFavoriteGenres] = useState([]);
@@ -14,6 +14,13 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   const [dataSource, setDataSource] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Update local state when props change
+  useEffect(() => {
+    if (propUserPreferences) {
+      setUserPreferences(propUserPreferences);
+    }
+  }, [propUserPreferences]);
+
   // Define the fetchGenericRecommendations function using useCallback before it's used
   const fetchGenericRecommendations = useCallback(async () => {
     try {
@@ -42,10 +49,15 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     }
   }, []);
 
-  // Function to fetch user's latest preferences - extracted for reuse
+  // Function to fetch user's latest preferences - now only used as a fallback
   const fetchLatestPreferences = useCallback(async () => {
+    // This function now serves as a fallback if props don't have preferences
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
       return null;
+    }
+    
+    if (propUserPreferences) {
+      return propUserPreferences;
     }
     
     try {
@@ -64,7 +76,6 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         const data = await response.json();
         if (data && Object.keys(data).length > 0) {
           setUserPreferences(data);
-          localStorage.setItem('userPrefs', JSON.stringify(data));
           return data;
         }
       }
@@ -72,7 +83,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       console.error('Error fetching user preferences:', error);
     }
     return null;
-  }, [currentUser, isAuthenticated]);
+  }, [currentUser, isAuthenticated, propUserPreferences]);
   
   // Fetch user preferences
   useEffect(() => {
@@ -155,17 +166,22 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     fetchFavorites();
   }, [currentUser, isAuthenticated]);
 
-  // Function to fetch recommendations - extracted for reuse
+  // Enhanced function to fetch recommendations based on preferences first, then favorites
   const fetchRecommendations = useCallback(async () => {
     if (!isAuthenticated) {
       setIsLoading(false);
       return;
     }
     
-    const hasPreferences = userPreferences && 
-      (userPreferences.favoriteGenres?.length > 0 || 
-       userPreferences.contentType || 
-       userPreferences.eraPreferences?.length > 0);
+    // Check if we have preferences (from props or state)
+    const effectivePreferences = userPreferences || propUserPreferences;
+    
+    const hasPreferences = effectivePreferences && 
+      (effectivePreferences.favoriteGenres?.length > 0 || 
+       effectivePreferences.contentType || 
+       effectivePreferences.eraPreferences?.length > 0 ||
+       effectivePreferences.moodPreferences?.length > 0 ||
+       effectivePreferences.languagePreferences?.length > 0);
        
     const hasFavorites = favoriteGenres.length > 0;
     
@@ -181,10 +197,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       setIsLoading(true);
       
       // Determine which data source to use for recommendations
-      if (hasPreferences && hasFavorites) {
-        setDataSource('both');
-      } else if (hasPreferences) {
-        setDataSource('preferences');
+      // Prioritize preferences over favorites
+      if (hasPreferences) {
+        setDataSource(hasFavorites ? 'both' : 'preferences');
       } else {
         setDataSource('favorites');
       }
@@ -192,9 +207,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       // Determine content type from preferences, favorites, or random if neither specifies
       let mediaType;
       
-      if (userPreferences?.contentType === 'movies') {
+      if (effectivePreferences?.contentType === 'movies') {
         mediaType = 'movie';
-      } else if (userPreferences?.contentType === 'tv') {
+      } else if (effectivePreferences?.contentType === 'tv') {
         mediaType = 'tv';
       } else if (hasFavorites && userFavorites.length > 0) {
         // Count movie vs TV favorites
@@ -208,37 +223,49 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       
       const endpoint = mediaType;
       
-      // Determine which genres to use
+      // Determine which genres to use - prioritizing preferences
       let genresToUse = [];
       
-      if (hasPreferences && userPreferences.favoriteGenres?.length > 0) {
-        // If has both, combine some from each source, prioritizing preferences
-        if (hasFavorites) {
-          // Get unique genres from both sources, prioritizing preferences
-          const preferenceGenres = userPreferences.favoriteGenres.slice(0, 2);
-          const uniqueFavoriteGenres = favoriteGenres
-            .filter(g => !preferenceGenres.includes(String(g)))
-            .slice(0, 1);
-          genresToUse = [...preferenceGenres, ...uniqueFavoriteGenres];
-        } else {
-          genresToUse = userPreferences.favoriteGenres;
-        }
+      if (hasPreferences && effectivePreferences.favoriteGenres?.length > 0) {
+        // Use preference genres first
+        genresToUse = effectivePreferences.favoriteGenres;
       } else if (hasFavorites) {
+        // Fall back to favorites-derived genres if no preference genres
         genresToUse = favoriteGenres;
       }
       
       // Era preferences from the user's settings
       let yearParams = {};
-      if (hasPreferences && userPreferences.eraPreferences?.length > 0) {
-        if (userPreferences.eraPreferences.includes('classic')) {
+      if (hasPreferences && effectivePreferences.eraPreferences?.length > 0) {
+        if (effectivePreferences.eraPreferences.includes('classic')) {
           yearParams = { 'release_date.lte': '1980-12-31' };
-        } else if (userPreferences.eraPreferences.includes('modern')) {
+        } else if (effectivePreferences.eraPreferences.includes('modern')) {
           yearParams = { 
             'release_date.gte': '1980-01-01',
             'release_date.lte': '2010-12-31'
           };
-        } else if (userPreferences.eraPreferences.includes('recent')) {
+        } else if (effectivePreferences.eraPreferences.includes('recent')) {
           yearParams = { 'release_date.gte': '2011-01-01' };
+        }
+      }
+      
+      // Add mood-based parameters
+      let moodParams = {};
+      if (hasPreferences && effectivePreferences.moodPreferences?.length > 0) {
+        if (effectivePreferences.moodPreferences.includes('exciting')) {
+          moodParams.with_genres = (moodParams.with_genres || '') + ',28,12,10752'; // Action, Adventure, War
+        }
+        if (effectivePreferences.moodPreferences.includes('funny')) {
+          moodParams.with_genres = (moodParams.with_genres || '') + ',35,16'; // Comedy, Animation
+        }
+        if (effectivePreferences.moodPreferences.includes('thoughtful')) {
+          moodParams.with_genres = (moodParams.with_genres || '') + ',18,99,36'; // Drama, Documentary, History
+        }
+        if (effectivePreferences.moodPreferences.includes('scary')) {
+          moodParams.with_genres = (moodParams.with_genres || '') + ',27,9648,53'; // Horror, Mystery, Thriller
+        }
+        if (effectivePreferences.moodPreferences.includes('emotional')) {
+          moodParams.with_genres = (moodParams.with_genres || '') + ',10749,18,10751'; // Romance, Drama, Family
         }
       }
       
@@ -252,6 +279,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
               with_genres: genresToUse.join(','),
               sort_by: 'popularity.desc',
               ...yearParams,
+              ...moodParams,
               'vote_count.gte': 100, // Ensure some quality threshold
             }
           }
@@ -285,12 +313,12 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations]);
+  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences]);
 
   // Main effect to fetch recommendations when dependencies change
   useEffect(() => {
     fetchRecommendations();
-  }, [fetchRecommendations]);
+  }, [fetchRecommendations, preferencesUpdated]);
 
   // Handle refresh button click
   const handleRefresh = async () => {

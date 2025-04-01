@@ -1,21 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
+// Enhanced genre options with better organization
 const GENRE_OPTIONS = [
   { id: 28, name: 'Action' },
   { id: 12, name: 'Adventure' },
   { id: 16, name: 'Animation' },
   { id: 35, name: 'Comedy' },
   { id: 80, name: 'Crime' },
+  { id: 99, name: 'Documentary' },
   { id: 18, name: 'Drama' },
   { id: 10751, name: 'Family' },
   { id: 14, name: 'Fantasy' },
+  { id: 36, name: 'History' },
   { id: 27, name: 'Horror' },
+  { id: 10402, name: 'Music' },
   { id: 9648, name: 'Mystery' },
   { id: 10749, name: 'Romance' },
   { id: 878, name: 'Science Fiction' },
+  { id: 10770, name: 'TV Movie' },
   { id: 53, name: 'Thriller' },
+  { id: 10752, name: 'War' },
+  { id: 37, name: 'Western' }
 ];
 
 const MOOD_OPTIONS = [
@@ -32,18 +40,69 @@ const ERA_OPTIONS = [
   { id: 'recent', name: 'Recent (2010-Present)' },
 ];
 
-const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) => {
+// New options for language preference
+const LANGUAGE_OPTIONS = [
+  { id: 'en', name: 'English' },
+  { id: 'es', name: 'Spanish' },
+  { id: 'fr', name: 'French' },
+  { id: 'de', name: 'German' },
+  { id: 'hi', name: 'Hindi' },
+  { id: 'ja', name: 'Japanese' },
+  { id: 'ko', name: 'Korean' },
+  { id: 'zh', name: 'Chinese' },
+  { id: 'any', name: 'Any Language (with subtitles)' }
+];
+
+// New options for runtime preference
+const RUNTIME_OPTIONS = [
+  { id: 'short', name: 'Short (under 90 min)' },
+  { id: 'medium', name: 'Medium (90-120 min)' },
+  { id: 'long', name: 'Long (over 120 min)' },
+  { id: 'any', name: 'Any Length' }
+];
+
+const OnboardingQuestionnaire = ({ 
+  currentUser, 
+  onComplete, 
+  onSkip, 
+  isModal = false,
+  existingPreferences = null,
+  isUpdate = false
+}) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalSteps, setTotalSteps] = useState(5); // Dynamic total steps based on user type
+  
+  // Initialize preferences with existing data if available
   const [preferences, setPreferences] = useState({
     favoriteGenres: [],
-    contentType: 'both', // 'movies', 'tv', or 'both'
+    contentType: 'both',
     moodPreferences: [],
     eraPreferences: [],
+    languagePreferences: [],
+    runtimePreference: 'any',
+    questionnaireCompleted: true
   });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Load existing preferences if available
+  useEffect(() => {
+    if (existingPreferences) {
+      setPreferences(prev => ({
+        ...prev,
+        ...existingPreferences,
+        questionnaireCompleted: true
+      }));
+      
+      // Set fewer steps for returning users to reduce friction
+      if (isUpdate) {
+        setTotalSteps(4);
+      }
+    }
+  }, [existingPreferences, isUpdate]);
   
   const updatePreference = (field, value) => {
     setPreferences(prev => ({
@@ -54,7 +113,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
   
   const toggleArrayItem = (field, item) => {
     setPreferences(prev => {
-      const currentArray = prev[field];
+      const currentArray = prev[field] || [];
       return {
         ...prev,
         [field]: currentArray.includes(item)
@@ -76,52 +135,52 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
       // Get the token from the current user session
       const token = currentUser.signInUserSession.accessToken.jwtToken;
       
-      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(preferences),
-          mode: 'cors',
-          credentials: 'include' // For cookies/authorization headers
-        }
-      );
+      // Use the current preferences from state
+      const preferencesData = {
+        ...preferences,
+        questionnaireCompleted: true
+      };
+      
+      console.log('Sending preferences data:', preferencesData);
+      
+      // Save preferences to localStorage
+      localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(preferencesData));
+      
+      // Send to API
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferencesData),
+        mode: 'cors',
+      });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('API error response:', errorData);
-        
-        // Add specific CORS error handling
-        if (response.status === 0 || response.type === 'opaque') {
-          throw new Error('CORS error: The request was blocked due to CORS policy');
-        }
-        
-        throw new Error(errorData.message || 'Failed to save preferences');
+        throw new Error(`API error: ${response.status}`);
       }
       
-      // Save to local storage as backup and for immediate use
-      localStorage.setItem('userPrefs', JSON.stringify(preferences));
-      
-      // Mark questionnaire as completed on success
+      // Mark questionnaire as completed
       localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
       
-      // Redirect to home page
-      navigate('/');
+      // Call onComplete to notify parent component
+      if (onComplete) onComplete();
       
     } catch (error) {
       console.error('Error saving preferences:', error);
-      // Still redirect to home, but show error notification
-      navigate('/');
+      setError('Failed to save preferences. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const nextStep = () => {
-    setStep(prev => prev + 1);
+    if (step < totalSteps) {
+      setStep(prev => prev + 1);
+    } else {
+      savePreferences();
+    }
   };
 
   const prevStep = () => {
@@ -129,187 +188,50 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
   };
   
   const skipOnboarding = () => {
-    // Still save any partial preferences
-    savePreferences();
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true);
-      
-      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-        throw new Error('Authentication token not available. Please sign in again.');
-      }
-      
-      // Get the token from the current user session
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
-      
-      // Use the current preferences from state, don't shadow with a new variable
-      const preferencesData = {
-        favoriteGenres: preferences.favoriteGenres,
-        contentType: preferences.contentType,
-        eraPreferences: preferences.eraPreferences,
-        moodPreferences: preferences.moodPreferences,
-      };
-      
-      console.log('Sending preferences data:', preferencesData);
-      
-      // Save preferences to localStorage but don't mark as completed yet
-      localStorage.setItem('userPrefs', JSON.stringify(preferencesData));
-      
-      let apiSuccess = false;
-      let retryCount = 0;
-      const maxRetries = 2;
-      
-      // First try with credentials: 'include'
-      while (!apiSuccess && retryCount <= maxRetries) {
-        try {
-          // Try first with credentials
-          const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(preferencesData),
-            mode: 'cors',
-            credentials: 'include'
-          });
-          
-          if (response.ok) {
-            // Rest of the successful response handling code
-            const data = await response.json();
-            apiSuccess = true;
-            localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
-            
-            if (onComplete) {
-              onComplete();
-            }
-            
-            if (!isModal) {
-              navigate('/');
-            }
-          } else {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-        } catch (fetchError) {
-          console.error('Fetch error with credentials:', fetchError);
-          
-          // If we get a CORS error, try again without credentials
-          if (fetchError.message.includes('CORS') || 
-              fetchError.message.includes('NetworkError') || 
-              fetchError.name === 'TypeError') {
-            console.log('Trying without credentials due to CORS issue');
-            try {
-              // Try without credentials
-              const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(preferencesData),
-                mode: 'cors',
-                // No credentials: 'include' here
-              });
-              
-              if (response.ok) {
-                const data = await response.json();
-                apiSuccess = true;
-                localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
-                
-                if (onComplete) {
-                  onComplete();
-                }
-                
-                if (!isModal) {
-                  navigate('/');
-                }
-              } else {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-              }
-            } catch (secondError) {
-              console.error('Fetch error without credentials:', secondError);
-              // Continue with retry logic
-            }
-          }
-          
-          if (retryCount >= maxRetries) {
-            throw fetchError;
-          }
-          retryCount++;
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      // If we reach here without apiSuccess, we need to handle the failure case
-      if (!apiSuccess) {
-        // Even if API failed, mark as completed in localStorage so user can use the app
-        // We will retry API sync when they next log in
-        console.warn('API failed but proceeding with localStorage backup');
-        localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
-        
-        // If we're in a modal, close it
-        if (onComplete) {
-          onComplete();
-        }
-        
-        // If not in a modal, navigate home
-        if (!isModal) {
-          navigate('/');
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-      setError(error.message || 'Failed to save preferences. Please try again.');
-      // Make localStorage backup anyway
-      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
-      
-      // If we're in a modal, close it after error
-      setTimeout(() => {
-        if (onComplete) {
-          onComplete();
-        }
-        
-        if (!isModal) {
-          navigate('/');
-        }
-      }, 3000);
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (onSkip) onSkip();
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gray-800 rounded-xl p-8 max-w-2xl w-full shadow-2xl"
-      >
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">Tell us what you like</h1>
-          <p className="text-gray-300">
-            Help us personalize your recommendations by answering a few questions
-          </p>
+    <div className={`bg-gray-900 text-white rounded-lg shadow-xl ${isModal ? 'p-6' : 'p-8 max-w-3xl mx-auto mt-8 mb-20'}`}>
+      {/* Header area with title and close button if it's a modal */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">
+          {isUpdate ? 'Update Your Preferences' : 'Personalize Your Experience'}
+        </h1>
+        {isModal && (
+          <button 
+            onClick={skipOnboarding}
+            className="text-gray-400 hover:text-white"
+          >
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        )}
+      </div>
+      
+      {/* Progress indicator */}
+      <div className="mb-8">
+        <div className="h-1 w-full bg-gray-700 rounded-full">
+          <div 
+            className="h-1 bg-indigo-500 rounded-full transition-all duration-300"
+            style={{ width: `${(step / totalSteps) * 100}%` }}
+          ></div>
         </div>
-        
-        {/* Progress indicator */}
-        <div className="flex justify-between mb-8">
-          {[1, 2, 3, 4].map(i => (
-            <div 
-              key={i} 
-              className={`h-2 rounded-full flex-1 mx-1 ${
-                i <= step ? 'bg-indigo-500' : 'bg-gray-600'
-              }`}
-            />
-          ))}
+        <div className="text-right text-sm text-gray-400 mt-2">
+          Step {step} of {totalSteps}
         </div>
-        
-        {/* Content based on current step */}
-        <div className="min-h-[300px]">
-          {/* Step 1: Favorite genres */}
+      </div>
+      
+      {/* Error message */}
+      {error && (
+        <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200">
+          {error}
+        </div>
+      )}
+      
+      {/* Questionnaire steps */}
+      <div className="min-h-[300px]">
+        <AnimatePresence mode="wait">
+          {/* Step 1: Genre preferences */}
           {step === 1 && (
             <motion.div 
               initial={{ opacity: 0 }}
@@ -317,17 +239,17 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
               exit={{ opacity: 0 }}
             >
               <h2 className="text-xl font-semibold text-white mb-4">
-                Which genres do you enjoy the most?
+                What genres do you enjoy?
               </h2>
-              <p className="text-gray-400 mb-4">Select as many as you like.</p>
+              <p className="text-gray-400 mb-4">Select all that interest you.</p>
               
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
                 {GENRE_OPTIONS.map(genre => (
                   <button
                     key={genre.id}
                     onClick={() => toggleArrayItem('favoriteGenres', genre.id)}
-                    className={`py-2 px-4 rounded-lg transition-all duration-200 ${
-                      preferences.favoriteGenres.includes(genre.id) 
+                    className={`py-3 px-4 rounded-lg transition-all duration-200 ${
+                      preferences.favoriteGenres?.includes(genre.id) 
                         ? 'bg-indigo-600 text-white' 
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
@@ -349,7 +271,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
               <h2 className="text-xl font-semibold text-white mb-4">
                 Do you prefer movies or TV shows?
               </h2>
-              <p className="text-gray-400 mb-4">We'll focus on what you enjoy.</p>
+              <p className="text-gray-400 mb-4">We'll focus on what you enjoy most.</p>
               
               <div className="grid grid-cols-3 gap-4 mb-6">
                 {[
@@ -391,7 +313,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
                     key={mood.id}
                     onClick={() => toggleArrayItem('moodPreferences', mood.id)}
                     className={`py-3 px-4 rounded-lg transition-all duration-200 text-left ${
-                      preferences.moodPreferences.includes(mood.id) 
+                      preferences.moodPreferences?.includes(mood.id) 
                         ? 'bg-indigo-600 text-white' 
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
@@ -411,7 +333,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
               exit={{ opacity: 0 }}
             >
               <h2 className="text-xl font-semibold text-white mb-4">
-                Which time periods do you enjoy?
+                Which time periods do you prefer?
               </h2>
               <p className="text-gray-400 mb-4">Select all that apply.</p>
               
@@ -421,7 +343,7 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
                     key={era.id}
                     onClick={() => toggleArrayItem('eraPreferences', era.id)}
                     className={`py-3 px-4 rounded-lg transition-all duration-200 text-left ${
-                      preferences.eraPreferences.includes(era.id) 
+                      preferences.eraPreferences?.includes(era.id) 
                         ? 'bg-indigo-600 text-white' 
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
@@ -432,57 +354,76 @@ const OnboardingQuestionnaire = ({ currentUser, onComplete, isModal = false }) =
               </div>
             </motion.div>
           )}
-        </div>
-        
-        {/* Navigation buttons */}
-        <div className="flex justify-between mt-8">
-          <div>
-            {step > 1 ? (
-              <button
-                onClick={prevStep}
-                className="px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
-              >
-                Back
-              </button>
-            ) : (
-              <button
-                onClick={skipOnboarding}
-                className="px-6 py-2 bg-transparent text-gray-400 hover:text-white transition-colors"
-              >
-                Skip for now
-              </button>
-            )}
-          </div>
           
-          <div>
-            {step < 4 ? (
-              <button
-                onClick={nextStep}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-500 transition-colors shadow-lg"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className={`px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full transition-colors ${
-                  isSubmitting ? 'opacity-70 cursor-wait' : ''
-                }`}
-              >
-                {isSubmitting ? 'Saving...' : 'Complete Setup'}
-              </button>
-            )}
-          </div>
+          {/* Step 5: Language preferences (new) */}
+          {step === 5 && !isUpdate && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <h2 className="text-xl font-semibold text-white mb-4">
+                Do you have language preferences?
+              </h2>
+              <p className="text-gray-400 mb-4">Select all that you're comfortable with.</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                {LANGUAGE_OPTIONS.map(language => (
+                  <button
+                    key={language.id}
+                    onClick={() => toggleArrayItem('languagePreferences', language.id)}
+                    className={`py-3 px-4 rounded-lg transition-all duration-200 text-center ${
+                      preferences.languagePreferences?.includes(language.id) 
+                        ? 'bg-indigo-600 text-white' 
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {language.name}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+        
+      {/* Navigation buttons */}
+      <div className="flex justify-between mt-8">
+        <div>
+          {step > 1 ? (
+            <button
+              onClick={prevStep}
+              className="px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
+            >
+              Back
+            </button>
+          ) : isModal && (
+            <button
+              onClick={skipOnboarding}
+              className="px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
+            >
+              Skip
+            </button>
+          )}
         </div>
-
-        {/* Error message */}
-        {error && (
-          <div className="mt-4 p-3 bg-red-900 text-white rounded-lg">
-            {error}
-          </div>
-        )}
-      </motion.div>
+        <button
+          onClick={nextStep}
+          disabled={isLoading}
+          className={`px-6 py-2 rounded-full transition-colors ${
+            isLoading 
+              ? 'bg-indigo-800 cursor-not-allowed' 
+              : 'bg-indigo-600 hover:bg-indigo-700'
+          } text-white min-w-[100px]`}
+        >
+          {isLoading ? (
+            <span className="inline-block animate-pulse">Processing...</span>
+          ) : step === totalSteps ? (
+            isUpdate ? 'Update' : 'Finish'
+          ) : (
+            'Next'
+          )}
+        </button>
+      </div>
     </div>
   );
 };

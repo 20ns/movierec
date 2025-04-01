@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import SearchBar from './components/SearchBar';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage';
@@ -132,6 +132,49 @@ function AppContent() {
   const preferenceModalRef = useRef(null);
   const accountModalRef = useRef(null);
   const personalizedRecommendationsRef = useRef(null); // Add reference to the recommendations component
+  const [userPreferences, setUserPreferences] = useState(null);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [prefUpdateCounter, setPrefUpdateCounter] = useState(0);
+  
+  // Enhanced function to fetch user preferences
+  const fetchUserPreferences = useCallback(async () => {
+    if (!isAuthenticated || !currentUser) return;
+    
+    try {
+      // First set from localStorage for quick UI response
+      const localPrefs = localStorage.getItem(`userPrefs_${currentUser.attributes.sub}`);
+      if (localPrefs) {
+        const parsedPrefs = JSON.parse(localPrefs);
+        setUserPreferences(parsedPrefs);
+      }
+      
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+        headers: {
+          Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+        
+      if (response.ok) {
+        const data = await response.json();
+        // Check if data has the questionnaireCompleted field or properties
+        const hasCompleted = data.questionnaireCompleted === true || 
+          (!!data && Object.keys(data).filter(key => key !== 'userId' && key !== 'updatedAt').length > 0);
+        
+        setHasCompletedQuestionnaire(hasCompleted);
+        localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
+        
+        // Store the full preference data for recommendations
+        setUserPreferences(data);
+        localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+    } finally {
+      setPreferencesLoaded(true);
+    }
+  }, [isAuthenticated, currentUser]);
 
   // Check if user has completed questionnaire
   useEffect(() => {
@@ -209,6 +252,11 @@ function AppContent() {
     }
   }, [isAuthenticated, loading, navigate, isNewUser]);
 
+  // Use effect to fetch preferences on login
+  useEffect(() => {
+    fetchUserPreferences();
+  }, [fetchUserPreferences]);
+
   // Function to fetch latest recommendations
   const refreshRecommendations = () => {
     // Force re-render of the recommendations component
@@ -225,7 +273,11 @@ function AppContent() {
     setShowQuestionnaire(false);
     localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
     
-    // Refresh recommendations immediately after preferences are updated
+    // Fetch the latest preferences
+    fetchUserPreferences();
+    
+    // Refresh recommendations with updated preferences
+    setPrefUpdateCounter(prev => prev + 1);
     refreshRecommendations();
     
     // Show a success message to the user
@@ -375,6 +427,8 @@ function AppContent() {
               onComplete={handleQuestionnaireComplete}
               onSkip={handleSkipQuestionnaire} // Pass the skip handler
               isModal={true}
+              existingPreferences={userPreferences}
+              isUpdate={hasCompletedQuestionnaire}
             />
           </motion.div>
         </div>
@@ -455,13 +509,16 @@ function AppContent() {
                 {isAuthenticated ? (
                   <div className="space-y-12">
                     {/* Personalized recommendations based on user's favorites */}
-                    <PersonalizedRecommendations 
-                      key={recommendationsKey} // Add key prop to force re-render
-                      ref={personalizedRecommendationsRef}
-                      currentUser={currentUser}
-                      isAuthenticated={isAuthenticated}
-                      preferencesUpdated={hasCompletedQuestionnaire} // Pass completed status
-                    />
+                    {preferencesLoaded && (
+                      <PersonalizedRecommendations 
+                        key={recommendationsKey} // Add key prop to force re-render
+                        ref={personalizedRecommendationsRef}
+                        currentUser={currentUser}
+                        isAuthenticated={isAuthenticated}
+                        preferencesUpdated={prefUpdateCounter}
+                        userPreferences={userPreferences}
+                      />
+                    )}
                     
                     {/* Trending content section */}
                     <TrendingSection currentUser={currentUser} />
