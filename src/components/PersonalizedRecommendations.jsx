@@ -37,13 +37,48 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       );
       
       // Filter out any previously shown recommendations
-      const formattedResults = response.data.results
+      let formattedResults = response.data.results
         .filter(item => item.poster_path && item.overview && !shownRecommendations.has(item.id))
         .map(item => ({
           ...item,
           score: Math.round((item.vote_average / 10) * 100)
         }))
         .slice(0, 6);
+      
+      // If we still don't have enough, try another source (top rated)
+      if (formattedResults.length < 3) {
+        try {
+          const topRatedResponse = await axios.get(
+            'https://api.themoviedb.org/3/movie/top_rated',
+            {
+              params: {
+                api_key: process.env.REACT_APP_TMDB_API_KEY,
+                page: Math.floor(Math.random() * 5) + 1
+              }
+            }
+          );
+          
+          const existingIds = new Set(formattedResults.map(item => item.id));
+          
+          const additionalResults = topRatedResponse.data.results
+            .filter(item => 
+              item.poster_path && 
+              item.overview && 
+              !existingIds.has(item.id) && 
+              !shownRecommendations.has(item.id)
+            )
+            .map(item => ({
+              ...item,
+              media_type: 'movie',
+              score: Math.round((item.vote_average / 10) * 100)
+            }))
+            .slice(0, 3 - formattedResults.length);
+            
+          formattedResults = [...formattedResults, ...additionalResults];
+        } catch (err) {
+          console.error('Error fetching top rated as fallback:', err);
+        }
+      }
         
       if (formattedResults.length > 0) {
         setRecommendations(formattedResults);
@@ -58,6 +93,59 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       console.error('Error fetching generic recommendations:', error);
     } finally {
       setIsLoading(false);
+    }
+  }, [shownRecommendations]);
+
+  // Add this new supplementary recommendations function after fetchGenericRecommendations
+  const fetchSupplementaryRecommendations = useCallback(async (currentCount, existingIds = new Set()) => {
+    // Only fetch if we need more recommendations to reach minimum count
+    const minRecommendationCount = 3;
+    const neededCount = Math.max(0, minRecommendationCount - currentCount);
+    
+    if (neededCount <= 0) return [];
+    
+    try {
+      // Try to get a mix of top-rated and popular content
+      const [topRatedResponse, popularResponse] = await Promise.all([
+        axios.get('https://api.themoviedb.org/3/movie/top_rated', {
+          params: {
+            api_key: process.env.REACT_APP_TMDB_API_KEY,
+            page: Math.floor(Math.random() * 5) + 1
+          }
+        }),
+        axios.get('https://api.themoviedb.org/3/movie/popular', {
+          params: {
+            api_key: process.env.REACT_APP_TMDB_API_KEY,
+            page: Math.floor(Math.random() * 3) + 1
+          }
+        })
+      ]);
+  
+      // Combine and filter results
+      const supplementaryResults = [
+        ...topRatedResponse.data.results.map(item => ({ ...item, media_type: 'movie' })),
+        ...popularResponse.data.results.map(item => ({ ...item, media_type: 'movie' }))
+      ]
+      // Filter out items that don't have posters or descriptions
+      .filter(item => 
+        item.poster_path && 
+        item.overview && 
+        !existingIds.has(item.id) && 
+        !shownRecommendations.has(item.id)
+      )
+      // Map them to have the same structure as our regular recommendations
+      .map(item => ({
+        ...item,
+        score: Math.round((item.vote_average / 10) * 100)
+      }));
+  
+      // Return just what we need, prioritizing top-rated content
+      return supplementaryResults
+        .sort((a, b) => b.vote_average - a.vote_average)
+        .slice(0, neededCount);
+    } catch (error) {
+      console.error('Error fetching supplementary recommendations:', error);
+      return [];
     }
   }, [shownRecommendations]);
 
@@ -281,6 +369,8 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         }
       }
       
+      let initialResults = [];
+      
       // Only proceed with API call if we have genres to use
       if (genresToUse.length > 0) {
         // Add randomness to results with varying page
@@ -303,7 +393,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         
         // Format and filter out already favorited items and previously shown recommendations
         const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
-        const formattedResults = response.data.results
+        initialResults = response.data.results
           .filter(item => !favoriteIds.has(item.id.toString()) && !shownRecommendations.has(item.id))
           .map(item => ({
             ...item,
@@ -311,22 +401,48 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             score: Math.round((item.vote_average / 10) * 100)
           }))
           .slice(0, 6);
-        
-        if (formattedResults.length > 0) {
-          setRecommendations(formattedResults);
-          // Track these recommendations to avoid repeats
-          setShownRecommendations(prev => {
-            const newShown = new Set(prev);
-            formattedResults.forEach(item => newShown.add(item.id));
-            return newShown;
-          });
-        } else {
-          // If no results after filtering, get generic recommendations
+      }
+      
+      // If we don't have enough initial results, try generic recommendations
+      if (initialResults.length < 3) {
+        if (initialResults.length === 0) {
           await fetchGenericRecommendations();
+        } else {
+          // Get the IDs of our initial results to avoid duplicates
+          const existingIds = new Set(initialResults.map(item => item.id));
+          
+          // Get supplementary recommendations
+          const supplementaryResults = await fetchSupplementaryRecommendations(
+            initialResults.length, 
+            existingIds
+          );
+          
+          // Combine results
+          const combinedResults = [...initialResults, ...supplementaryResults];
+          if (combinedResults.length > 0) {
+            setRecommendations(combinedResults);
+            
+            // Track these recommendations to avoid repeats
+            setShownRecommendations(prev => {
+              const newShown = new Set(prev);
+              combinedResults.forEach(item => newShown.add(item.id));
+              return newShown;
+            });
+          } else {
+            // Fallback to generic if we still don't have enough
+            await fetchGenericRecommendations();
+          }
         }
       } else {
-        // If no genres to use, get generic recommendations
-        await fetchGenericRecommendations();
+        // We have enough results from our initial query
+        setRecommendations(initialResults);
+        
+        // Track these recommendations to avoid repeats
+        setShownRecommendations(prev => {
+          const newShown = new Set(prev);
+          initialResults.forEach(item => newShown.add(item.id));
+          return newShown;
+        });
       }
     } catch (error) {
       console.error('Error fetching recommendations:', error);
@@ -335,7 +451,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences, shownRecommendations]);
+  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences, shownRecommendations, fetchSupplementaryRecommendations]);
 
   // Main effect to fetch recommendations when dependencies change
   useEffect(() => {
