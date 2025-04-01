@@ -93,9 +93,10 @@ export const MediaCard = ({
           return;
         }
         
-        // If not cached, try the API request with CORS error handling
+        // Get all favorites at once instead of checking individual items
+        // This is more efficient and avoids CORS issues with multiple requests
         const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${result.id}`,
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -104,25 +105,41 @@ export const MediaCard = ({
             mode: 'cors'
           }
         ).catch(error => {
-          // Specifically handle CORS errors or network errors
-          console.warn("CORS or network error when checking favorite status:", error.message);
-          return null; // Return null to indicate a failed request
+          console.warn("CORS or network error when fetching favorites:", error.message);
+          return null;
         });
 
         if (!response) {
-          // Handle failed request (including CORS errors)
-          console.warn(`Favorite check for media ${result.id} failed. Assuming not favorited.`);
+          console.warn(`Favorites fetch failed. Assuming ${result.id} is not favorited.`);
           setIsFavorited(false);
           return;
         }
 
         if (response.ok) {
           const data = await response.json();
-          setIsFavorited(data && data.isFavorite);
-          // Cache the result to avoid excessive API calls
-          sessionStorage.setItem(cacheKey, data && data.isFavorite ? 'true' : 'false');
+          console.log("All favorites data:", data);
+          
+          // Check if data has items array (expected structure)
+          if (data && data.items && Array.isArray(data.items)) {
+            // Find if current media is in favorites
+            const isFavorite = data.items.some(item => 
+              item.mediaId === result.id.toString() || item.mediaId === result.id
+            );
+            
+            setIsFavorited(isFavorite);
+            sessionStorage.setItem(cacheKey, isFavorite ? 'true' : 'false');
+            
+            // Also cache other favorites we learned about
+            data.items.forEach(item => {
+              const itemCacheKey = `favorite_${item.mediaId}`;
+              sessionStorage.setItem(itemCacheKey, 'true');
+            });
+          } else {
+            console.warn('Unexpected favorites response format:', data);
+            setIsFavorited(false);
+          }
         } else {
-          console.warn(`Favorite check returned status ${response.status}. Assuming not favorited.`);
+          console.warn(`Favorites fetch returned status ${response.status}. Assuming not favorited.`);
           setIsFavorited(false);
         }
       } catch (error) {
