@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   StarIcon, CalendarIcon, ChartBarIcon,
@@ -13,6 +13,12 @@ const extractYear = (dateString) => {
   return isNaN(date.getFullYear()) ? '' : date.getFullYear().toString();
 };
 
+// Global cache to prevent multiple fetch requests for favorites
+let globalFavoritesFetched = false;
+let globalFavorites = null;
+let lastFetchTime = 0;
+const FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
+
 export const MediaCard = ({ 
   result, 
   onClick, 
@@ -22,6 +28,7 @@ export const MediaCard = ({
 }) => {
   const socialProof = getSocialProof(result);
   const [isFavorited, setIsFavorited] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   // Fallback genre color function (kept for robustness)
   const getGenreColorFallback = (genreIds = []) => {
@@ -44,14 +51,16 @@ export const MediaCard = ({
       return null;
     }
     
-    // Log the user object structure to help debug
-    console.log("Current user object structure:", JSON.stringify({
-      hasToken: !!user.token,
-      hasSignIn: !!user.signInUserSession,
-      hasAccessToken: user.signInUserSession?.accessToken !== undefined,
-      userEmail: user.attributes?.email || 'not found',
-      keys: Object.keys(user)
-    }));
+    // Only log this in development, not in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Current user object structure:", JSON.stringify({
+        hasToken: !!user.token,
+        hasSignIn: !!user.signInUserSession,
+        hasAccessToken: user.signInUserSession?.accessToken !== undefined,
+        userEmail: user.attributes?.email || 'not found',
+        keys: Object.keys(user)
+      }));
+    }
     
     // Case 1: Direct token property
     if (user.token) return user.token;
@@ -77,6 +86,9 @@ export const MediaCard = ({
 
   // Check if this media is already in user favorites
   useEffect(() => {
+    // Skip if we've already determined favorite status for this media item
+    if (hasFetchedRef.current) return;
+    
     const checkFavoriteStatus = async () => {
       if (!currentUser) return;
       
@@ -90,11 +102,29 @@ export const MediaCard = ({
         
         if (cachedStatus !== null) {
           setIsFavorited(cachedStatus === 'true');
+          hasFetchedRef.current = true;
           return;
         }
         
-        // Get all favorites at once instead of checking individual items
-        // This is more efficient and avoids CORS issues with multiple requests
+        // Check if we should use the global favorites cache
+        const now = Date.now();
+        if (globalFavoritesFetched && now - lastFetchTime < FETCH_COOLDOWN) {
+          // Use cached global favorites instead of making a new request
+          if (globalFavorites && Array.isArray(globalFavorites)) {
+            const isFavorite = globalFavorites.some(item => 
+              item.mediaId === result.id.toString() || item.mediaId === result.id
+            );
+            setIsFavorited(isFavorite);
+            sessionStorage.setItem(cacheKey, isFavorite ? 'true' : 'false');
+            hasFetchedRef.current = true;
+            return;
+          }
+        }
+
+        // Avoid duplicate fetches across multiple components
+        if (globalFavoritesFetched) return;
+        
+        // Get all favorites at once
         const response = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
           {
@@ -105,23 +135,30 @@ export const MediaCard = ({
             mode: 'cors'
           }
         ).catch(error => {
-          console.warn("CORS or network error when fetching favorites:", error.message);
+          console.warn("Error fetching favorites:", error.message);
           return null;
         });
 
         if (!response) {
-          console.warn(`Favorites fetch failed. Assuming ${result.id} is not favorited.`);
           setIsFavorited(false);
+          hasFetchedRef.current = true;
           return;
         }
 
         if (response.ok) {
           const data = await response.json();
-          console.log("All favorites data:", data);
           
-          // Check if data has items array (expected structure)
+          // Only log once in development
+          if (process.env.NODE_ENV === 'development' && !globalFavoritesFetched) {
+            console.log("Favorites fetch successful");
+          }
+          
+          // Update global cache
           if (data && data.items && Array.isArray(data.items)) {
-            // Find if current media is in favorites
+            globalFavorites = data.items;
+            globalFavoritesFetched = true;
+            lastFetchTime = Date.now();
+            
             const isFavorite = data.items.some(item => 
               item.mediaId === result.id.toString() || item.mediaId === result.id
             );
@@ -135,21 +172,25 @@ export const MediaCard = ({
               sessionStorage.setItem(itemCacheKey, 'true');
             });
           } else {
-            console.warn('Unexpected favorites response format:', data);
             setIsFavorited(false);
           }
         } else {
-          console.warn(`Favorites fetch returned status ${response.status}. Assuming not favorited.`);
           setIsFavorited(false);
         }
+        
+        hasFetchedRef.current = true;
       } catch (error) {
         console.error("Error checking favorite status:", error);
-        // Don't show error to user for status checks - silent fail
+        hasFetchedRef.current = true;
       }
     };
 
-    checkFavoriteStatus();
-  }, [currentUser, result.id]);
+    // Use a small delay to avoid too many simultaneous requests on page load
+    const timeoutId = setTimeout(checkFavoriteStatus, Math.random() * 500);
+    
+    return () => clearTimeout(timeoutId);
+  // Use a stable token string instead of the entire currentUser object
+  }, [extractToken(currentUser), result.id]);
 
   // Handle adding/removing favorites
   const handleFavorite = async (e) => {
@@ -209,9 +250,31 @@ export const MediaCard = ({
         throw new Error(errorMessage);
       }
 
-      // Update local state and cache
+      // Update local state, session storage, and global cache
       setIsFavorited(!isFavorited);
       sessionStorage.setItem(`favorite_${result.id}`, !isFavorited ? 'true' : 'false');
+      
+      // Update global favorites cache
+      if (globalFavorites) {
+        if (isFavorited) {
+          // Remove from favorites
+          globalFavorites = globalFavorites.filter(
+            item => item.mediaId !== result.id.toString() && item.mediaId !== result.id
+          );
+        } else {
+          // Add to favorites
+          globalFavorites.push({
+            mediaId: result.id.toString(),
+            title: result.title || result.name,
+            mediaType: result.media_type,
+            posterPath: result.poster_path,
+            overview: result.overview
+          });
+        }
+      }
+      
+      // Force refresh global cache on next page load
+      lastFetchTime = 0;
       
       // Show success message
       alert(isFavorited ? 
