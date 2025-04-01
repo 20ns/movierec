@@ -158,13 +158,18 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {userFavorites.map((fav) => {
-                    // Map the favorite zitem to the format expected by MediaCard
+                    // Fix the data issues while maintaining the existing visual style
                     const result = {
                       id: fav.mediaId,
                       title: fav.title,
                       poster_path: fav.posterPath,
                       media_type: fav.mediaType,
-                      overview: fav.overview || "No description available"
+                      overview: fav.overview || "No description available",
+                      // Add these fields to fix NaN issues
+                      release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
+                      first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
+                      vote_average: fav.voteAverage || fav.rating || 7.0,
+                      popularity: fav.popularity || 50
                     };
                     return (
                       <motion.div
