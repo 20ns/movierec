@@ -75,35 +75,56 @@ export const MediaCard = ({
     return null;
   };
 
-  // Check favorite status on component mount and when user/result changes
+  // Check if this media is already in user favorites
   useEffect(() => {
     const checkFavoriteStatus = async () => {
-      const token = extractToken(currentUser);
+      if (!currentUser) return;
       
-      // Skip if no token available
-      if (!token) {
-        console.log("No token available for favorite status check");
-        return;
-      }
-
+      const token = extractToken(currentUser);
+      if (!token) return; // No token, no need to check
+      
       try {
-        // Note: Using the British spelling 'favourite' to match your API
+        // First, check if we've already cached this media's favorite status
+        const cacheKey = `favorite_${result.id}`;
+        const cachedStatus = sessionStorage.getItem(cacheKey);
+        
+        if (cachedStatus !== null) {
+          setIsFavorited(cachedStatus === 'true');
+          return;
+        }
+        
+        // If not cached, try the API request with CORS error handling
         const response = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite?mediaId=${result.id}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              Authorization: `Bearer ${token}`
             },
             credentials: 'include',
-            mode: 'cors' // Explicitly set CORS mode
+            mode: 'cors'
           }
-        );
+        ).catch(error => {
+          // Specifically handle CORS errors or network errors
+          console.warn("CORS or network error when checking favorite status:", error.message);
+          return null; // Return null to indicate a failed request
+        });
 
-        if (!response.ok) throw new Error('Failed to check favorite status');
+        if (!response) {
+          // Handle failed request (including CORS errors)
+          console.warn(`Favorite check for media ${result.id} failed. Assuming not favorited.`);
+          setIsFavorited(false);
+          return;
+        }
 
-        const data = await response.json();
-        setIsFavorited(data.isFavorited);
+        if (response.ok) {
+          const data = await response.json();
+          setIsFavorited(data && data.isFavorite);
+          // Cache the result to avoid excessive API calls
+          sessionStorage.setItem(cacheKey, data && data.isFavorite ? 'true' : 'false');
+        } else {
+          console.warn(`Favorite check returned status ${response.status}. Assuming not favorited.`);
+          setIsFavorited(false);
+        }
       } catch (error) {
         console.error("Error checking favorite status:", error);
         // Don't show error to user for status checks - silent fail
@@ -153,7 +174,11 @@ export const MediaCard = ({
             overview: result.overview
           })
         }
-      );
+      ).catch(error => {
+        // Handle CORS or network errors
+        console.error("CORS or network error:", error.message);
+        throw new Error("Network error. Please try again later.");
+      });
 
       if (!response.ok) {
         // Try to get error details from response
@@ -167,7 +192,9 @@ export const MediaCard = ({
         throw new Error(errorMessage);
       }
 
+      // Update local state and cache
       setIsFavorited(!isFavorited);
+      sessionStorage.setItem(`favorite_${result.id}`, !isFavorited ? 'true' : 'false');
       
       // Show success message
       alert(isFavorited ? 
