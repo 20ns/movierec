@@ -419,17 +419,19 @@ function AppContent() {
                 </svg>
               </button>
             </div>
-            <p className="text-gray-300 mb-6">
-              Help us understand what kinds of movies you enjoy so we can provide better recommendations.
-            </p>
-            <OnboardingQuestionnaire 
-              currentUser={currentUser} 
-              onComplete={handleQuestionnaireComplete}
-              onSkip={handleSkipQuestionnaire}
-              isModal={true}
-              existingPreferences={userPreferences}
-              isUpdate={false} // Force full questionnaire when opened from preferences button
-            />
+            <div className="min-h-[600px] overflow-y-auto">
+              <p className="text-gray-300 mb-6">
+                Help us understand what kinds of movies you enjoy so we can provide better recommendations.
+              </p>
+              <OnboardingQuestionnaire 
+                currentUser={currentUser} 
+                onComplete={handleQuestionnaireComplete}
+                onSkip={handleSkipQuestionnaire}
+                isModal={true}
+                existingPreferences={userPreferences}
+                isUpdate={false} // Force full questionnaire when opened from preferences button
+              />
+            </div>
           </motion.div>
         </div>
       )}
