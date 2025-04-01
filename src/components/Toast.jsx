@@ -4,6 +4,9 @@ import { CheckCircleIcon, HeartIcon } from '@heroicons/react/24/solid';
 
 const Toast = ({ message, isVisible, type = 'success', onClose }) => {
   useEffect(() => {
+    // Add debug logging when visibility changes
+    console.log('Toast visibility changed:', isVisible, 'Message:', message);
+    
     if (isVisible) {
       const timer = setTimeout(() => {
         onClose();
@@ -11,7 +14,7 @@ const Toast = ({ message, isVisible, type = 'success', onClose }) => {
       
       return () => clearTimeout(timer);
     }
-  }, [isVisible, onClose]);
+  }, [isVisible, message, onClose]);
 
   return (
     <AnimatePresence>

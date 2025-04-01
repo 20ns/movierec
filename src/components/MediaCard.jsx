@@ -32,7 +32,12 @@ export const MediaCard = ({
   const [isFavorited, setIsFavorited] = useState(false);
   const hasFetchedRef = useRef(false);
   // Get the showToast function from context
-  const { showToast } = useToast();
+  const toast = useToast();
+  
+  // Check if toast is available
+  useEffect(() => {
+    console.log("Toast context available:", !!toast);
+  }, [toast]);
 
   // Fallback genre color function (kept for robustness)
   const getGenreColorFallback = (genreIds = []) => {
@@ -275,8 +280,14 @@ export const MediaCard = ({
             overview: result.overview
           });
           
-          // Show toast only when adding to favorites
-          showToast(`Added "${result.title || result.name}" to favorites`, 'favorite');
+          // Show toast only when adding to favorites - with better debug info
+          console.log("About to show toast:", result.title || result.name);
+          if (toast && toast.showToast) {
+            toast.showToast(`Added "${result.title || result.name}" to favorites`, 'favorite');
+            console.log("Toast function called");
+          } else {
+            console.error("Toast function not available!", toast);
+          }
         }
       }
       

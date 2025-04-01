@@ -1,14 +1,15 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import Toast from './Toast';
 
-const ToastContext = createContext();
+// Create a context with a default value that includes the expected function shape
+const ToastContext = createContext({
+  showToast: () => {
+    console.warn('Toast provider not found!');
+  }
+});
 
 export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
+  return useContext(ToastContext);
 };
 
 export const ToastProvider = ({ children }) => {
@@ -18,7 +19,11 @@ export const ToastProvider = ({ children }) => {
     type: 'success'
   });
 
+  // Log when toast provider is mounted
+  console.log('Toast provider mounted');
+
   const showToast = (message, type = 'success') => {
+    console.log('showToast called with:', message, type);
     setToast({
       message,
       visible: true,

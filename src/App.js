@@ -592,6 +592,7 @@ function AppContent() {
 }
 
 function App() {
+  console.log("App rendering with ToastProvider");
   return (
     <ToastProvider>
       <BrowserRouter>
