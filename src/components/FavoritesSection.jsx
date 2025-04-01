@@ -158,7 +158,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {userFavorites.map((fav) => {
-                    // Map the favorite item to the format expected by MediaCard
+                    // Map the favorite zitem to the format expected by MediaCard
                     const result = {
                       id: fav.mediaId,
                       title: fav.title,
