@@ -16,6 +16,7 @@ import { FilmIcon, UserIcon, ArrowRightIcon, MagnifyingGlassIcon as SearchIcon }
 import Header from './components/Header';
 import AccountDetailsModal from './components/AccountDetailsModal'; // Import the new component
 import { motion, AnimatePresence } from 'framer-motion';
+import { ToastProvider } from './components/ToastManager'; // Import ToastProvider
 
 // Landing page component for non-authenticated users
 const LandingPage = ({ onSignInClick }) => {
@@ -592,9 +593,11 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 
