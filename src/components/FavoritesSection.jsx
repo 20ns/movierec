@@ -135,14 +135,19 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       <AnimatePresence>
         {(isOpen || inHeader) && (
           <>
-            {/* Add a backdrop to detect clicks outside */}
+            {/* Replace with linear transitions for backdrop */}
             {inHeader && (
               <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+                animate={{ 
+                  opacity: 1,
+                  transition: { duration: 0.25, ease: "linear" }
+                }}
+                exit={{ 
+                  opacity: 0,
+                  transition: { duration: 0.2, ease: "linear" }
+                }}
+                className="fixed inset-0 bg-gradient-to-br from-black/40 to-gray-900/50 z-40"
                 onClick={handleClose}
               />
             )}
@@ -150,32 +155,45 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             {!inHeader && (
               <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                animate={{ 
+                  opacity: 1,
+                  transition: { duration: 0.25, ease: "linear" }
+                }}
+                exit={{ 
+                  opacity: 0,
+                  transition: { duration: 0.2, ease: "linear" }
+                }}
+                className="fixed inset-0 bg-gradient-to-br from-black/50 to-gray-900/60 z-40"
                 onClick={handleClose}
               />
             )}
 
+            {/* Replace spring with linear transitions for panel */}
             <motion.div
               ref={panelRef}
-              initial={inHeader ? { opacity: 0, y: -10, scale: 0.98 } : { opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ 
+                opacity: 1, 
+                y: 0,
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+                transition: {
+                  duration: 0.3,
+                  ease: [0.25, 0.1, 0.25, 1.0], // Custom cubic bezier for smooth motion
+                  opacity: { duration: 0.25 },
+                  y: { duration: 0.3 }
+                }
+              }}
               exit={{ 
                 opacity: 0, 
-                y: -10, 
-                scale: 0.98,
-                transition: { 
+                y: -15,
+                boxShadow: "0 15px 30px -5px rgba(0, 0, 0, 0.5)",
+                transition: {
                   duration: 0.2,
-                  ease: "easeInOut"
-                } 
+                  ease: "easeIn"
+                }
               }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 350, 
-                damping: 25
-              }}
-              className="w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto border border-gray-700 z-50"
+              style={{ willChange: "transform, opacity, box-shadow" }}
+              className="relative w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto border border-gray-700 z-50"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
