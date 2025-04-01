@@ -164,12 +164,23 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                       title: fav.title,
                       poster_path: fav.posterPath,
                       media_type: fav.mediaType,
+<<<<<<< HEAD
                       overview: fav.overview || "No description available",
                       // Add these fields to fix NaN issues
                       release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
                       first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
                       vote_average: fav.voteAverage || fav.rating || 7.0,
                       popularity: fav.popularity || 50
+=======
+                      // Remove overview since we don't want to show description
+                      // Add these fields for year, rating and ranking
+                      release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : ''),
+                      first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : ''),
+                      vote_average: fav.voteAverage || fav.rating || 0,
+                      popularity: fav.popularity || 50,
+                      // Flag to identify this is from favorites section
+                      isFromFavorites: true
+>>>>>>> d47d6d44334bc9ba7e5724c955afb592d7328085
                     };
                     return (
                       <motion.div
@@ -188,6 +199,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                           }}
                           promptLogin={() => {}}
                           onClick={() => {}}
+                          simplifiedView={true} // Add this prop to use a simplified view
                         />
                       </motion.div>
                     );
