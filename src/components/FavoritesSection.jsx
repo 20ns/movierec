@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
 
-const FavoritesSection = ({ currentUser, isAuthenticated, inHeader = false }) => {
-  const [favorites, setFavorites] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = false }) => {
+  const [isOpen, setIsOpen] = useState(inHeader ? true : false);
+  const [userFavorites, setUserFavorites] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isOpen, setIsOpen] = useState(false);
 
   const fetchFavorites = async () => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
@@ -43,10 +43,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated, inHeader = false }) =>
       
       // Check if the data has the expected structure
       if (data && data.items) {
-        setFavorites(data.items);
+        setUserFavorites(data.items);
       } else {
         console.warn('Unexpected response format:', data);
-        setFavorites(Array.isArray(data) ? data : []);
+        setUserFavorites(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Error fetching favorites:', err);
@@ -65,6 +65,15 @@ const FavoritesSection = ({ currentUser, isAuthenticated, inHeader = false }) =>
   if (!isAuthenticated) {
     return null;
   }
+
+  // Make sure to use the onClose prop if it's provided (for the header version)
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      setIsOpen(false);
+    }
+  };
 
   return (
     <div className={inHeader ? "bg-gray-800 rounded-xl shadow-xl overflow-hidden" : "fixed right-20 top-4 z-50"}>
@@ -98,7 +107,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, inHeader = false }) =>
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
               />
             )}
 
@@ -106,50 +115,49 @@ const FavoritesSection = ({ currentUser, isAuthenticated, inHeader = false }) =>
               initial={inHeader ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className={inHeader 
-                ? "w-full bg-gray-800 max-h-[70vh] overflow-y-auto" 
-                : "fixed top-20 right-4 w-full max-w-md bg-white rounded-2xl shadow-xl z-50 max-h-[80vh] overflow-y-auto"}
+              className="w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto border border-gray-700"
             >
-              <div className={`p-6 ${inHeader ? 'bg-gray-800 text-white' : ''}`}>
+              <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className={`text-2xl font-bold ${inHeader ? 'text-white' : 'text-gray-800'}`}>
+                  <h2 className="text-2xl font-bold text-white">
                     Your Favorites
                   </h2>
-                  {!inHeader && (
-                    <button
-                      onClick={() => setIsOpen(false)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      ×
-                    </button>
-                  )}
+                  <button
+                    onClick={handleClose}
+                    className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
 
                 {isLoading && (
                   <div className="text-center py-8">
-                    <div className="animate-spin w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading your favorites...</p>
+                    <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <p className="text-gray-300">Loading your favorites...</p>
                   </div>
                 )}
 
                 {error && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                  <div className="bg-red-900/30 border border-red-500 text-red-200 p-4 rounded-lg mb-4">
                     {error}
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  {!isLoading && favorites.length === 0 && (
-                    <div className="text-center py-8">
-                      <HeartIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-600">No favorites yet</p>
-                      <p className="text-gray-400 text-sm">
-                        Movies and TV shows you favorite will appear here
-                      </p>
-                    </div>
-                  )}
+                {!isLoading && userFavorites.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="text-5xl mb-4">💔</div>
+                    <p className="text-gray-300 mb-4">No favorites yet</p>
+                    <p className="text-gray-400 text-sm">
+                      Use the heart button on movies or shows to add them to your favorites
+                    </p>
+                  </div>
+                )}
 
-                  {favorites.map((fav) => {
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {userFavorites.map((fav) => {
                     // Map the favorite item to the format expected by MediaCard
                     const result = {
                       id: fav.mediaId,

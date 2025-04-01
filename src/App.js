@@ -8,6 +8,7 @@ import TrendingSection from './components/TrendingSection';
 import PersonalizedRecommendations from './components/PersonalizedRecommendations';
 import CategoryBrowser from './components/CategoryBrowser';
 import GenreResults from './components/GenreResults';
+import FavoritesSection from './components/FavoritesSection'; // Import FavoritesSection
 import { BrowserRouter, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import useAuth from './auth/auth';
 import { SparklesIcon } from '@heroicons/react/24/solid';
@@ -471,6 +472,25 @@ function AppContent() {
               <SearchBar currentUser={currentUser} />
             </motion.div>
           )}
+
+          {/* Add the favorites section with proper animation */}
+          <AnimatePresence>
+            {showFavorites && isAuthenticated && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="fixed right-4 top-16 z-50 w-full max-w-md"
+              >
+                <FavoritesSection 
+                  currentUser={currentUser} 
+                  isAuthenticated={isAuthenticated}
+                  onClose={() => setShowFavorites(false)}
+                  inHeader={true}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
 
