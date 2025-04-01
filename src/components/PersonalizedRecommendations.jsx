@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { MediaCard } from './MediaCard';
 import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
-const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
+// Convert to forwardRef to accept ref from parent
+const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated }, ref) => {
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [favoriteGenres, setFavoriteGenres] = useState([]);
@@ -40,6 +41,38 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
       setIsLoading(false);
     }
   }, []);
+
+  // Function to fetch user's latest preferences - extracted for reuse
+  const fetchLatestPreferences = useCallback(async () => {
+    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      return null;
+    }
+    
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`,
+        {
+          headers: {
+            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include'
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Object.keys(data).length > 0) {
+          setUserPreferences(data);
+          localStorage.setItem('userPrefs', JSON.stringify(data));
+          return data;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+    }
+    return null;
+  }, [currentUser, isAuthenticated]);
   
   // Fetch user preferences
   useEffect(() => {
@@ -59,35 +92,9 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
       }
     }
     
-    // Then fetch the most up-to-date preferences from the server
-    const fetchPreferences = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`,
-          {
-            headers: {
-              Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include'
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data && Object.keys(data).length > 0 && 
-              (data.favoriteGenres?.length > 0 || data.contentType || data.eraPreferences?.length > 0)) {
-            setUserPreferences(data);
-            localStorage.setItem('userPrefs', JSON.stringify(data));
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching user preferences:', error);
-      }
-    };
-    
-    fetchPreferences();
-  }, [currentUser, isAuthenticated]);
+    // Then fetch the most up-to-date preferences
+    fetchLatestPreferences();
+  }, [currentUser, isAuthenticated, fetchLatestPreferences]);
 
   // Fetch user favorites
   useEffect(() => {
@@ -148,8 +155,8 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
     fetchFavorites();
   }, [currentUser, isAuthenticated]);
 
-  // Fetch recommendations based on preferences and favorites
-  useEffect(() => {
+  // Function to fetch recommendations - extracted for reuse
+  const fetchRecommendations = useCallback(async () => {
     if (!isAuthenticated) {
       setIsLoading(false);
       return;
@@ -170,124 +177,155 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
       return;
     }
 
-    const fetchRecommendations = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Determine which data source to use for recommendations
-        if (hasPreferences && hasFavorites) {
-          setDataSource('both');
-        } else if (hasPreferences) {
-          setDataSource('preferences');
+    try {
+      setIsLoading(true);
+      
+      // Determine which data source to use for recommendations
+      if (hasPreferences && hasFavorites) {
+        setDataSource('both');
+      } else if (hasPreferences) {
+        setDataSource('preferences');
+      } else {
+        setDataSource('favorites');
+      }
+      
+      // Determine content type from preferences, favorites, or random if neither specifies
+      let mediaType;
+      
+      if (userPreferences?.contentType === 'movies') {
+        mediaType = 'movie';
+      } else if (userPreferences?.contentType === 'tv') {
+        mediaType = 'tv';
+      } else if (hasFavorites && userFavorites.length > 0) {
+        // Count movie vs TV favorites
+        const movieCount = userFavorites.filter(f => f.mediaType === 'movie').length;
+        const tvCount = userFavorites.filter(f => f.mediaType === 'tv').length;
+        mediaType = movieCount > tvCount ? 'movie' : 'tv';
+      } else {
+        // Default to movie if no preference is available
+        mediaType = 'movie';
+      }
+      
+      const endpoint = mediaType;
+      
+      // Determine which genres to use
+      let genresToUse = [];
+      
+      if (hasPreferences && userPreferences.favoriteGenres?.length > 0) {
+        // If has both, combine some from each source, prioritizing preferences
+        if (hasFavorites) {
+          // Get unique genres from both sources, prioritizing preferences
+          const preferenceGenres = userPreferences.favoriteGenres.slice(0, 2);
+          const uniqueFavoriteGenres = favoriteGenres
+            .filter(g => !preferenceGenres.includes(String(g)))
+            .slice(0, 1);
+          genresToUse = [...preferenceGenres, ...uniqueFavoriteGenres];
         } else {
-          setDataSource('favorites');
+          genresToUse = userPreferences.favoriteGenres;
         }
-        
-        // Determine content type from preferences, favorites, or random if neither specifies
-        let mediaType;
-        
-        if (userPreferences?.contentType === 'movies') {
-          mediaType = 'movie';
-        } else if (userPreferences?.contentType === 'tv') {
-          mediaType = 'tv';
-        } else if (hasFavorites && userFavorites.length > 0) {
-          // Count movie vs TV favorites
-          const movieCount = userFavorites.filter(f => f.mediaType === 'movie').length;
-          const tvCount = userFavorites.filter(f => f.mediaType === 'tv').length;
-          mediaType = movieCount > tvCount ? 'movie' : 'tv';
-        } else {
-          // Default to movie if no preference is available
-          mediaType = 'movie';
+      } else if (hasFavorites) {
+        genresToUse = favoriteGenres;
+      }
+      
+      // Era preferences from the user's settings
+      let yearParams = {};
+      if (hasPreferences && userPreferences.eraPreferences?.length > 0) {
+        if (userPreferences.eraPreferences.includes('classic')) {
+          yearParams = { 'release_date.lte': '1980-12-31' };
+        } else if (userPreferences.eraPreferences.includes('modern')) {
+          yearParams = { 
+            'release_date.gte': '1980-01-01',
+            'release_date.lte': '2010-12-31'
+          };
+        } else if (userPreferences.eraPreferences.includes('recent')) {
+          yearParams = { 'release_date.gte': '2011-01-01' };
         }
-        
-        const endpoint = mediaType;
-        
-        // Determine which genres to use
-        let genresToUse = [];
-        
-        if (hasPreferences && userPreferences.favoriteGenres?.length > 0) {
-          // If has both, combine some from each source, prioritizing preferences
-          if (hasFavorites) {
-            // Get unique genres from both sources, prioritizing preferences
-            const preferenceGenres = userPreferences.favoriteGenres.slice(0, 2);
-            const uniqueFavoriteGenres = favoriteGenres
-              .filter(g => !preferenceGenres.includes(String(g)))
-              .slice(0, 1);
-            genresToUse = [...preferenceGenres, ...uniqueFavoriteGenres];
-          } else {
-            genresToUse = userPreferences.favoriteGenres;
-          }
-        } else if (hasFavorites) {
-          genresToUse = favoriteGenres;
-        }
-        
-        // Era preferences from the user's settings
-        let yearParams = {};
-        if (hasPreferences && userPreferences.eraPreferences?.length > 0) {
-          if (userPreferences.eraPreferences.includes('classic')) {
-            yearParams = { 'release_date.lte': '1980-12-31' };
-          } else if (userPreferences.eraPreferences.includes('modern')) {
-            yearParams = { 
-              'release_date.gte': '1980-01-01',
-              'release_date.lte': '2010-12-31'
-            };
-          } else if (userPreferences.eraPreferences.includes('recent')) {
-            yearParams = { 'release_date.gte': '2011-01-01' };
-          }
-        }
-        
-        // Only proceed with API call if we have genres to use
-        if (genresToUse.length > 0) {
-          const response = await axios.get(
-            `https://api.themoviedb.org/3/discover/${endpoint}`,
-            {
-              params: {
-                api_key: process.env.REACT_APP_TMDB_API_KEY,
-                with_genres: genresToUse.join(','),
-                sort_by: 'popularity.desc',
-                ...yearParams,
-                'vote_count.gte': 100, // Ensure some quality threshold
-              }
+      }
+      
+      // Only proceed with API call if we have genres to use
+      if (genresToUse.length > 0) {
+        const response = await axios.get(
+          `https://api.themoviedb.org/3/discover/${endpoint}`,
+          {
+            params: {
+              api_key: process.env.REACT_APP_TMDB_API_KEY,
+              with_genres: genresToUse.join(','),
+              sort_by: 'popularity.desc',
+              ...yearParams,
+              'vote_count.gte': 100, // Ensure some quality threshold
             }
-          );
-          
-          // Format and filter out already favorited items
-          const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
-          const formattedResults = response.data.results
-            .filter(item => !favoriteIds.has(item.id.toString()))
-            .map(item => ({
-              ...item,
-              media_type: mediaType,
-              score: Math.round((item.vote_average / 10) * 100)
-            }))
-            .slice(0, 6);
-          
-          if (formattedResults.length > 0) {
-            setRecommendations(formattedResults);
-          } else {
-            // If no results after filtering, get generic recommendations
-            await fetchGenericRecommendations();
           }
+        );
+        
+        // Format and filter out already favorited items
+        const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
+        const formattedResults = response.data.results
+          .filter(item => !favoriteIds.has(item.id.toString()))
+          .map(item => ({
+            ...item,
+            media_type: mediaType,
+            score: Math.round((item.vote_average / 10) * 100)
+          }))
+          .slice(0, 6);
+        
+        if (formattedResults.length > 0) {
+          setRecommendations(formattedResults);
         } else {
-          // If no genres to use, get generic recommendations
+          // If no results after filtering, get generic recommendations
           await fetchGenericRecommendations();
         }
-      } catch (error) {
-        console.error('Error fetching recommendations:', error);
+      } else {
+        // If no genres to use, get generic recommendations
         await fetchGenericRecommendations();
-      } finally {
-        setIsLoading(false);
       }
-    };
-    
-    fetchRecommendations();
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      await fetchGenericRecommendations();
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations]);
 
+  // Main effect to fetch recommendations when dependencies change
+  useEffect(() => {
+    fetchRecommendations();
+  }, [fetchRecommendations]);
+
+  // Handle refresh button click
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchGenericRecommendations();
-    setIsRefreshing(false);
+    // Try to get fresh preferences first
+    await fetchLatestPreferences();
+    // Then get recommendations
+    await fetchRecommendations();
   };
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    refresh: handleRefresh
+  }));
+
+  // Listen for the refresh event from parent component
+  useEffect(() => {
+    const handleRefreshEvent = async () => {
+      console.log("Received refresh recommendations event");
+      await handleRefresh();
+    };
+    
+    document.addEventListener('refresh-recommendations', handleRefreshEvent);
+    
+    return () => {
+      document.removeEventListener('refresh-recommendations', handleRefreshEvent);
+    };
+  }, []);
+
+  // Show animation when preferences updated
+  useEffect(() => {
+    if (preferencesUpdated) {
+      handleRefresh();
+    }
+  }, [preferencesUpdated]);
 
   if (!isAuthenticated) {
     return null;
@@ -458,6 +496,9 @@ const PersonalizedRecommendations = ({ currentUser, isAuthenticated }) => {
       </AnimatePresence>
     </motion.section>
   );
-};
+});
+
+// Set display name for debugging purposes
+PersonalizedRecommendations.displayName = 'PersonalizedRecommendations';
 
 export default PersonalizedRecommendations;

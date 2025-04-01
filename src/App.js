@@ -128,8 +128,10 @@ function AppContent() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false); // New state for account details modal
   const [showPreferencesPrompt, setShowPreferencesPrompt] = useState(false);
+  const [recommendationsKey, setRecommendationsKey] = useState(0); // Add this state for forcing re-render
   const preferenceModalRef = useRef(null);
   const accountModalRef = useRef(null);
+  const personalizedRecommendationsRef = useRef(null); // Add reference to the recommendations component
 
   // Check if user has completed questionnaire
   useEffect(() => {
@@ -191,7 +193,7 @@ function AppContent() {
       }
     }
   }, [isAuthenticated, currentUser, hasCompletedQuestionnaire]);
-
+yes
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
@@ -207,11 +209,35 @@ function AppContent() {
     }
   }, [isAuthenticated, loading, navigate, isNewUser]);
 
+  // Function to fetch latest recommendations
+  const refreshRecommendations = () => {
+    // Force re-render of the recommendations component
+    setRecommendationsKey(prevKey => prevKey + 1);
+    
+    // Dispatch a custom event that the PersonalizedRecommendations component can listen for
+    const refreshEvent = new CustomEvent('refresh-recommendations');
+    document.dispatchEvent(refreshEvent);
+  };
+
   // Handler for questionnaire completion
   const handleQuestionnaireComplete = () => {
     setHasCompletedQuestionnaire(true);
     setShowQuestionnaire(false);
     localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, 'true');
+    
+    // Refresh recommendations immediately after preferences are updated
+    refreshRecommendations();
+    
+    // Show a success message to the user
+    const successMessage = document.createElement('div');
+    successMessage.className = 'fixed bottom-6 right-6 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-fade-in-out';
+    successMessage.innerHTML = 'Preferences updated! Refreshing your recommendations...';
+    document.body.appendChild(successMessage);
+    
+    // Remove the message after 3 seconds
+    setTimeout(() => {
+      document.body.removeChild(successMessage);
+    }, 3000);
   };
 
   // New handler for skipping the questionnaire
@@ -418,8 +444,11 @@ function AppContent() {
                   <div className="space-y-12">
                     {/* Personalized recommendations based on user's favorites */}
                     <PersonalizedRecommendations 
+                      key={recommendationsKey} // Add key prop to force re-render
+                      ref={personalizedRecommendationsRef}
                       currentUser={currentUser}
                       isAuthenticated={isAuthenticated}
+                      preferencesUpdated={hasCompletedQuestionnaire} // Pass completed status
                     />
                     
                     {/* Trending content section */}
