@@ -1,5 +1,5 @@
 // FavoritesSection.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
@@ -9,7 +9,28 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   const [userFavorites, setUserFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [removedId, setRemovedId] = useState(null);
+  const panelRef = useRef(null);
+  
+  // Add an effect to handle clicks outside the panel
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // Only proceed if the panel is open and we're in header mode
+      if (!isOpen || !inHeader) return;
+      
+      // Check if click is outside the panel
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        handleClose();
+      }
+    }
+    
+    // Add the event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Cleanup the event listener on component unmount
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, inHeader]);
 
   const fetchFavorites = async () => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
@@ -79,7 +100,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   // Handle favorite toggle callback from MediaCard
   const handleFavoriteToggle = (mediaId, isFavorite) => {
     if (!isFavorite) {
-      // If removed from favorites, update the UI immediately
+      // If removed from favorites, update the UI immediately with a smoother animation
       setUserFavorites(prev => prev.filter(fav => fav.mediaId !== mediaId));
     } else {
       // If added to favorites and we're showing the favorites section,
@@ -114,6 +135,18 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       <AnimatePresence>
         {(isOpen || inHeader) && (
           <>
+            {/* Add a backdrop to detect clicks outside */}
+            {inHeader && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+                onClick={handleClose}
+              />
+            )}
+            
             {!inHeader && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -125,10 +158,24 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             )}
 
             <motion.div
-              initial={inHeader ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: -20, scale: 0.95 }}
+              ref={panelRef}
+              initial={inHeader ? { opacity: 0, y: -10, scale: 0.98 } : { opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto border border-gray-700"
+              exit={{ 
+                opacity: 0, 
+                y: -10, 
+                scale: 0.98,
+                transition: { 
+                  duration: 0.2,
+                  ease: "easeInOut"
+                } 
+              }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 350, 
+                damping: 25
+              }}
+              className="w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto border border-gray-700 z-50"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -189,13 +236,24 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                         <motion.div
                           key={fav.mediaId}
                           layout
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-                          transition={{ 
-                            type: "spring", 
-                            stiffness: 300, 
-                            damping: 30 
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ 
+                            opacity: 1, 
+                            scale: 1,
+                            transition: {
+                              type: "spring",
+                              stiffness: 500,
+                              damping: 30,
+                              mass: 1
+                            }
+                          }}
+                          exit={{ 
+                            opacity: 0, 
+                            scale: 0.9,
+                            transition: {
+                              duration: 0.2,
+                              ease: "easeOut"
+                            }
                           }}
                           className="mb-4"
                         >
