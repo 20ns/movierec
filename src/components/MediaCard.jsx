@@ -192,23 +192,23 @@ export const MediaCard = ({
     const rating = result.vote_average ? Math.round(result.vote_average * 10) / 10 : 0;
     
     if (simplifiedView) {
-      // Simplified view for favorites section
+      // Simplified view for favorites section with WHITE background
       return (
         <div className="p-3">
-          <h2 className="font-semibold text-white truncate">{result.title || result.name}</h2>
+          <h2 className="font-semibold text-gray-800 truncate">{result.title || result.name}</h2>
           <div className="flex items-center justify-between mt-2 text-sm">
             <div className="flex items-center space-x-2">
-              <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs">
+              <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs">
                 {result.media_type === 'movie' ? 'Movie' : 'TV Show'}
               </span>
               {year && (
-                <span className="text-gray-400">{year}</span>
+                <span className="text-gray-600">{year}</span>
               )}
             </div>
             {rating > 0 && (
               <div className="flex items-center">
-                <span className="text-yellow-400">★</span>
-                <span className="text-gray-300 ml-1">{rating}</span>
+                <span className="text-amber-500">★</span>
+                <span className="text-gray-700 ml-1">{rating}</span>
               </div>
             )}
           </div>
@@ -216,9 +216,67 @@ export const MediaCard = ({
       );
     }
 
-    // Regular view for all other uses
+    // Regular view (reverting to white background)
     return (
-      <>
+      <div className="p-3 flex flex-col flex-grow">
+        <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
+          {result.title || result.name}
+        </h2>
+        <p className="text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed flex-grow">
+          {result.overview}
+        </p>
+
+        <div className="mt-2 space-y-1">
+          {result.scoreReasons?.map((reason, i) => (
+            <div key={i} className="flex items-center text-xs">
+              <CheckCircleIcon className="w-3 h-3 mr-1 text-green-500" />
+              <span className="text-gray-600">{reason}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
+          <div className="flex items-center space-x-1">
+            <StarIcon className="w-4 h-4 text-amber-400" />
+            <span className="font-medium text-sm text-gray-700">
+              {rating || 'N/A'}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <CalendarIcon className="w-4 h-4 text-gray-400" />
+            <span className="text-sm text-gray-600">
+              {year || 'N/A'}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <ChartBarIcon className="w-4 h-4 text-gray-400" />
+            <span className="text-sm text-gray-600">
+              {Math.round(result.popularity) || 'N/A'}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <motion.div
+      className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full cursor-pointer"
+      whileHover={{ scale: 1.02, rotate: 0.5 }}
+      onClick={onClick}
+      onMouseEnter={() => {
+        const color = (getGenreColor || getGenreColorFallback)(result.genre_ids);
+        document.documentElement.style.setProperty('--accent-color', color);
+      }}
+      onMouseLeave={() => {
+        document.documentElement.style.removeProperty('--accent-color');
+      }}
+    >
+      <div className={`bg-white rounded-xl overflow-hidden shadow-lg ${
+        isFavorited ? 'ring-2 ring-red-500' : ''
+      } transition-all duration-300 h-full`}>
         <div className="relative overflow-hidden h-[50%] md:h-[180px] flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
           <motion.img
@@ -253,72 +311,7 @@ export const MediaCard = ({
             </div>
           )}
         </div>
-
-        <div className="p-3 flex flex-col flex-grow">
-          <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
-            {result.title || result.name}
-          </h2>
-          <p className="text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed flex-grow">
-            {result.overview}
-          </p>
-
-          <div className="mt-2 space-y-1">
-            {result.scoreReasons?.map((reason, i) => (
-              <div key={i} className="flex items-center text-xs">
-                <CheckCircleIcon className="w-3 h-3 mr-1 text-green-500" />
-                <span className="text-gray-600">{reason}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
-            <div className="flex items-center space-x-1">
-              <StarIcon className="w-4 h-4 text-amber-400" />
-              <span className="font-medium text-sm text-gray-700">
-                {result.vote_average?.toFixed(1) || 'N/A'}
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-1">
-              <CalendarIcon className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                {new Date(result.release_date || result.first_air_date).getFullYear()}
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-1">
-              <ChartBarIcon className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                {Math.round(result.popularity)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  };
-
-  return (
-    <motion.div
-      className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full cursor-pointer"
-      whileHover={{ scale: 1.02, rotate: 0.5 }}
-      onClick={onClick}
-      onMouseEnter={() => {
-        const color = (getGenreColor || getGenreColorFallback)(result.genre_ids);
-        document.documentElement.style.setProperty('--accent-color', color);
-      }}
-      onMouseLeave={() => {
-        document.documentElement.style.removeProperty('--accent-color');
-      }}
-    >
-      <div 
-        className={`bg-gray-800 rounded-xl overflow-hidden shadow-lg ${
-          isFavorited ? 'ring-2 ring-red-500' : ''
-        } transition-all duration-300`}
-      >
-        {/* Poster image - keep existing */}
-        {/* ...existing poster image code... */}
-
+        
         {/* Content section */}
         {renderContent()}
       </div>
