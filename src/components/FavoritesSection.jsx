@@ -158,13 +158,20 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {userFavorites.map((fav) => {
-                    // Map the favorite item to the format expected by MediaCard
+                    // Enhanced mapping for the MediaCard with proper data formatting
                     const result = {
                       id: fav.mediaId,
                       title: fav.title,
                       poster_path: fav.posterPath,
                       media_type: fav.mediaType,
-                      overview: fav.overview || "No description available"
+                      // Remove overview since we don't want to show description
+                      // Add these fields for year, rating and ranking
+                      release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : ''),
+                      first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : ''),
+                      vote_average: fav.voteAverage || fav.rating || 0,
+                      popularity: fav.popularity || 50,
+                      // Flag to identify this is from favorites section
+                      isFromFavorites: true
                     };
                     return (
                       <motion.div
@@ -183,6 +190,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                           }}
                           promptLogin={() => {}}
                           onClick={() => {}}
+                          simplifiedView={true} // Add this prop to use a simplified view
                         />
                       </motion.div>
                     );
