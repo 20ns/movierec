@@ -38,7 +38,10 @@ export const useSearch = () => {
   const [activeFilters, setActiveFilters] = useState({
     genre: 'diverse',
     time: 'any',
-    type: 'all'
+    type: 'all',
+    releaseYear: 'any',     // New filter for specific years
+    popularity: 'any',      // New filter for popularity level
+    contentType: 'any'      // New filter for more specific content types
   });
 
   const abortControllerRef = useRef(new AbortController());
@@ -180,12 +183,62 @@ export const useSearch = () => {
 
       // Media type filter
       if (activeFilters.type !== 'all' && item.media_type !== activeFilters.type) return false;
+      
+      // New filter: Specific release year filter
+      if (activeFilters.releaseYear !== 'any') {
+        const targetYear = parseInt(activeFilters.releaseYear, 10);
+        if (!isNaN(targetYear) && releaseYear !== targetYear) return false;
+      }
+      
+      // New filter: Popularity filter
+      if (activeFilters.popularity !== 'any') {
+        const popularity = item.popularity || 0;
+        switch (activeFilters.popularity) {
+          case 'high':
+            if (popularity < 50) return false;
+            break;
+          case 'medium':
+            if (popularity < 20 || popularity >= 50) return false;
+            break;
+          case 'low':
+            if (popularity >= 20) return false;
+            break;
+        }
+      }
+      
+      // New filter: Content type filter (more specific than just movie/tv)
+      if (activeFilters.contentType !== 'any') {
+        // Movie content types
+        if (item.media_type === 'movie') {
+          if (activeFilters.contentType === 'documentary' && !item.genre_ids?.includes(99)) return false;
+          if (activeFilters.contentType === 'animation' && !item.genre_ids?.includes(16)) return false;
+        }
+        
+        // TV content types
+        if (item.media_type === 'tv') {
+          if (activeFilters.contentType === 'reality' && !item.genre_ids?.includes(10764)) return false;
+          if (activeFilters.contentType === 'animation' && !item.genre_ids?.includes(16)) return false;
+        }
+      }
 
       return true;
-    }).sort((a, b) => (
-      b.popularity - a.popularity || 
-      (b.vote_average - a.vote_average)
-    ));
+    }).sort((a, b) => {
+      // Enhanced sorting based on active filters
+      if (activeFilters.popularity === 'high') {
+        return b.popularity - a.popularity;
+      } else if (activeFilters.releaseYear !== 'any') {
+        // For year filtering, prioritize exact matches to the selected year
+        const aYear = new Date(a.release_date || a.first_air_date).getFullYear();
+        const bYear = new Date(b.release_date || b.first_air_date).getFullYear();
+        const targetYear = parseInt(activeFilters.releaseYear, 10);
+        
+        if (aYear === targetYear && bYear !== targetYear) return -1;
+        if (bYear === targetYear && aYear !== targetYear) return 1;
+      }
+      
+      // Default sorting by popularity and rating
+      return b.popularity - a.popularity || (b.vote_average - a.vote_average);
+    });
   }, [allResults, activeFilters]);
 
   const displayedResults = useMemo(() => {
@@ -287,12 +340,19 @@ export const useSearch = () => {
       setAllResults([]);
       setResultsToShow(3);
 
-      // Check cache first
+      // Enhanced cache key that includes all filter parameters
       const cacheKey = query.toLowerCase() + JSON.stringify(activeFilters);
       if (searchCache.current.has(cacheKey)) {
         const cachedData = searchCache.current.get(cacheKey);
-        setAllResults(cachedData.results);
-        return;
+        // Check if cache is still valid (less than 30 minutes old)
+        if (Date.now() - cachedData.timestamp < 30 * 60 * 1000) {
+          setAllResults(cachedData.results);
+          setIsLoading(false);
+          return;
+        } else {
+          // Remove expired cache
+          searchCache.current.delete(cacheKey);
+        }
       }
 
       // Fetch search results
