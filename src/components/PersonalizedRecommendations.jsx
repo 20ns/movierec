@@ -13,6 +13,8 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   const [userPreferences, setUserPreferences] = useState(null);
   const [dataSource, setDataSource] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [shownRecommendations, setShownRecommendations] = useState(new Set());
   
   // Update local state when props change
   useEffect(() => {
@@ -29,25 +31,35 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         {
           params: {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
+            page: Math.floor(Math.random() * 5) + 1 // Random page between 1-5 for variety
           }
         }
       );
       
+      // Filter out any previously shown recommendations
       const formattedResults = response.data.results
-        .filter(item => item.poster_path && item.overview)
+        .filter(item => item.poster_path && item.overview && !shownRecommendations.has(item.id))
         .map(item => ({
           ...item,
           score: Math.round((item.vote_average / 10) * 100)
         }))
         .slice(0, 6);
         
-      setRecommendations(formattedResults);
+      if (formattedResults.length > 0) {
+        setRecommendations(formattedResults);
+        // Track these recommendations to avoid repeats
+        setShownRecommendations(prev => {
+          const newShown = new Set(prev);
+          formattedResults.forEach(item => newShown.add(item.id));
+          return newShown;
+        });
+      }
     } catch (error) {
       console.error('Error fetching generic recommendations:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [shownRecommendations]);
 
   // Function to fetch user's latest preferences - now only used as a fallback
   const fetchLatestPreferences = useCallback(async () => {
@@ -271,6 +283,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       
       // Only proceed with API call if we have genres to use
       if (genresToUse.length > 0) {
+        // Add randomness to results with varying page
+        const page = Math.floor(Math.random() * 3) + 1; // Page 1, 2, or 3
+
         const response = await axios.get(
           `https://api.themoviedb.org/3/discover/${endpoint}`,
           {
@@ -278,6 +293,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
               api_key: process.env.REACT_APP_TMDB_API_KEY,
               with_genres: genresToUse.join(','),
               sort_by: 'popularity.desc',
+              page: page,
               ...yearParams,
               ...moodParams,
               'vote_count.gte': 100, // Ensure some quality threshold
@@ -285,10 +301,10 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
           }
         );
         
-        // Format and filter out already favorited items
+        // Format and filter out already favorited items and previously shown recommendations
         const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
         const formattedResults = response.data.results
-          .filter(item => !favoriteIds.has(item.id.toString()))
+          .filter(item => !favoriteIds.has(item.id.toString()) && !shownRecommendations.has(item.id))
           .map(item => ({
             ...item,
             media_type: mediaType,
@@ -298,6 +314,12 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         
         if (formattedResults.length > 0) {
           setRecommendations(formattedResults);
+          // Track these recommendations to avoid repeats
+          setShownRecommendations(prev => {
+            const newShown = new Set(prev);
+            formattedResults.forEach(item => newShown.add(item.id));
+            return newShown;
+          });
         } else {
           // If no results after filtering, get generic recommendations
           await fetchGenericRecommendations();
@@ -313,7 +335,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences]);
+  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences, shownRecommendations]);
 
   // Main effect to fetch recommendations when dependencies change
   useEffect(() => {
@@ -323,8 +345,14 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   // Handle refresh button click
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setRefreshCounter(prev => prev + 1);
+    
+    // Create a nice visual delay to show the refresh animation
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
     // Try to get fresh preferences first
     await fetchLatestPreferences();
+    
     // Then get recommendations
     await fetchRecommendations();
   };
@@ -370,9 +398,10 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-white">
           <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
+            key={`heading-${refreshCounter}`}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
           >
             {dataSource === 'both' ? 'Personalized Recommendations' :
              dataSource === 'preferences' ? 'Based on Your Preferences' :
@@ -389,14 +418,23 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             disabled={isLoading || isRefreshing}
             className="flex items-center space-x-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full transition-colors"
           >
-            <ArrowPathIcon className={`h-4 w-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
+            <motion.div
+              animate={isRefreshing ? { rotate: 360 } : {}}
+              transition={isRefreshing ? { 
+                repeat: Infinity, 
+                duration: 1, 
+                ease: "linear"
+              } : {}}
+            >
+              <ArrowPathIcon className="h-4 w-4 mr-1" />
+            </motion.div>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </motion.button>
         )}
       </div>
       
       <AnimatePresence mode="wait">
-        {dataSource === 'none' && recommendations.length === 0 && !isLoading && (
+        {dataSource === 'none' && recommendations.length === 0 && !isLoading && !isRefreshing && (
           <motion.div 
             key="prompt"
             initial={{ opacity: 0, y: 20 }}
@@ -422,9 +460,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
           </motion.div>
         )}
       
-        {isLoading ? (
+        {isLoading || isRefreshing ? (
           <motion.div 
-            key="loading"
+            key={`loading-${refreshCounter}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -439,24 +477,75 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
                   y: 0,
                   transition: { delay: i * 0.1 }
                 }}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl h-[350px] animate-pulse shadow-md overflow-hidden"
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl h-[350px] shadow-md overflow-hidden"
               >
-                <div className="h-3/5 bg-gray-700"></div>
+                <div className="h-3/5 bg-gray-700 relative">
+                  <motion.div 
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
+                    animate={{ 
+                      x: ['-100%', '100%']
+                    }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1.5,
+                      ease: "linear"
+                    }}
+                  />
+                </div>
                 <div className="p-4 space-y-3">
-                  <div className="h-6 bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-700 rounded w-full"></div>
-                  <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                  <div className="h-6 bg-gray-700 rounded w-3/4 relative overflow-hidden">
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
+                      animate={{ 
+                        x: ['-100%', '100%']
+                      }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1.5,
+                        ease: "linear",
+                        delay: 0.2
+                      }}
+                    />
+                  </div>
+                  <div className="h-4 bg-gray-700 rounded w-1/2 relative overflow-hidden">
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
+                      animate={{ 
+                        x: ['-100%', '100%']
+                      }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1.5,
+                        ease: "linear",
+                        delay: 0.4
+                      }}
+                    />
+                  </div>
+                  <div className="h-4 bg-gray-700 rounded w-full relative overflow-hidden">
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
+                      animate={{ 
+                        x: ['-100%', '100%']
+                      }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1.5,
+                        ease: "linear",
+                        delay: 0.6
+                      }}
+                    />
+                  </div>
                 </div>
               </motion.div>
             ))}
           </motion.div>
         ) : recommendations.length > 0 ? (
           <motion.div 
-            key="recommendations"
+            key={`recommendations-${refreshCounter}`}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             initial="hidden"
             animate="visible"
+            exit="exit"
             variants={{
               hidden: { opacity: 0 },
               visible: { 
@@ -464,6 +553,12 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
                 transition: { 
                   staggerChildren: 0.1
                 } 
+              },
+              exit: {
+                opacity: 0,
+                transition: {
+                  staggerChildren: 0.05
+                }
               }
             }}
           >
@@ -478,6 +573,14 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
                     transition: {
                       duration: 0.5,
                       ease: "easeOut"
+                    }
+                  },
+                  exit: {
+                    opacity: 0,
+                    scale: 0.95,
+                    transition: {
+                      duration: 0.3,
+                      ease: "easeIn"
                     }
                   }
                 }}
