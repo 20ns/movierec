@@ -8,7 +8,7 @@ import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated = 0, userPreferences: propUserPreferences }, ref) => {
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isThinking, setIsThinking] = useState(true); // New state for "thinking" animation
+  const [isThinking, setIsThinking] = useState(true); 
   const [favoriteGenres, setFavoriteGenres] = useState([]);
   const [userFavorites, setUserFavorites] = useState([]);
   const [userPreferences, setUserPreferences] = useState(null);
@@ -17,13 +17,17 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [shownRecommendations, setShownRecommendations] = useState(new Set());
   
-  // Update local state when props change
+  // Add fetch lock to prevent concurrent fetches
+  const isFetchingRef = useRef(false);
+  const initialFetchCompletedRef = useRef(false);
+  
+  // Update local state when props change, but prevent triggering unnecessary fetches
   useEffect(() => {
     if (propUserPreferences) {
       setUserPreferences(propUserPreferences);
       
-      // If we have preferences and recommendations are empty, trigger a fetch
-      if (propUserPreferences && recommendations.length === 0 && !isLoading && !isRefreshing) {
+      // Only trigger a fetch if recommendations are empty and we haven't already fetched
+      if (propUserPreferences && recommendations.length === 0 && !isLoading && !isRefreshing && !isFetchingRef.current && !initialFetchCompletedRef.current) {
         fetchRecommendations();
       }
     }
@@ -191,10 +195,11 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     return null;
   }, [currentUser, isAuthenticated, propUserPreferences]);
   
-  // Fetch user preferences
+  // Fetch user preferences - with safeguards against unnecessary fetches
   useEffect(() => {
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
       setIsLoading(false);
+      setIsThinking(false);
       return;
     }
     
@@ -209,14 +214,17 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       }
     }
     
-    // Then fetch the most up-to-date preferences
-    fetchLatestPreferences();
-  }, [currentUser, isAuthenticated, fetchLatestPreferences]);
+    // Only fetch preferences if we don't already have them from props
+    if (!propUserPreferences) {
+      fetchLatestPreferences();
+    }
+  }, [currentUser?.signInUserSession?.accessToken?.jwtToken, isAuthenticated]);
 
-  // Fetch user favorites
+  // Fetch user favorites - with safeguards
   useEffect(() => {
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
       setIsLoading(false);
+      setIsThinking(false);
       return;
     }
 
@@ -270,48 +278,56 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     };
     
     fetchFavorites();
-  }, [currentUser, isAuthenticated]);
+  }, [currentUser?.signInUserSession?.accessToken?.jwtToken, isAuthenticated]);
 
   // Enhanced function to fetch recommendations based on preferences first, then favorites
   const fetchRecommendations = useCallback(async () => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      console.log('Fetch already in progress, skipping');
+      return;
+    }
+    
     if (!isAuthenticated) {
       setIsLoading(false);
       setIsThinking(false);
       return;
     }
     
-    // Start the thinking animation
-    setIsThinking(true);
-    
-    // Check if we have preferences (from props or state)
-    const effectivePreferences = userPreferences || propUserPreferences;
-    
-    // Immediately use preferences if available, otherwise fetch
-    if (!effectivePreferences) {
-      await fetchLatestPreferences();
-    }
-    
-    const hasPreferences = effectivePreferences && 
-      (effectivePreferences.favoriteGenres?.length > 0 || 
-       effectivePreferences.contentType || 
-       effectivePreferences.eraPreferences?.length > 0 ||
-       effectivePreferences.moodPreferences?.length > 0 ||
-       effectivePreferences.languagePreferences?.length > 0);
-       
-    const hasFavorites = favoriteGenres.length > 0;
-    
-    // Exit early if we have neither preferences nor favorites
-    if (!hasPreferences && !hasFavorites) {
-      setIsLoading(false);
-      setIsThinking(false);
-      setDataSource('none');
-      fetchGenericRecommendations();
-      return;
-    }
-
     try {
+      // Set fetch lock
+      isFetchingRef.current = true;
+      
+      // Start the thinking animation
+      setIsThinking(true);
       setIsLoading(true);
       
+      // Check if we have preferences (from props or state)
+      const effectivePreferences = userPreferences || propUserPreferences;
+      
+      // Immediately use preferences if available, otherwise fetch
+      let prefsToUse = effectivePreferences;
+      if (!effectivePreferences) {
+        prefsToUse = await fetchLatestPreferences();
+      }
+      
+      const hasPreferences = prefsToUse && 
+        (prefsToUse.favoriteGenres?.length > 0 || 
+         prefsToUse.contentType || 
+         prefsToUse.eraPreferences?.length > 0 ||
+         prefsToUse.moodPreferences?.length > 0 ||
+         prefsToUse.languagePreferences?.length > 0);
+         
+      const hasFavorites = favoriteGenres.length > 0;
+      
+      // Exit early if we have neither preferences nor favorites
+      if (!hasPreferences && !hasFavorites) {
+        console.log('No preferences or favorites, showing generic recommendations');
+        setDataSource('none');
+        await fetchGenericRecommendations();
+        return;
+      }
+
       // Determine which data source to use for recommendations
       // Prioritize preferences over favorites
       if (hasPreferences) {
@@ -323,9 +339,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       // Determine content type from preferences, favorites, or random if neither specifies
       let mediaType;
       
-      if (effectivePreferences?.contentType === 'movies') {
+      if (prefsToUse?.contentType === 'movies') {
         mediaType = 'movie';
-      } else if (effectivePreferences?.contentType === 'tv') {
+      } else if (prefsToUse?.contentType === 'tv') {
         mediaType = 'tv';
       } else if (hasFavorites && userFavorites.length > 0) {
         // Count movie vs TV favorites
@@ -342,9 +358,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       // Determine which genres to use - prioritizing preferences
       let genresToUse = [];
       
-      if (hasPreferences && effectivePreferences.favoriteGenres?.length > 0) {
+      if (hasPreferences && prefsToUse.favoriteGenres?.length > 0) {
         // Use preference genres first
-        genresToUse = effectivePreferences.favoriteGenres;
+        genresToUse = prefsToUse.favoriteGenres;
       } else if (hasFavorites) {
         // Fall back to favorites-derived genres if no preference genres
         genresToUse = favoriteGenres;
@@ -352,42 +368,42 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       
       // Era preferences from the user's settings
       let yearParams = {};
-      if (hasPreferences && effectivePreferences.eraPreferences?.length > 0) {
-        if (effectivePreferences.eraPreferences.includes('classic')) {
+      if (hasPreferences && prefsToUse.eraPreferences?.length > 0) {
+        if (prefsToUse.eraPreferences.includes('classic')) {
           yearParams = { 'release_date.lte': '1980-12-31' };
-        } else if (effectivePreferences.eraPreferences.includes('modern')) {
+        } else if (prefsToUse.eraPreferences.includes('modern')) {
           yearParams = { 
             'release_date.gte': '1980-01-01',
             'release_date.lte': '2010-12-31'
           };
-        } else if (effectivePreferences.eraPreferences.includes('recent')) {
+        } else if (prefsToUse.eraPreferences.includes('recent')) {
           yearParams = { 'release_date.gte': '2011-01-01' };
         }
       }
       
       // Add mood-based parameters
       let moodParams = {};
-      if (hasPreferences && effectivePreferences.moodPreferences?.length > 0) {
-        if (effectivePreferences.moodPreferences.includes('exciting')) {
+      if (hasPreferences && prefsToUse.moodPreferences?.length > 0) {
+        if (prefsToUse.moodPreferences.includes('exciting')) {
           moodParams.with_genres = (moodParams.with_genres || '') + ',28,12,10752'; // Action, Adventure, War
         }
-        if (effectivePreferences.moodPreferences.includes('funny')) {
+        if (prefsToUse.moodPreferences.includes('funny')) {
           moodParams.with_genres = (moodParams.with_genres || '') + ',35,16'; // Comedy, Animation
         }
-        if (effectivePreferences.moodPreferences.includes('thoughtful')) {
+        if (prefsToUse.moodPreferences.includes('thoughtful')) {
           moodParams.with_genres = (moodParams.with_genres || '') + ',18,99,36'; // Drama, Documentary, History
         }
-        if (effectivePreferences.moodPreferences.includes('scary')) {
+        if (prefsToUse.moodPreferences.includes('scary')) {
           moodParams.with_genres = (moodParams.with_genres || '') + ',27,9648,53'; // Horror, Mystery, Thriller
         }
-        if (effectivePreferences.moodPreferences.includes('emotional')) {
+        if (prefsToUse.moodPreferences.includes('emotional')) {
           moodParams.with_genres = (moodParams.with_genres || '') + ',10749,18,10751'; // Romance, Drama, Family
         }
       }
       
       // Add language/region preferences
       let regionParams = {};
-      if (hasPreferences && effectivePreferences.languagePreferences?.length > 0) {
+      if (hasPreferences && prefsToUse.languagePreferences?.length > 0) {
         // Map language preferences to region and language codes
         const languageMap = {
           'hollywood': { region: 'US', language: 'en' },
@@ -399,7 +415,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         };
         
         // Find the first matching language preference
-        for (const pref of effectivePreferences.languagePreferences) {
+        for (const pref of prefsToUse.languagePreferences) {
           if (languageMap[pref]) {
             if (languageMap[pref].region) {
               regionParams.region = languageMap[pref].region;
@@ -412,7 +428,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         }
 
         // Special handling for Bollywood - ensure we get Hindi films from India
-        if (effectivePreferences.languagePreferences.includes('bollywood')) {
+        if (prefsToUse.languagePreferences.includes('bollywood')) {
           console.log("Applying Bollywood preference");
           regionParams.region = 'IN';
           regionParams.with_original_language = 'hi';
@@ -423,8 +439,10 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       
       // Only proceed with API call if we have genres to use or other parameters
       if (genresToUse.length > 0 || Object.keys(regionParams).length > 0) {
-        // Add a small random delay to simulate "thinking"
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Add a small random delay to simulate "thinking" - but only the first time
+        if (!initialFetchCompletedRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
         
         // Add randomness to results with varying page
         const page = Math.floor(Math.random() * 3) + 1; // Page 1, 2, or 3
@@ -504,22 +522,48 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       console.error('Error fetching recommendations:', error);
       await fetchGenericRecommendations();
     } finally {
+      // Mark initial fetch as completed
+      initialFetchCompletedRef.current = true;
+      
       // Add a small delay before hiding the thinking state for better UX
       setTimeout(() => {
         setIsThinking(false);
         setIsLoading(false);
         setIsRefreshing(false);
+        
+        // Release the fetch lock
+        isFetchingRef.current = false;
       }, 500);
     }
-  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences, shownRecommendations, fetchSupplementaryRecommendations, fetchLatestPreferences]);
+  }, [
+    userPreferences,
+    favoriteGenres,
+    userFavorites,
+    isAuthenticated,
+    fetchGenericRecommendations,
+    propUserPreferences,
+    shownRecommendations
+  ]); // Removed unnecessary dependencies to prevent re-running
 
-  // Main effect to fetch recommendations when dependencies change
+  // Only fetch recommendations once on initial mount
   useEffect(() => {
-    fetchRecommendations();
-  }, [fetchRecommendations, preferencesUpdated]);
+    if (isAuthenticated && !initialFetchCompletedRef.current && !isFetchingRef.current) {
+      fetchRecommendations();
+    }
+  }, [isAuthenticated]); // Only depend on authentication status
+
+  // Handle explicit preference updates
+  useEffect(() => {
+    if (preferencesUpdated > 0 && initialFetchCompletedRef.current) {
+      handleRefresh();
+    }
+  }, [preferencesUpdated]);
 
   // Handle refresh button click
   const handleRefresh = async () => {
+    // Skip if already refreshing
+    if (isRefreshing || isFetchingRef.current) return;
+    
     setIsRefreshing(true);
     setIsThinking(true);
     setRefreshCounter(prev => prev + 1);
@@ -552,13 +596,6 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       document.removeEventListener('refresh-recommendations', handleRefreshEvent);
     };
   }, []);
-
-  // Show animation when preferences updated
-  useEffect(() => {
-    if (preferencesUpdated) {
-      handleRefresh();
-    }
-  }, [preferencesUpdated]);
 
   if (!isAuthenticated) {
     return null;
