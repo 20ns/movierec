@@ -5,7 +5,13 @@ import { MediaCard } from './MediaCard';
 import { SparklesIcon, ArrowPathIcon, LightBulbIcon } from '@heroicons/react/24/solid';
 
 // Convert to forwardRef to accept ref from parent
-const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated = 0, userPreferences: propUserPreferences }, ref) => {
+const PersonalizedRecommendations = forwardRef(({ 
+  currentUser, 
+  isAuthenticated, 
+  preferencesUpdated = 0, 
+  userPreferences: propUserPreferences,
+  initialLoadComplete = false
+}, ref) => {
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isThinking, setIsThinking] = useState(true); 
@@ -18,6 +24,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   const [shownRecommendations, setShownRecommendations] = useState(new Set());
   const [recommendationReason, setRecommendationReason] = useState('');
   const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(true);
+  const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
   
   // Add fetch lock to prevent concurrent fetches
   const isFetchingRef = useRef(false);
@@ -35,12 +42,19 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     }
   }, [propUserPreferences]);
 
-  // Check if user has completed the questionnaire
+  // Check if user has completed the questionnaire - enhanced for early detection
   useEffect(() => {
     if (isAuthenticated && currentUser?.attributes?.sub) {
-      // Check if user has completed questionnaire
+      // Check if user has completed questionnaire - do this early to avoid layout shifts
       const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
       setHasCompletedQuestionnaire(completionStatus === 'true');
+      setHasCheckedQuestionnaire(true);
+      
+      // If user hasn't completed the questionnaire, don't even start the loading/thinking animations
+      if (completionStatus !== 'true') {
+        setIsLoading(false);
+        setIsThinking(false);
+      }
     }
   }, [isAuthenticated, currentUser]);
 
@@ -293,6 +307,15 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
 
   // Enhanced function to fetch recommendations based on preferences first, then favorites
   const fetchRecommendations = useCallback(async () => {
+    // First check if user has completed questionnaire to avoid unnecessary work
+    if (!hasCompletedQuestionnaire && hasCheckedQuestionnaire) {
+      console.log('User has not completed questionnaire, skipping recommendations');
+      setIsLoading(false);
+      setIsThinking(false);
+      setDataSource('none');
+      return;
+    }
+    
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
       console.log('Fetch already in progress, skipping');
@@ -662,15 +685,23 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     fetchGenericRecommendations,
     propUserPreferences,
     shownRecommendations,
-    currentUser
+    currentUser,
+    hasCompletedQuestionnaire,
+    hasCheckedQuestionnaire
   ]); 
 
-  // Only fetch recommendations once on initial mount
+  // Only fetch recommendations once on initial mount - with enhanced early check
   useEffect(() => {
-    if (isAuthenticated && !initialFetchCompletedRef.current && !isFetchingRef.current) {
+    // Only proceed if authenticated and questionnaire is completed
+    if (isAuthenticated && initialLoadComplete && hasCompletedQuestionnaire && !initialFetchCompletedRef.current && !isFetchingRef.current) {
       fetchRecommendations();
+    } else if (isAuthenticated && hasCheckedQuestionnaire && !hasCompletedQuestionnaire) {
+      // If questionnaire is not completed, immediately set loading states to false
+      setIsLoading(false);
+      setIsThinking(false);
+      initialFetchCompletedRef.current = true;
     }
-  }, [isAuthenticated]); // Only depend on authentication status
+  }, [isAuthenticated, hasCompletedQuestionnaire, hasCheckedQuestionnaire, initialLoadComplete]); 
 
   // Handle explicit preference updates
   useEffect(() => {
@@ -717,7 +748,13 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     };
   }, []);
 
+  // Don't render anything during initial load check to prevent layout shifts
   if (!isAuthenticated) {
+    return null;
+  }
+
+  // Don't show the recommendations section at all if user hasn't completed the questionnaire
+  if (hasCheckedQuestionnaire && !hasCompletedQuestionnaire) {
     return null;
   }
   

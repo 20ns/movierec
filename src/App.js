@@ -137,6 +137,8 @@ function AppContent() {
   const [userPreferences, setUserPreferences] = useState(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [prefUpdateCounter, setPrefUpdateCounter] = useState(0);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   
   // Enhanced function to fetch user preferences
   const fetchUserPreferences = useCallback(async () => {
@@ -150,6 +152,14 @@ function AppContent() {
         const parsedPrefs = JSON.parse(localPrefs);
         setUserPreferences(parsedPrefs);
       }
+      
+      // Check if questionnaire is completed (from localStorage first for speed)
+      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+      const hasCompletedFromStorage = completionStatus === 'true';
+      setHasCompletedQuestionnaire(hasCompletedFromStorage);
+      
+      // Immediately determine if we should show recommendations based on local storage
+      setShowRecommendations(hasCompletedFromStorage);
       
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
         headers: {
@@ -168,6 +178,9 @@ function AppContent() {
         setHasCompletedQuestionnaire(hasCompleted);
         localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, hasCompleted ? 'true' : 'false');
         
+        // Update our decision to show recommendations based on server data
+        setShowRecommendations(hasCompleted);
+        
         // Store the full preference data for recommendations
         setUserPreferences(data);
         localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(data));
@@ -179,6 +192,7 @@ function AppContent() {
       console.error('Error fetching user preferences:', error);
     } finally {
       setPreferencesLoaded(true);
+      setInitialLoadComplete(true);
     }
   }, [isAuthenticated, currentUser]);
 
@@ -262,6 +276,29 @@ function AppContent() {
   useEffect(() => {
     fetchUserPreferences();
   }, [fetchUserPreferences]);
+
+  // Check for completed questionnaire on initial load
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      // Check local storage immediately to prevent layout shifts
+      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+      
+      if (completionStatus === 'true') {
+        setHasCompletedQuestionnaire(true);
+        setShowRecommendations(true);
+      } else {
+        setHasCompletedQuestionnaire(false);
+        setShowRecommendations(false);
+      }
+      
+      // Mark initial load as complete after a brief delay
+      setTimeout(() => {
+        setInitialLoadComplete(true);
+      }, 200);
+
+      // ...existing code for fetchPreferences...
+    }
+  }, [isAuthenticated, currentUser]);
 
   // Function to fetch latest recommendations
   const refreshRecommendations = () => {
@@ -560,17 +597,64 @@ function AppContent() {
               <div className="container mx-auto px-4 mt-12">
                 {isAuthenticated ? (
                   <div className="space-y-12">
-                    {/* Personalized recommendations based on user's favorites */}
-                    {preferencesLoaded && (
-                      <PersonalizedRecommendations 
-                        key={recommendationsKey} // Add key prop to force re-render
-                        ref={personalizedRecommendationsRef}
-                        currentUser={currentUser}
-                        isAuthenticated={isAuthenticated}
-                        preferencesUpdated={prefUpdateCounter}
-                        userPreferences={userPreferences}
-                      />
-                    )}
+                    {/* Personalized recommendations with improved loading */}
+                    <AnimatePresence mode="wait">
+                      {/* Show recommendations section or placeholder based on questionnaire status */}
+                      {showRecommendations && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          key="recommendations"
+                        >
+                          <PersonalizedRecommendations 
+                            key={recommendationsKey}
+                            ref={personalizedRecommendationsRef}
+                            currentUser={currentUser}
+                            isAuthenticated={isAuthenticated}
+                            preferencesUpdated={prefUpdateCounter}
+                            userPreferences={userPreferences}
+                            initialLoadComplete={initialLoadComplete}
+                          />
+                        </motion.div>
+                      )}
+                      
+                      {/* Show recommendation placeholder for users without completed questionnaire */}
+                      {!showRecommendations && initialLoadComplete && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          key="recommendation-prompt"
+                          className="mb-12"
+                        >
+                          <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-white">Personalize Your Experience</h2>
+                          </div>
+                          
+                          <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 mb-6 shadow-lg border border-indigo-800">
+                            <div className="flex items-center">
+                              <div className="mr-5">
+                                <SparklesIcon className="h-10 w-10 text-purple-300" />
+                              </div>
+                              <div>
+                                <h3 className="text-xl font-semibold text-white mb-2">Complete Your Preference Profile</h3>
+                                <p className="text-purple-200 leading-relaxed mb-4">
+                                  Take our quick questionnaire to get personalized movie and TV show recommendations
+                                  that match your unique taste!
+                                </p>
+                                <button
+                                  className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
+                                  onClick={() => setShowQuestionnaire(true)}
+                                >
+                                  Get Started
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     
                     {/* Trending content section */}
                     <TrendingSection currentUser={currentUser} />
