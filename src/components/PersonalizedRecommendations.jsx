@@ -8,6 +8,7 @@ import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated = 0, userPreferences: propUserPreferences }, ref) => {
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isThinking, setIsThinking] = useState(true); // New state for "thinking" animation
   const [favoriteGenres, setFavoriteGenres] = useState([]);
   const [userFavorites, setUserFavorites] = useState([]);
   const [userPreferences, setUserPreferences] = useState(null);
@@ -275,8 +276,12 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   const fetchRecommendations = useCallback(async () => {
     if (!isAuthenticated) {
       setIsLoading(false);
+      setIsThinking(false);
       return;
     }
+    
+    // Start the thinking animation
+    setIsThinking(true);
     
     // Check if we have preferences (from props or state)
     const effectivePreferences = userPreferences || propUserPreferences;
@@ -298,6 +303,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     // Exit early if we have neither preferences nor favorites
     if (!hasPreferences && !hasFavorites) {
       setIsLoading(false);
+      setIsThinking(false);
       setDataSource('none');
       fetchGenericRecommendations();
       return;
@@ -379,12 +385,51 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         }
       }
       
+      // Add language/region preferences
+      let regionParams = {};
+      if (hasPreferences && effectivePreferences.languagePreferences?.length > 0) {
+        // Map language preferences to region and language codes
+        const languageMap = {
+          'hollywood': { region: 'US', language: 'en' },
+          'bollywood': { region: 'IN', language: 'hi' },
+          'korean': { region: 'KR', language: 'ko' },
+          'japanese': { region: 'JP', language: 'ja' },
+          'european': { region: 'GB,FR,DE,IT,ES', language: 'en,fr,de,it,es' },
+          'international': {} // No specific region/language for international
+        };
+        
+        // Find the first matching language preference
+        for (const pref of effectivePreferences.languagePreferences) {
+          if (languageMap[pref]) {
+            if (languageMap[pref].region) {
+              regionParams.region = languageMap[pref].region;
+            }
+            if (languageMap[pref].language) {
+              regionParams.with_original_language = languageMap[pref].language;
+            }
+            break; // Use the first matching preference
+          }
+        }
+
+        // Special handling for Bollywood - ensure we get Hindi films from India
+        if (effectivePreferences.languagePreferences.includes('bollywood')) {
+          console.log("Applying Bollywood preference");
+          regionParams.region = 'IN';
+          regionParams.with_original_language = 'hi';
+        }
+      }
+      
       let initialResults = [];
       
-      // Only proceed with API call if we have genres to use
-      if (genresToUse.length > 0) {
+      // Only proceed with API call if we have genres to use or other parameters
+      if (genresToUse.length > 0 || Object.keys(regionParams).length > 0) {
+        // Add a small random delay to simulate "thinking"
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
         // Add randomness to results with varying page
         const page = Math.floor(Math.random() * 3) + 1; // Page 1, 2, or 3
+
+        console.log(`Fetching recommendations with region params:`, regionParams);
 
         const response = await axios.get(
           `https://api.themoviedb.org/3/discover/${endpoint}`,
@@ -396,7 +441,8 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
               page: page,
               ...yearParams,
               ...moodParams,
-              'vote_count.gte': 100, // Ensure some quality threshold
+              ...regionParams, // Add the region/language parameters
+              'vote_count.gte': 50, // Lower threshold to get more diverse content
             }
           }
         );
@@ -458,10 +504,14 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       console.error('Error fetching recommendations:', error);
       await fetchGenericRecommendations();
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      // Add a small delay before hiding the thinking state for better UX
+      setTimeout(() => {
+        setIsThinking(false);
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }, 500);
     }
-  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences, shownRecommendations, fetchSupplementaryRecommendations]);
+  }, [userPreferences, favoriteGenres, userFavorites, isAuthenticated, fetchGenericRecommendations, propUserPreferences, shownRecommendations, fetchSupplementaryRecommendations, fetchLatestPreferences]);
 
   // Main effect to fetch recommendations when dependencies change
   useEffect(() => {
@@ -471,6 +521,7 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   // Handle refresh button click
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setIsThinking(true);
     setRefreshCounter(prev => prev + 1);
     
     // Create a nice visual delay to show the refresh animation
@@ -541,12 +592,12 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleRefresh}
-            disabled={isLoading || isRefreshing}
+            disabled={isLoading || isRefreshing || isThinking}
             className="flex items-center space-x-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full transition-colors"
           >
             <motion.div
-              animate={isRefreshing ? { rotate: 360 } : {}}
-              transition={isRefreshing ? { 
+              animate={isRefreshing || isThinking ? { rotate: 360 } : {}}
+              transition={isRefreshing || isThinking ? { 
                 repeat: Infinity, 
                 duration: 1, 
                 ease: "linear"
@@ -554,13 +605,13 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             >
               <ArrowPathIcon className="h-4 w-4 mr-1" />
             </motion.div>
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            <span>{isRefreshing || isThinking ? 'Refreshing...' : 'Refresh'}</span>
           </motion.button>
         )}
       </div>
       
       <AnimatePresence mode="wait">
-        {dataSource === 'none' && recommendations.length === 0 && !isLoading && !isRefreshing && (
+        {dataSource === 'none' && recommendations.length === 0 && !isLoading && !isThinking && !isRefreshing && (
           <motion.div 
             key="prompt"
             initial={{ opacity: 0, y: 20 }}
@@ -586,7 +637,83 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
           </motion.div>
         )}
       
-        {isLoading || isRefreshing ? (
+        {/* Enhanced thinking animation */}
+        {isThinking && (
+          <motion.div 
+            key={`thinking-${refreshCounter}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-6 mb-6"
+          >
+            <div className="flex items-center justify-center space-x-4 mb-6">
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="text-4xl"
+              >
+                🧠
+              </motion.div>
+              <div>
+                <h3 className="text-xl font-semibold text-white">Finding perfect recommendations for you...</h3>
+                <p className="text-gray-400">Analyzing your preferences and favorites</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="h-2 bg-gray-700 rounded overflow-hidden">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0.3 }}
+                    animate={{ 
+                      opacity: [0.3, 0.7, 0.3],
+                      y: [0, -5, 0]
+                    }}
+                    transition={{ 
+                      duration: 1.5,
+                      delay: i * 0.2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    className="bg-gray-700 rounded-lg h-[280px] relative overflow-hidden"
+                  >
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/10 to-transparent"
+                      animate={{
+                        y: ["-100%", "100%"]
+                      }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 2,
+                        ease: "linear",
+                        delay: i * 0.3
+                      }}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      
+        {isLoading && !isThinking && (
           <motion.div 
             key={`loading-${refreshCounter}`}
             initial={{ opacity: 0 }}
@@ -665,7 +792,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
               </motion.div>
             ))}
           </motion.div>
-        ) : recommendations.length > 0 ? (
+        )}
+        
+        {!isLoading && !isThinking && recommendations.length > 0 ? (
           <motion.div 
             key={`recommendations-${refreshCounter}`}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -721,34 +850,36 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             ))}
           </motion.div>
         ) : (
-          <motion.div 
-            key="empty"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="text-center py-10 bg-gray-800/30 rounded-xl p-8"
-          >
-            <motion.div
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="mb-4 text-5xl opacity-50"
+          !isLoading && !isThinking && (
+            <motion.div 
+              key="empty"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-10 bg-gray-800/30 rounded-xl p-8"
             >
-              🎬
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="mb-4 text-5xl opacity-50"
+              >
+                🎬
+              </motion.div>
+              <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Yet</h3>
+              <p className="text-gray-400 max-w-md mx-auto mb-6">
+                Try adding some favorites or updating your preferences to get personalized recommendations!
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRefresh}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full transition-colors"
+              >
+                Discover Popular Movies & Shows
+              </motion.button>
             </motion.div>
-            <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Yet</h3>
-            <p className="text-gray-400 max-w-md mx-auto mb-6">
-              Try adding some favorites or updating your preferences to get personalized recommendations!
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleRefresh}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full transition-colors"
-            >
-              Discover Popular Movies & Shows
-            </motion.button>
-          </motion.div>
+          )
         )}
       </AnimatePresence>
     </motion.section>
