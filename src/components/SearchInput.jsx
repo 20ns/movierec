@@ -12,7 +12,8 @@ export const SearchInput = React.memo(({
   setIsFocused,
   suggestions,
   handleSuggestionClick,
-  handleSuggestionHover
+  handleSuggestionHover,
+  searchMode = 'smart' // Accept searchMode prop
 }) => {
   const inputRef = useRef(null);
   const [localQuery, setLocalQuery] = useState(query);
@@ -72,7 +73,9 @@ export const SearchInput = React.memo(({
         }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       >
-        <div className={`flex items-center bg-gray-800 rounded-full border-2 focus-within:ring-4 transition-all duration-300 shadow-lg focus-within:ring-gray-500/50 border-gray-600`}> {/* Added bg-gray-800, removed gradient and backdrop-blur */}
+        <div className={`flex items-center bg-gray-800 rounded-full border-2 focus-within:ring-4 transition-all duration-300 shadow-lg focus-within:ring-gray-500/50 border-gray-600 ${
+          searchMode === 'direct' ? 'border-blue-600' : ''
+        }`}> {/* Added bg-gray-800, removed gradient and backdrop-blur */}
           <SearchIcon isLoading={isLoading} searchIconClasses={searchIconClasses} />
           <InputField
             inputRef={inputRef}
@@ -81,8 +84,9 @@ export const SearchInput = React.memo(({
             setIsFocused={setIsFocused}
             handleKeyDown={handleKeyDown}
             inputFieldClasses={inputFieldClasses}
+            searchMode={searchMode} // Pass searchMode to InputField
           />
-          <SubmitButton isLoading={isLoading} buttonClasses={buttonClasses}/>
+          <SubmitButton isLoading={isLoading} buttonClasses={buttonClasses} searchMode={searchMode} />
         </div>
         <SuggestionsDropdown
           suggestions={suggestions}
@@ -115,10 +119,12 @@ const SearchIcon = React.memo(({ isLoading, searchIconClasses }) => (
   </motion.div>
 ));
 
-const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocused, handleKeyDown, inputFieldClasses }) => {
-  // Generate dynamic placeholder text that changes
+const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocused, handleKeyDown, inputFieldClasses, searchMode }) => {
+  // Generate dynamic placeholder text that changes based on search mode
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const placeholders = [
+  
+  // Different placeholder sets based on search mode
+  const smartPlaceholders = [
     "Search for movies or TV shows...",
     "Try 'comedy movies with dragons'",
     "Try 'something funny for date night'",
@@ -126,6 +132,15 @@ const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocus
     "Try 'documentaries about space from 2020s'",
     "Try 'movies to watch when feeling sad'"
   ];
+  
+  const directPlaceholders = [
+    "Enter exact title to find...",
+    "Type 'Solo Leveling' to find the show",
+    "Type 'Oppenheimer' to find the movie",
+    "Search for any movie or TV show by name"
+  ];
+  
+  const placeholders = searchMode === 'direct' ? directPlaceholders : smartPlaceholders;
 
   // Rotate placeholders every 5 seconds
   useEffect(() => {
@@ -133,7 +148,7 @@ const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocus
       setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [placeholders.length]);
 
   return (
     <input
@@ -146,26 +161,31 @@ const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocus
       onKeyDown={handleKeyDown}
       className={`flex-1 py-3 px-2 bg-transparent focus:outline-none text-lg ${inputFieldClasses}`}
       placeholder={placeholders[placeholderIndex]}
-      aria-label="Search for content"
+      aria-label={searchMode === 'direct' ? "Direct title search" : "Search for content"}
       autoComplete="off"
     />
   );
 });
 
-const SubmitButton = React.memo(({ isLoading, buttonClasses }) => (
+const SubmitButton = React.memo(({ isLoading, buttonClasses, searchMode }) => (
   <div className="pr-2">
     <motion.button
       type="submit"
       disabled={isLoading}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className={`px-5 py-2 text-base bg-gradient-to-br ${buttonClasses} font-semibold rounded-full transition-all duration-300 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed`}
+      className={`px-5 py-2 text-base ${
+        searchMode === 'direct' 
+          ? 'bg-blue-700 hover:bg-blue-800 text-white' 
+          : `bg-gradient-to-br ${buttonClasses}`
+      } font-semibold rounded-full transition-all duration-300 shadow-lg disabled:opacity-75 disabled:cursor-not-allowed`}
       style={{ willChange: 'transform' }}
     >
-      {isLoading ? 'Searching...' : 'Search'}
+      {isLoading ? 'Searching...' : searchMode === 'direct' ? 'Find' : 'Search'}
     </motion.button>
   </div>
 ));
+
 const SuggestionsDropdown = React.memo(({ suggestions, isFocused, handleSuggestionClick, handleSuggestionHover, inputRef, suggestionDropdownClasses, suggestionItemClasses, suggestionItemTextClasses, suggestionItemTypeTextClasses }) => {
   const dropdownRef = useRef(null);
 

@@ -134,14 +134,153 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
     );
   };
 
+  // Filter update handler
+  const handleFilterChange = (filterType, value) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [filterType]: value,
+    }));
+  };
+
   return (
-    <div className="flex flex-wrap gap-2 mt-3">
-      {renderFilterButton('time', 'Era', <ClockIcon className="w-4 h-4" />)}
-      {renderFilterButton('type', 'Type', <FilmIcon className="w-4 h-4" />)}
-      {renderFilterButton('genre', 'Genre', <TagIcon className="w-4 h-4" />)}
-      {renderFilterButton('releaseYear', 'Year', <CalendarIcon className="w-4 h-4" />)}
-      {renderFilterButton('popularity', 'Popularity', <FireIcon className="w-4 h-4" />)}
-      {renderFilterButton('contentType', 'Content', <ViewfinderCircleIcon className="w-4 h-4" />)}
-    </div>
+    <motion.div 
+      className="w-full rounded-xl bg-gray-800/95 backdrop-blur-sm p-4"
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Search Mode Filter - NEW */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Search Mode</label>
+          <div className="flex bg-gray-700 p-1 rounded-lg">
+            <button
+              onClick={() => handleFilterChange('searchMode', 'smart')}
+              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+                activeFilters.searchMode === 'smart'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Smart Search
+            </button>
+            <button
+              onClick={() => handleFilterChange('searchMode', 'direct')}
+              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+                activeFilters.searchMode === 'direct'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Direct Title Search
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            {activeFilters.searchMode === 'direct' 
+              ? "Find exact titles to add to favorites" 
+              : "Intelligent search with recommendations"}
+          </p>
+        </div>
+
+        {/* Media Type */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Media Type</label>
+          <div className="flex bg-gray-700 p-1 rounded-lg">
+            <button
+              onClick={() => handleFilterChange('type', 'all')}
+              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+                activeFilters.type === 'all'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => handleFilterChange('type', 'movie')}
+              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+                activeFilters.type === 'movie'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Movies
+            </button>
+            <button
+              onClick={() => handleFilterChange('type', 'tv')}
+              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+                activeFilters.type === 'tv'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              TV Shows
+            </button>
+          </div>
+        </div>
+
+        {/* Time Period */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Time Period</label>
+          <select
+            value={activeFilters.time}
+            onChange={(e) => handleFilterChange('time', e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="any">Any Time</option>
+            <option value="recent">Recent (Last 5 years)</option>
+            <option value="90s00s">90s & 00s</option>
+            <option value="classic">Classic (20+ years old)</option>
+          </select>
+        </div>
+
+        {/* Release Year */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Release Year</label>
+          <select
+            value={activeFilters.releaseYear}
+            onChange={(e) => handleFilterChange('releaseYear', e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="any">Any Year</option>
+            {Array.from({ length: 24 }, (_, i) => new Date().getFullYear() - i).map(year => (
+              <option key={year} value={year.toString()}>{year}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Popularity */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Popularity</label>
+          <select
+            value={activeFilters.popularity}
+            onChange={(e) => handleFilterChange('popularity', e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="any">Any Popularity</option>
+            <option value="high">Highly Popular</option>
+            <option value="medium">Moderately Popular</option>
+            <option value="low">Hidden Gems</option>
+          </select>
+        </div>
+
+        {/* Content Type */}
+        <div className="mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Content Type</label>
+          <select
+            value={activeFilters.contentType}
+            onChange={(e) => handleFilterChange('contentType', e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="any">All Content Types</option>
+            <option value="documentary">Documentaries</option>
+            <option value="animation">Animation</option>
+            {activeFilters.type === 'tv' && <option value="reality">Reality TV</option>}
+          </select>
+        </div>
+      </div>
+    </motion.div>
   );
 };
+
+export default FiltersSection;
