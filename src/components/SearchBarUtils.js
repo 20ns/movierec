@@ -366,3 +366,212 @@ export const getWildcardRecommendation = async () => {
         return undefined; // Or handle error as needed, returning undefined is safer than throwing here.
     }
 };
+
+// --- Advanced Search Utilities ---
+
+// Maps common mood words to our defined mood categories
+export const getMoodFromText = (text) => {
+  const moodMap = {
+    // Exciting category
+    'funny': 'exciting',
+    'comedy': 'exciting',
+    'laugh': 'exciting',
+    'light': 'exciting',
+    'happy': 'exciting',
+    'upbeat': 'exciting',
+    'action': 'exciting',
+    'adventure': 'exciting',
+    
+    // Thoughtful category
+    'thoughtful': 'thoughtful',
+    'deep': 'thoughtful',
+    'meaningful': 'thoughtful',
+    'thought-provoking': 'thoughtful',
+    'intellectual': 'thoughtful',
+    'philosophical': 'thoughtful',
+    'smart': 'thoughtful',
+    'documentary': 'thoughtful',
+    
+    // Emotional category
+    'sad': 'emotional',
+    'emotional': 'emotional',
+    'moving': 'emotional',
+    'touching': 'emotional',
+    'heart': 'emotional',
+    'tear': 'emotional',
+    'cry': 'emotional',
+    'romance': 'emotional',
+    'romantic': 'emotional',
+    
+    // Scary category
+    'scary': 'scary',
+    'horror': 'scary',
+    'thriller': 'scary',
+    'suspense': 'scary',
+    'tension': 'scary',
+    'frightening': 'scary',
+    'creepy': 'scary',
+    'terrifying': 'scary'
+  };
+  
+  const lowerText = text.toLowerCase();
+  
+  for (const [keyword, mood] of Object.entries(moodMap)) {
+    if (lowerText.includes(keyword)) {
+      return mood;
+    }
+  }
+  
+  return null;
+};
+
+// Maps mood categories to genre IDs for searching
+export const getMoodGenreIds = (mood) => {
+  const moodGenreMap = {
+    'exciting': [28, 12, 35, 10751, 10752], // Action, Adventure, Comedy, Family, War
+    'thoughtful': [18, 99, 36, 9648],       // Drama, Documentary, History, Mystery
+    'emotional': [10749, 18, 10751],        // Romance, Drama, Family
+    'scary': [27, 9648, 53]                 // Horror, Mystery, Thriller
+  };
+  
+  return mood ? moodGenreMap[mood] || [] : [];
+};
+
+// Get relevant genres for a specific context
+export const getContextGenreIds = (context) => {
+  const contextGenreMap = {
+    'date': [10749, 35, 18],        // Romance, Comedy, Drama
+    'family': [10751, 16, 12, 35],  // Family, Animation, Adventure, Comedy
+    'friends': [35, 28, 12],        // Comedy, Action, Adventure
+    'solo': [18, 9648, 53, 878],    // Drama, Mystery, Thriller, Sci-Fi
+    'learning': [99, 36]            // Documentary, History
+  };
+  
+  return context ? contextGenreMap[context] || [] : [];
+};
+
+// Maps emotional states to recommended genres
+export const getEmotionalStateGenreIds = (state) => {
+  const emotionGenreMap = {
+    'sad': [35, 12, 10751, 16],      // Comedy, Adventure, Family, Animation (uplifting content)
+    'happy': [35, 10749, 10751],     // Comedy, Romance, Family
+    'bored': [28, 12, 878, 53],      // Action, Adventure, Sci-Fi, Thriller
+    'stressed': [35, 10751, 14],     // Comedy, Family, Fantasy
+    'lonely': [10749, 18, 35],       // Romance, Drama, Comedy
+    'tired': [35, 16, 10751],        // Comedy, Animation, Family
+    'angry': [35, 10751, 14, 16]     // Comedy, Family, Fantasy, Animation
+  };
+  
+  return state ? emotionGenreMap[state.toLowerCase()] || [] : [];
+};
+
+// Extracts possible titles from a "movies like X" query
+export const extractReferenceTitles = (query) => {
+  const matches = query.match(/(movies|shows|films|series)\s+like\s+([a-z0-9 ']+)(\s+but\s+.+)?/i);
+  
+  if (matches && matches[2]) {
+    return matches[2].trim();
+  }
+  
+  return null;
+};
+
+// Format a query intent summary for display
+export const formatQueryIntentSummary = (queryIntent) => {
+  if (!queryIntent) return null;
+  
+  let summaryParts = [];
+  
+  if (queryIntent.referenceName) {
+    summaryParts.push(`Similar to "${queryIntent.referenceName}"`);
+    
+    if (queryIntent.modifierType) {
+      switch (queryIntent.modifierType) {
+        case 'family-friendly': 
+          summaryParts.push('More family-friendly');
+          break;
+        case 'darker':
+          summaryParts.push('Darker tone');
+          break;
+        case 'lighter':
+          summaryParts.push('Lighter content');
+          break;
+        case 'scarier':
+          summaryParts.push('Scarier');
+          break;
+        case 'more-action':
+          summaryParts.push('More action');
+          break;
+        case 'funnier':
+          summaryParts.push('Funnier');
+          break;
+        case 'more-dramatic':
+          summaryParts.push('More dramatic');
+          break;
+      }
+    }
+    
+    return summaryParts.join(' but ');
+  }
+  
+  if (queryIntent.mood) {
+    switch (queryIntent.mood) {
+      case 'exciting': 
+        summaryParts.push('Exciting content');
+        break;
+      case 'thoughtful':
+        summaryParts.push('Thoughtful, meaningful content');
+        break;
+      case 'emotional':
+        summaryParts.push('Emotional, moving content');
+        break;
+      case 'scary':
+        summaryParts.push('Scary, thrilling content');
+        break;
+    }
+  }
+  
+  if (queryIntent.context) {
+    switch (queryIntent.context) {
+      case 'date':
+        summaryParts.push('Great for date night');
+        break;
+      case 'family':
+        summaryParts.push('Family-friendly');
+        break;
+      case 'friends':
+        summaryParts.push('Fun with friends');
+        break;
+      case 'solo':
+        summaryParts.push('Perfect for watching alone');
+        break;
+      case 'learning':
+        summaryParts.push('Educational content');
+        break;
+    }
+  }
+  
+  if (queryIntent.emotionalState) {
+    summaryParts.push(`Great when feeling ${queryIntent.emotionalState}`);
+  }
+  
+  if (queryIntent.genres && queryIntent.genres.length > 0) {
+    summaryParts.push(queryIntent.genres.join(', '));
+  }
+  
+  if (queryIntent.subjects && queryIntent.subjects.length > 0) {
+    summaryParts.push(`About ${queryIntent.subjects.join(', ')}`);
+  }
+  
+  if (queryIntent.timeRange) {
+    summaryParts.push(`From ${queryIntent.timeRange.start}-${queryIntent.timeRange.end}`);
+  } else if (queryIntent.year) {
+    summaryParts.push(`From ${queryIntent.year}`);
+  }
+  
+  if (queryIntent.person) {
+    summaryParts.push(`With ${queryIntent.person}`);
+  }
+  
+  return summaryParts.join(' • ');
+};

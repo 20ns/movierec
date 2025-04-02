@@ -115,21 +115,42 @@ const SearchIcon = React.memo(({ isLoading, searchIconClasses }) => (
   </motion.div>
 ));
 
-const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocused, handleKeyDown, inputFieldClasses }) => (
-  <input
-    ref={inputRef}
-    type="text"
-    value={localQuery}
-    onChange={(e) => setLocalQuery(e.target.value)}
-    onFocus={() => setIsFocused(true)}
-    onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-    onKeyDown={handleKeyDown}
-    className={inputFieldClasses}
-    placeholder="Search movies, TV shows, or discover something new..."
-    aria-label="Search for content"
-    autoComplete="off"
-  />
-));
+const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocused, handleKeyDown, inputFieldClasses }) => {
+  // Generate dynamic placeholder text that changes
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const placeholders = [
+    "Search for movies or TV shows...",
+    "Try 'comedy movies with dragons'",
+    "Try 'something funny for date night'",
+    "Try 'movies like Deadpool but family-friendly'",
+    "Try 'documentaries about space from 2020s'",
+    "Try 'movies to watch when feeling sad'"
+  ];
+
+  // Rotate placeholders every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={localQuery}
+      onChange={(e) => setLocalQuery(e.target.value)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+      onKeyDown={handleKeyDown}
+      className={`flex-1 py-3 px-2 bg-transparent focus:outline-none text-lg ${inputFieldClasses}`}
+      placeholder={placeholders[placeholderIndex]}
+      aria-label="Search for content"
+      autoComplete="off"
+    />
+  );
+});
 
 const SubmitButton = React.memo(({ isLoading, buttonClasses }) => (
   <div className="pr-2">

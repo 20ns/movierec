@@ -48,39 +48,156 @@ export const useSearch = () => {
   const errorTimeoutRef = useRef(null);
   const searchCache = useRef(new Map());
 
-  // Enhanced query intent analyzer to better detect specific title searches
+  // Enhanced query intent analyzer to handle complex patterns
   const analyzeQueryIntent = useCallback((query) => {
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLowerCase().trim();
     const allGenres = [...GENRE_MAP.movie.values(), ...GENRE_MAP.tv.values()];
-  
-    // Check if query is likely a specific title (short, no special keywords)
+    
+    // Define mood keywords and their mappings
+    const moodKeywords = {
+      'funny': 'exciting', 'comedy': 'exciting', 'laugh': 'exciting', 'lighthearted': 'exciting',
+      'happy': 'exciting', 'upbeat': 'exciting', 'hilarious': 'exciting', 'humorous': 'exciting',
+      
+      'thoughtful': 'thoughtful', 'deep': 'thoughtful', 'meaningful': 'thoughtful', 
+      'profound': 'thoughtful', 'philosophical': 'thoughtful', 'thinking': 'thoughtful',
+      
+      'sad': 'emotional', 'emotional': 'emotional', 'moving': 'emotional', 'touching': 'emotional',
+      'heartwarming': 'emotional', 'cry': 'emotional', 'tearjerker': 'emotional',
+      
+      'scary': 'scary', 'horror': 'scary', 'terrifying': 'scary', 'frightening': 'scary', 
+      'spooky': 'scary', 'thriller': 'scary', 'suspense': 'scary', 'creepy': 'scary',
+      
+      'action': 'exciting', 'exciting': 'exciting', 'thrill': 'exciting', 'adventure': 'exciting',
+      'epic': 'exciting', 'action-packed': 'exciting', 'fast-paced': 'exciting'
+    };
+    
+    // Define context keywords for special searches
+    const contextKeywords = {
+      'date night': 'date', 'date': 'date', 'romantic evening': 'date', 'couples': 'date',
+      'family': 'family', 'kids': 'family', 'children': 'family', 'all ages': 'family',
+      'alone': 'solo', 'by myself': 'solo', 'solo': 'solo',
+      'friends': 'friends', 'group': 'friends', 'party': 'friends',
+      'educational': 'learning', 'learn': 'learning', 'informative': 'learning'
+    };
+    
+    // Check if query is a direct title lookup
     const isLikelyTitle = query.length > 2 && 
                          query.split(' ').length <= 6 && 
-                         !/(starring|with|directed by|genre|year)/i.test(query);
-  
+                         !/(show me|find|looking for|suggest|recommend|watch when|movies like|shows like)/i.test(query);
+    
+    // Extract imperative command patterns
+    const imperative = lowerQuery.match(/^(show me|find|get|give me)/i)?.[0];
+    
+    // Check for subject/theme keywords
+    const extractSubjects = () => {
+      // Common subjects people search for
+      const subjects = [
+        'dragons', 'space', 'zombies', 'vampires', 'superheroes', 'magic', 'time travel', 
+        'robots', 'aliens', 'dinosaurs', 'war', 'history', 'fantasy', 'future', 'dystopian',
+        'post-apocalyptic', 'medieval', 'western', 'crime', 'heist', 'spy', 'mystery',
+        'politics', 'sports', 'music', 'art', 'food', 'travel', 'nature', 'animals',
+        'ocean', 'adventure', 'romance', 'coming of age', 'high school', 'college',
+        'workplace', 'family', 'friendship'
+      ];
+      
+      return subjects.filter(subject => lowerQuery.includes(subject));
+    };
+    
+    // Extract decade from patterns like "2020s", "80s", "90s"
+    const decade = lowerQuery.match(/\b(20[0-9]0s|19[0-9]0s|[0-9]0s)\b/)?.[0];
+    // Extract specific year
+    const year = lowerQuery.match(/\b(19|20)\d{2}\b/)?.[0];
+    // Extract decade from patterns like "2020s", "80s", "90s"
+    let timeRange = null;
+    if (decade) {
+      const decadeMatch = decade.match(/\b(20|19)?([0-9])0s\b/);
+      if (decadeMatch) {
+        const century = decadeMatch[1] || '19';
+        const decadeNumber = decadeMatch[2];
+        const startYear = parseInt(`${century}${decadeNumber}0`);
+        timeRange = {
+          start: startYear,
+          end: startYear + 9
+        };
+      }
+    }
+    
+    // Extract multiple genres
+    const genreMatches = allGenres.filter(genre => 
+      lowerQuery.includes(genre.toLowerCase())
+    );
+
+    // Check for "movies like X" or "shows like X" patterns
+    const similarityMatch = lowerQuery.match(/(movies|shows|films|series)\s+like\s+([a-z0-9 ']+)(\s+but\s+([a-z0-9 ]+))?/i);
+    let similarTo = null;
+    let modifierType = null;
+    
+    if (similarityMatch) {
+      similarTo = similarityMatch[2].trim();
+      
+      // Extract modifier relationship if exists (e.g., "but more family-friendly")
+      if (similarityMatch[4]) {
+        const modifier = similarityMatch[4].trim();
+        
+        // Detect common modifier patterns
+        if (/more|less|better|worse|darker|lighter/i.test(modifier)) {
+          if (/family|kid/i.test(modifier)) modifierType = 'family-friendly';
+          else if (/dark|serious|gritty/i.test(modifier)) modifierType = 'darker';
+          else if (/fun|light|happy/i.test(modifier)) modifierType = 'lighter';
+          else if (/scar(y|ier)|horror|terrifying/i.test(modifier)) modifierType = 'scarier';
+          else if (/action|exciting|thrill/i.test(modifier)) modifierType = 'more-action';
+          else if (/drama|emotional|moving/i.test(modifier)) modifierType = 'more-dramatic';
+          else if (/comedy|funny|humor/i.test(modifier)) modifierType = 'funnier';
+          else modifierType = 'general-modifier';
+        }
+      }
+    }
+    
+    // Find mood in the query
+    const foundMoodWords = Object.keys(moodKeywords).filter(word => 
+      lowerQuery.includes(word)
+    );
+    const mood = foundMoodWords.length > 0 ? 
+      moodKeywords[foundMoodWords[0]] : null;
+    
+    // Find context in the query
+    const foundContextWords = Object.keys(contextKeywords).filter(word => 
+      lowerQuery.includes(word)
+    );
+    const context = foundContextWords.length > 0 ?
+      contextKeywords[foundContextWords[0]] : null;
+    
+    // Check for "when feeling X" pattern for emotional state queries
+    const emotionalState = lowerQuery.match(/when\s+(feeling|i'?m|im|i am)\s+([a-z]+)/i)?.[2];
+    
     return {
-      genre: allGenres.find(genre => lowerQuery.includes(genre.toLowerCase())),
-      year: lowerQuery.match(/\b(19|20)\d{2}\b/)?.[0],
+      genres: genreMatches,
+      year: year,
+      decade: decade,
+      timeRange: timeRange,
       person: lowerQuery.match(/(?:starring|with|directed by|by)\s+([a-z]+\s[a-z]+)/i)?.[1],
-      explicitType: lowerQuery.match(/(movie|show|series)/i)?.[0],
-      isLikelyTitle: isLikelyTitle
+      explicitType: lowerQuery.match(/(movie|film|show|series)/i)?.[0],
+      isLikelyTitle: isLikelyTitle,
+      imperative: imperative,
+      subjects: extractSubjects(),
+      similarTo: similarTo,
+      modifierType: modifierType,
+      mood: mood,
+      context: context,
+      emotionalState: emotionalState
     };
   }, []);
 
-  // Enhanced score calculator that boosts exact or partial title matches
+  // Enhanced score calculator for intent-based matching
   const calculateScore = useCallback((item, query, queryIntent) => {
     const title = (item.title || item.name || '').toLowerCase();
     const overview = (item.overview || '').toLowerCase();
     const queryLower = query.toLowerCase();
     const queryTerms = queryLower.split(' ').filter(term => term.length > 1);
 
-    // Direct title match gives a huge boost (for single titles like "Inception")
+    // Direct title match gives a huge boost
     const exactTitleMatch = title === queryLower ? 50 : 0;
-    
-    // Check if the title starts with the query (like "Star" matching "Star Wars")
     const titleStartMatch = title.startsWith(queryLower) ? 30 : 0;
-    
-    // Check if query is fully contained in the title
     const titleContainsQuery = title.includes(queryLower) ? 20 : 0;
     
     // Improved term matching for partial titles
@@ -88,8 +205,86 @@ export const useSearch = () => {
     const titleMatchRatio = queryTerms.length > 0 ? titleMatches / queryTerms.length : 0;
     const titleMatchScore = titleMatchRatio * 15 * queryTerms.length;
 
-    // Overview matching (less important for title searches)
+    // Overview matching with special handling for subject matches
     const overviewMatches = queryTerms.filter(term => overview.includes(term)).length;
+    
+    // Subject matching (dragons, space, etc.)
+    let subjectBoost = 0;
+    if (queryIntent.subjects.length > 0) {
+      const subjectMatches = queryIntent.subjects.filter(subject => 
+        overview.includes(subject.toLowerCase()) || title.includes(subject.toLowerCase())
+      );
+      subjectBoost = subjectMatches.length * 15;
+    }
+    
+    // Handle time range matches
+    let timeRangeBoost = 0;
+    if (queryIntent.timeRange) {
+      const releaseYear = new Date(item.release_date || item.first_air_date || Date.now()).getFullYear();
+      if (releaseYear >= queryIntent.timeRange.start && releaseYear <= queryIntent.timeRange.end) {
+        timeRangeBoost = 10;
+      }
+    }
+    
+    // Mood and context boosting
+    let moodBoost = 0;
+    if (queryIntent.mood) {
+      // Map genres to moods for scoring
+      const moodGenreMappings = {
+        'exciting': [28, 12, 35, 10751, 10752], // Action, Adventure, Comedy, Family, War
+        'thoughtful': [18, 99, 36, 9648],       // Drama, Documentary, History, Mystery
+        'emotional': [10749, 18, 10751],        // Romance, Drama, Family
+        'scary': [27, 9648, 53]                 // Horror, Mystery, Thriller
+      };
+      
+      if (moodGenreMappings[queryIntent.mood] && 
+          item.genre_ids.some(id => moodGenreMappings[queryIntent.mood].includes(id))) {
+        moodBoost = 20;
+      }
+    }
+    
+    // Context-based scoring
+    let contextBoost = 0;
+    if (queryIntent.context) {
+      const contextGenreMappings = {
+        'date': [10749, 35, 18],        // Romance, Comedy, Drama
+        'family': [10751, 16, 12, 35],  // Family, Animation, Adventure, Comedy
+        'friends': [35, 28, 12],        // Comedy, Action, Adventure
+        'solo': [18, 9648, 53, 878],    // Drama, Mystery, Thriller, Sci-Fi
+        'learning': [99, 36]            // Documentary, History
+      };
+      
+      if (contextGenreMappings[queryIntent.context] &&
+          item.genre_ids.some(id => contextGenreMappings[queryIntent.context].includes(id))) {
+        contextBoost = 15;
+      }
+    }
+    
+    // Emotional state matching
+    let emotionalStateBoost = 0;
+    if (queryIntent.emotionalState) {
+      const emotionGenreMappings = {
+        'sad': [35, 12, 10751, 16],      // Comedy, Adventure, Family, Animation (uplifting content)
+        'happy': [35, 10749, 10751],     // Comedy, Romance, Family
+        'bored': [28, 12, 878, 53],      // Action, Adventure, Sci-Fi, Thriller
+        'stressed': [35, 10751, 14],     // Comedy, Family, Fantasy
+        'lonely': [10749, 18, 35],       // Romance, Drama, Comedy
+        'tired': [35, 16, 10751],        // Comedy, Animation, Family
+        'angry': [35, 10751, 14, 16]     // Comedy, Family, Fantasy, Animation
+      };
+      
+      const emotion = queryIntent.emotionalState.toLowerCase();
+      if (emotionGenreMappings[emotion] &&
+          item.genre_ids.some(id => emotionGenreMappings[emotion].includes(id))) {
+        emotionalStateBoost = 25;
+      }
+    }
+    
+    // Handle similarity search scoring
+    let similarityBoost = 0;
+    if (queryIntent.similarTo && item.similarityScore) {
+      similarityBoost = item.similarityScore * 0.5;
+    }
     
     // Pre-calculate reusable values
     const popularity = Math.log10(item.popularity + 1);
@@ -99,13 +294,19 @@ export const useSearch = () => {
     // For likely title searches, prioritize title matches much more highly
     const titleBoost = queryIntent.isLikelyTitle ? 2 : 1;
 
-    // Score calculation with priority on title matches
+    // Enhanced score calculation
     return Math.min(
       exactTitleMatch +
       titleStartMatch +
       titleContainsQuery +
       (titleMatchScore * titleBoost) +
       (overviewMatches * 0.2) +
+      subjectBoost +
+      timeRangeBoost +
+      moodBoost +
+      contextBoost + 
+      emotionalStateBoost +
+      similarityBoost +
       (popularity * 0.3) +
       ((item.vote_average / 10) * 2) +
       ((currentYear - releaseYear) * -0.1) +
@@ -114,23 +315,45 @@ export const useSearch = () => {
     );
   }, [getIntentBonus]);
 
-  // Memoized intent bonus calculator
-  const getIntentBonus = useCallback((item, { genre, year, explicitType }) => {
+  // Modify getIntentBonus to handle multiple genres
+  const getIntentBonus = useCallback((item, queryIntent) => {
     let bonus = 0;
-    const itemType = item.media_type;
-    
-    if (genre && item.genre_ids?.some(id => GENRE_MAP[itemType].has(id))) {
-      bonus += 2;
+    const itemType = item.media_type || 'movie';
+    
+    // Handle multiple genres
+    if (queryIntent.genres && queryIntent.genres.length > 0) {
+      // Check how many of the requested genres match
+      const matchCount = queryIntent.genres.filter(genre => {
+        const genreId = [...GENRE_MAP[itemType]].find(([id, name]) => name === genre)?.[0];
+        return genreId && item.genre_ids?.includes(genreId);
+      }).length;
+      
+      if (matchCount > 0) {
+        bonus += matchCount * 5; // 5 points per matched genre
+      }
     }
-    
-    if (year && (item.release_date || item.first_air_date).includes(year)) {
-      bonus += 1.5;
+    
+    if (queryIntent.year && (item.release_date || item.first_air_date)?.includes(queryIntent.year)) {
+      bonus += 10;
     }
-    
-    if (explicitType && itemType === (explicitType.includes('movie') ? 'movie' : 'tv')) {
-      bonus += 1;
+    
+    if (queryIntent.timeRange) {
+      const releaseYear = new Date(item.release_date || item.first_air_date || Date.now()).getFullYear();
+      if (releaseYear >= queryIntent.timeRange.start && releaseYear <= queryIntent.timeRange.end) {
+        bonus += 8;
+      }
     }
-    
+    
+    if (queryIntent.explicitType) {
+      const requestedType = queryIntent.explicitType.toLowerCase();
+      const isMovie = requestedType.includes('movie') || requestedType.includes('film');
+      const isShow = requestedType.includes('show') || requestedType.includes('series') || requestedType.includes('tv');
+      
+      if ((isMovie && itemType === 'movie') || (isShow && itemType === 'tv')) {
+        bonus += 12;
+      }
+    }
+    
     return bonus;
   }, []);
 
@@ -347,6 +570,7 @@ export const useSearch = () => {
     e?.preventDefault();
     if (!query.trim()) return;
 
+    // Check for API key
     if (!process.env.REACT_APP_TMDB_API_KEY) {
       console.error("TMDB API Key is missing! Search will not work.");
       showError("API Key missing. Search unavailable.");
@@ -366,8 +590,18 @@ export const useSearch = () => {
       setAllResults([]);
       setResultsToShow(3);
 
-      // Enhanced cache key that includes all filter parameters
-      const cacheKey = query.toLowerCase() + JSON.stringify(activeFilters);
+      // Parse query intent first
+      const queryIntent = analyzeQueryIntent(query);
+      console.log("Detected query intent:", queryIntent);
+
+      // Handle similarity searches differently
+      if (queryIntent.similarTo) {
+        await handleSimilaritySearch(query, queryIntent, controller.signal);
+        return;
+      }
+
+      // Enhanced cache key that includes all filter parameters and intent
+      const cacheKey = query.toLowerCase() + JSON.stringify(activeFilters) + JSON.stringify(queryIntent);
       if (searchCache.current.has(cacheKey)) {
         const cachedData = searchCache.current.get(cacheKey);
         // Check if cache is still valid (less than 30 minutes old)
@@ -381,44 +615,112 @@ export const useSearch = () => {
         }
       }
 
-      // Fetch search results
+      // Build search parameters based on intent
+      let searchParams = {
+        api_key: process.env.REACT_APP_TMDB_API_KEY,
+        query: queryIntent.isLikelyTitle ? query : query.replace(/^(show me|find|get|give me)\s+/i, ''),
+        include_adult: false,
+        language: 'en-US',
+        page: 1
+      };
+
       console.log("Fetching search results for query:", query);
-      const searchResponse = await fetchWithRetry(
-        'https://api.themoviedb.org/3/search/multi',
-        {
+      
+      // If we have detected a mood but no direct title, use discover endpoint instead
+      let endpointType = 'search/multi';
+      if ((queryIntent.mood || queryIntent.emotionalState || queryIntent.context) && 
+          !queryIntent.isLikelyTitle && queryIntent.genres.length > 0) {
+        
+        endpointType = 'discover/movie'; // Default to movies for mood searches
+        
+        // Map detected mood to genre IDs
+        const moodGenreMappings = {
+          'exciting': [28, 12, 35],      // Action, Adventure, Comedy
+          'thoughtful': [18, 99, 36],    // Drama, Documentary, History
+          'emotional': [10749, 18],      // Romance, Drama
+          'scary': [27, 9648, 53]        // Horror, Mystery, Thriller
+        };
+        
+        // Convert genre names to IDs
+        const genreIds = queryIntent.genres.map(genreName => {
+          return [...GENRE_MAP.movie].find(([id, name]) => name === genreName)?.[0];
+        }).filter(Boolean);
+
+        // Add mood genres if available
+        if (queryIntent.mood && moodGenreMappings[queryIntent.mood]) {
+          genreIds.push(...moodGenreMappings[queryIntent.mood]);
+        }
+        
+        // Use discover API with genre parameters
+        searchParams = {
           api_key: process.env.REACT_APP_TMDB_API_KEY,
-          query: query,
+          with_genres: [...new Set(genreIds)].join(','), // Deduplicate genres
+          sort_by: 'popularity.desc',
           include_adult: false,
           language: 'en-US',
           page: 1
-        },
+        };
+        
+        // Add year filter if present
+        if (queryIntent.year) {
+          if (endpointType === 'discover/movie') {
+            searchParams.primary_release_year = queryIntent.year;
+          } else {
+            searchParams.first_air_date_year = queryIntent.year;
+          }
+        }
+        
+        // Add decade range filter if present
+        if (queryIntent.timeRange) {
+          if (endpointType === 'discover/movie') {
+            searchParams['primary_release_date.gte'] = `${queryIntent.timeRange.start}-01-01`;
+            searchParams['primary_release_date.lte'] = `${queryIntent.timeRange.end}-12-31`;
+          } else {
+            searchParams['first_air_date.gte'] = `${queryIntent.timeRange.start}-01-01`;
+            searchParams['first_air_date.lte'] = `${queryIntent.timeRange.end}-12-31`;
+          }
+        }
+      }
+
+      const searchResponse = await fetchWithRetry(
+        `https://api.themoviedb.org/3/${endpointType}`,
+        searchParams,
         { signal: controller.signal }
       );
+      
       console.log("Raw search API response:", searchResponse);
 
-      // Enhanced filter to ensure we get quality results with titles
-      const searchResults = searchResponse.data.results
-        .filter(result =>
-          result &&
-          (result.title || result.name) &&
-          result.media_type !== 'person' && // Exclude person results
-          (
-            // Include items with posters preferentially for better display
-            result.poster_path || 
-            // But don't exclude potential exact title matches just because they're missing posters
-            (result.title && query.toLowerCase() === result.title.toLowerCase()) ||
-            (result.name && query.toLowerCase() === result.name.toLowerCase())
-          )
-        );
+      // Process search results
+      let searchResults = [];
+      if (endpointType === 'search/multi') {
+        searchResults = searchResponse.data.results
+          .filter(result =>
+            result &&
+            (result.title || result.name) &&
+            result.media_type !== 'person' && // Exclude person results
+            (
+              result.poster_path || 
+              (result.title && query.toLowerCase() === result.title.toLowerCase()) ||
+              (result.name && query.toLowerCase() === result.name.toLowerCase())
+            )
+          );
+      } else {
+        // For discover endpoint, we need to add media_type
+        searchResults = searchResponse.data.results
+          .filter(result => result && (result.title || result.name))
+          .map(result => ({
+            ...result,
+            media_type: endpointType.includes('movie') ? 'movie' : 'tv'
+          }));
+      }
+      
       console.log("Filtered search results:", searchResults);
 
       if (!searchResults.length) {
         showError('No results found for your search.');
+        setIsLoading(false);
         return;
       }
-
-      // Analyze query intent with improved title detection
-      const queryIntent = analyzeQueryIntent(query);
 
       // Enhanced primary result selection that prefers exact title matches
       const primaryResult = queryIntent.isLikelyTitle
@@ -434,6 +736,7 @@ export const useSearch = () => {
       if (!primaryResult?.id || !primaryResult.media_type) {
         console.error('Invalid primary result:', primaryResult);
         showError('Unable to find valid results for this search.');
+        setIsLoading(false);
         return;
       }
 
@@ -447,11 +750,12 @@ export const useSearch = () => {
       // Process recommendations
       const validRecommendations = rawRecommendations
         .filter(item => item.poster_path && item.overview)
-        .map(item => ({ // Add score to each item in validRecommendations
+        .map(item => ({ 
           ...item,
-          matchPercentage: calculateScore(item, query, queryIntent)
+          matchPercentage: calculateScore(item, query, queryIntent),
+          queryIntent: queryIntent // Store the intent that generated these results
         }))
-        .sort((a, b) => b.matchPercentage - a.matchPercentage) // Sort by percentage
+        .sort((a, b) => b.matchPercentage - a.matchPercentage)
         .slice(0, 50);
 
       // Add Results Validation Before State Update
@@ -459,16 +763,14 @@ export const useSearch = () => {
         console.warn('No recommendations, using search results', searchResults);
         const scoredSearchResults = searchResults.slice(0, 10).map(item => ({
           ...item,
-          matchPercentage: calculateScore(item, query, queryIntent) // Add score here as well
+          matchPercentage: calculateScore(item, query, queryIntent),
+          queryIntent: queryIntent
         }));
         setAllResults(scoredSearchResults);
         return;
       }
 
-      setAllResults(validRecommendations.map(item => ({ // Ensure percentage is also added when setting valid recommendations to state.
-        ...item,
-        matchPercentage: item.matchPercentage // Percentage is already calculated above, just pass it along.
-      })));
+      setAllResults(validRecommendations);
       searchCache.current.set(cacheKey, {
         results: validRecommendations,
         timestamp: Date.now()
@@ -482,9 +784,182 @@ export const useSearch = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query, activeFilters, showError, calculateScore, analyzeQueryIntent, getHybridRecommendations]); // Removed processResult and isValidRecommendation, already dependencies of getHybridRecommendations
+  }, [query, activeFilters, showError, calculateScore, analyzeQueryIntent, getHybridRecommendations]);
 
-  // Additional recommendation sources
+  // New function to handle "movies like X" searches
+  const handleSimilaritySearch = useCallback(async (query, queryIntent, signal) => {
+    try {
+      console.log("Handling similarity search for:", queryIntent.similarTo);
+      
+      // First, search for the reference media
+      const referenceSearch = await fetchWithRetry(
+        'https://api.themoviedb.org/3/search/multi',
+        {
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+          query: queryIntent.similarTo,
+          include_adult: false,
+          language: 'en-US',
+          page: 1
+        },
+        { signal }
+      );
+      
+      // Get the most relevant result as our reference
+      const referenceMedia = referenceSearch.data.results
+        .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+        .sort((a, b) => b.popularity - a.popularity)[0];
+        
+      if (!referenceMedia) {
+        showError(`Couldn't find "${queryIntent.similarTo}". Try another title.`);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log("Reference media found:", referenceMedia.title || referenceMedia.name);
+      
+      // Get details of the reference media to understand its characteristics
+      const detailsResponse = await fetchWithRetry(
+        `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}`,
+        { 
+          api_key: process.env.REACT_APP_TMDB_API_KEY,
+          append_to_response: 'keywords,credits'
+        },
+        { signal }
+      );
+      
+      const referenceDetails = detailsResponse.data;
+      
+      // Now find similar media
+      const similarResponse = await fetchWithRetry(
+        `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}/similar`,
+        { api_key: process.env.REACT_APP_TMDB_API_KEY },
+        { signal }
+      );
+      
+      let similarResults = similarResponse.data.results.map(item => ({
+        ...item,
+        media_type: referenceMedia.media_type
+      }));
+      
+      // If we have a modifier, adjust the results
+      if (queryIntent.modifierType) {
+        console.log("Applying modifier:", queryIntent.modifierType);
+        
+        // Apply the modifier to filter/modify results
+        switch(queryIntent.modifierType) {
+          case 'family-friendly':
+            // Filtering for family-friendly: lower violence, no adult content
+            similarResults = similarResults.filter(item => 
+              item.adult === false && 
+              (item.genre_ids.includes(10751) || // Family genre
+               item.genre_ids.includes(16) || // Animation
+               !item.genre_ids.includes(27)) // Not horror
+            );
+            break;
+            
+          case 'darker':
+            // Prioritize darker, more serious content
+            similarResults.sort((a, b) => {
+              const aDarkScore = (a.genre_ids.includes(18) ? 3 : 0) + // Drama
+                               (a.genre_ids.includes(80) ? 3 : 0) + // Crime
+                               (a.genre_ids.includes(9648) ? 2 : 0); // Mystery
+              const bDarkScore = (b.genre_ids.includes(18) ? 3 : 0) +
+                               (b.genre_ids.includes(80) ? 3 : 0) +
+                               (b.genre_ids.includes(9648) ? 2 : 0);
+              return bDarkScore - aDarkScore;
+            });
+            break;
+            
+          case 'lighter':
+            // Prioritize light-hearted content
+            similarResults.sort((a, b) => {
+              const aLightScore = (a.genre_ids.includes(35) ? 3 : 0) + // Comedy
+                               (a.genre_ids.includes(10751) ? 2 : 0) + // Family
+                               (a.genre_ids.includes(14) ? 2 : 0); // Fantasy
+              const bLightScore = (b.genre_ids.includes(35) ? 3 : 0) +
+                               (b.genre_ids.includes(10751) ? 2 : 0) +
+                               (b.genre_ids.includes(14) ? 2 : 0);
+              return bLightScore - aLightScore;
+            });
+            break;
+            
+          case 'scarier':
+            // Prioritize horror/thriller content
+            similarResults.sort((a, b) => {
+              const aScaryScore = (a.genre_ids.includes(27) ? 4 : 0) + // Horror
+                               (a.genre_ids.includes(53) ? 3 : 0) + // Thriller
+                               (a.genre_ids.includes(9648) ? 2 : 0); // Mystery
+              const bScaryScore = (b.genre_ids.includes(27) ? 4 : 0) +
+                               (b.genre_ids.includes(53) ? 3 : 0) +
+                               (b.genre_ids.includes(9648) ? 2 : 0);
+              return bScaryScore - aScaryScore;
+            });
+            break;
+            
+          case 'more-action':
+            // Prioritize action-packed content
+            similarResults.sort((a, b) => {
+              const aActionScore = (a.genre_ids.includes(28) ? 4 : 0) + // Action
+                                (a.genre_ids.includes(12) ? 3 : 0); // Adventure
+              const bActionScore = (b.genre_ids.includes(28) ? 4 : 0) +
+                                (b.genre_ids.includes(12) ? 3 : 0);
+              return bActionScore - aActionScore;
+            });
+            break;
+            
+          case 'funnier':
+            // Prioritize comedy content
+            similarResults.sort((a, b) => {
+              const aFunnyScore = (a.genre_ids.includes(35) ? 5 : 0); // Comedy
+              const bFunnyScore = (b.genre_ids.includes(35) ? 5 : 0);
+              return bFunnyScore - aFunnyScore;
+            });
+            break;
+        }
+      }
+      
+      // Calculate similarity scores
+      similarResults = similarResults.map(item => {
+        // Calculate base similarity score
+        const genreSimilarity = item.genre_ids.filter(
+          g => referenceDetails.genres.map(rg => rg.id).includes(g)
+        ).length / Math.max(item.genre_ids.length, 1);
+        
+        const similarityScore = Math.round(genreSimilarity * 70);
+        
+        return {
+          ...item,
+          similarityScore,
+          referenceTo: referenceMedia.title || referenceMedia.name
+        };
+      });
+      
+      // Sort by similarity score
+      similarResults.sort((a, b) => b.similarityScore - a.similarityScore);
+      
+      // Store formatted results
+      const formattedResults = similarResults.map(item => ({
+        ...item,
+        matchPercentage: calculateScore(item, query, queryIntent),
+        queryIntent: {
+          ...queryIntent,
+          referenceName: referenceMedia.title || referenceMedia.name
+        },
+        referenceName: referenceMedia.title || referenceMedia.name
+      }));
+      
+      setAllResults(formattedResults);
+      
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Similarity search error:', error);
+        showError('Search failed. Please check your connection and try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showError, fetchWithRetry, calculateScore]);
+
   const fetchDirectorRecommendations = useCallback(async (item) => {
     try {
       const credits = await fetchWithRetry(
