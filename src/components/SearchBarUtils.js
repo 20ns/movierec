@@ -89,9 +89,67 @@ const getSeasonalBoostGenres = () => {
 const isClassic = (releaseYear) => ANNIVERSARY_YEARS.some(y => (CURRENT_YEAR - releaseYear) % y === 0);
 
 
+// --- Title Matching Utilities (New) ---
+export const extractTitleTerms = (title) => {
+    if (!title) return [];
+    
+    // Remove common articles and prefixes that don't help with matching
+    const cleanTitle = title.toLowerCase()
+        .replace(/^(the|a|an) /, '')
+        .replace(/[^\w\s]/g, ' ') // Replace non-alphanumeric with spaces
+        .replace(/\s+/g, ' ')     // Normalize spaces
+        .trim();
+    
+    // Split into meaningful terms (skip common words and short terms)
+    const skipWords = new Set(['and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by']);
+    return cleanTitle.split(' ')
+        .filter(term => term.length > 2 && !skipWords.has(term));
+};
+
+// Calculate title similarity score between query and item title
+export const getTitleSimilarityScore = (query, itemTitle) => {
+    if (!query || !itemTitle) return 0;
+    
+    const queryTerms = extractTitleTerms(query);
+    const titleTerms = extractTitleTerms(itemTitle);
+    
+    // Handle empty terms case
+    if (queryTerms.length === 0 || titleTerms.length === 0) return 0;
+    
+    // Check for exact match after cleaning
+    const queryClean = queryTerms.join(' ');
+    const titleClean = titleTerms.join(' ');
+    
+    if (queryClean === titleClean) return 100;
+    if (titleClean.startsWith(queryClean)) return 90;
+    if (titleClean.includes(queryClean)) return 80;
+    
+    // Count matching terms
+    const matchingTerms = queryTerms.filter(term => 
+        titleTerms.some(titleTerm => titleTerm.includes(term) || term.includes(titleTerm))
+    );
+    
+    // Calculate match percentage
+    const matchRatio = matchingTerms.length / queryTerms.length;
+    return Math.round(matchRatio * 70); // Max 70 for partial term matches
+};
+
 export const calculateMatchScore = (item, targetDetails) => {
     let score = 0;
     const reasons = [];
+
+    // Add title matching for recommendation similarity
+    if (targetDetails.title && (item.title || item.name)) {
+        const titleScore = getTitleSimilarityScore(
+            targetDetails.title,
+            item.title || item.name
+        );
+        
+        if (titleScore > 70) { 
+            reasons.push(`Similar title`); 
+            score += titleScore / 10; // Scale down to fit with other scores
+        }
+    }
 
     // Genre Matching (Early exit if no genres match can be considered but might not be significant gain)
     const genreMatches = item.genre_ids.filter(id => targetDetails.genres.includes(id)).length;
@@ -178,7 +236,8 @@ export const fetchEnhancedRecommendations = async (primaryResult) => {
             keywords: keywords,
             director: detailsData.credits.crew.find(c => c.job === 'Director')?.id,
             cast: detailsData.credits.cast.slice(0, 5).map(c => c.id),
-            analysis: { mood: 'neutral', themes: [] } // Assuming analysis is not calculated here for perf, or is fast.
+            analysis: { mood: 'neutral', themes: [] }, // Assuming analysis is not calculated here for perf, or is fast.
+            title: detailsData.title || detailsData.name // Add title for similarity matching
         };
 
         // Fetch similar and cross-media recommendations in parallel

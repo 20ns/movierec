@@ -26,7 +26,8 @@ export const MediaCard = ({
   promptLogin, 
   currentUser, 
   simplifiedView = false, // New prop for simplified view in favorites
-  onFavoriteToggle  // Add this new prop
+  onFavoriteToggle,  // Add this new prop
+  highlightMatch = false // Add this new prop
 }) => {
   const socialProof = getSocialProof(result);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -388,7 +389,9 @@ export const MediaCard = ({
 
   return (
     <motion.div
-      className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full cursor-pointer"
+      className={`group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 relative flex flex-col h-full cursor-pointer ${
+        highlightMatch ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/20' : ''
+      }`}
       whileHover={{ scale: 1.02, rotate: 0.5 }}
       onClick={onClick}
       onMouseEnter={() => {
@@ -433,6 +436,11 @@ export const MediaCard = ({
               <span className="ml-1 text-xs text-white">
                 {socialProof.friendsLiked} friends liked
               </span>
+            </div>
+          )}
+          {highlightMatch && (
+            <div className="absolute top-2 left-2 z-10 bg-indigo-600 text-white text-xs py-1 px-2 rounded-full shadow-lg">
+              Exact Match
             </div>
           )}
         </div>

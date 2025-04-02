@@ -48,45 +48,71 @@ export const useSearch = () => {
   const errorTimeoutRef = useRef(null);
   const searchCache = useRef(new Map());
 
-  // Optimized query intent analyzer
+  // Enhanced query intent analyzer to better detect specific title searches
   const analyzeQueryIntent = useCallback((query) => {
     const lowerQuery = query.toLowerCase();
     const allGenres = [...GENRE_MAP.movie.values(), ...GENRE_MAP.tv.values()];
+  
+    // Check if query is likely a specific title (short, no special keywords)
+    const isLikelyTitle = query.length > 2 && 
+                         query.split(' ').length <= 6 && 
+                         !/(starring|with|directed by|genre|year)/i.test(query);
   
     return {
       genre: allGenres.find(genre => lowerQuery.includes(genre.toLowerCase())),
       year: lowerQuery.match(/\b(19|20)\d{2}\b/)?.[0],
       person: lowerQuery.match(/(?:starring|with|directed by|by)\s+([a-z]+\s[a-z]+)/i)?.[1],
-      explicitType: lowerQuery.match(/(movie|show|series)/i)?.[0]
+      explicitType: lowerQuery.match(/(movie|show|series)/i)?.[0],
+      isLikelyTitle: isLikelyTitle
     };
   }, []);
 
-  // Optimized score calculator using pre-calculated values
+  // Enhanced score calculator that boosts exact or partial title matches
   const calculateScore = useCallback((item, query, queryIntent) => {
-    const title = (item.title || item.name).toLowerCase();
+    const title = (item.title || item.name || '').toLowerCase();
     const overview = (item.overview || '').toLowerCase();
-    const queryTerms = new Set(query.toLowerCase().split(' '));
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(' ').filter(term => term.length > 1);
 
-    // Efficient term matching using Set operations
-    const titleMatches = [...queryTerms].filter(term => title.includes(term)).length;
-    const overviewMatches = [...queryTerms].filter(term => overview.includes(term)).length;
-    
+    // Direct title match gives a huge boost (for single titles like "Inception")
+    const exactTitleMatch = title === queryLower ? 50 : 0;
+    
+    // Check if the title starts with the query (like "Star" matching "Star Wars")
+    const titleStartMatch = title.startsWith(queryLower) ? 30 : 0;
+    
+    // Check if query is fully contained in the title
+    const titleContainsQuery = title.includes(queryLower) ? 20 : 0;
+    
+    // Improved term matching for partial titles
+    const titleMatches = queryTerms.filter(term => title.includes(term)).length;
+    const titleMatchRatio = queryTerms.length > 0 ? titleMatches / queryTerms.length : 0;
+    const titleMatchScore = titleMatchRatio * 15 * queryTerms.length;
+
+    // Overview matching (less important for title searches)
+    const overviewMatches = queryTerms.filter(term => overview.includes(term)).length;
+    
     // Pre-calculate reusable values
     const popularity = Math.log10(item.popularity + 1);
-    const releaseYear = new Date(item.release_date || item.first_air_date).getFullYear();
+    const releaseYear = new Date(item.release_date || item.first_air_date || Date.now()).getFullYear();
     const currentYear = new Date().getFullYear();
 
-    // Score calculation using precomputed values
+    // For likely title searches, prioritize title matches much more highly
+    const titleBoost = queryIntent.isLikelyTitle ? 2 : 1;
+
+    // Score calculation with priority on title matches
     return Math.min(
-      (titleMatches * 2) +
+      exactTitleMatch +
+      titleStartMatch +
+      titleContainsQuery +
+      (titleMatchScore * titleBoost) +
       (overviewMatches * 0.2) +
-      (popularity * 0.4) +
+      (popularity * 0.3) +
       ((item.vote_average / 10) * 2) +
-      ((currentYear - releaseYear) * -0.3) +
+      ((currentYear - releaseYear) * -0.1) +
       getIntentBonus(item, queryIntent),
       100
     );
-  }, [getIntentBonus]); // Added getIntentBonus as dependency
+  }, [getIntentBonus]);
 
   // Memoized intent bonus calculator
   const getIntentBonus = useCallback((item, { genre, year, explicitType }) => {
@@ -370,11 +396,19 @@ export const useSearch = () => {
       );
       console.log("Raw search API response:", searchResponse);
 
+      // Enhanced filter to ensure we get quality results with titles
       const searchResults = searchResponse.data.results
         .filter(result =>
           result &&
           (result.title || result.name) &&
-          result.media_type !== 'person' // Exclude person results
+          result.media_type !== 'person' && // Exclude person results
+          (
+            // Include items with posters preferentially for better display
+            result.poster_path || 
+            // But don't exclude potential exact title matches just because they're missing posters
+            (result.title && query.toLowerCase() === result.title.toLowerCase()) ||
+            (result.name && query.toLowerCase() === result.name.toLowerCase())
+          )
         );
       console.log("Filtered search results:", searchResults);
 
@@ -383,14 +417,18 @@ export const useSearch = () => {
         return;
       }
 
-      // Analyze query intent
+      // Analyze query intent with improved title detection
       const queryIntent = analyzeQueryIntent(query);
 
-      // Select primary result with scoring
-      const primaryResult = searchResults.reduce((prev, current) =>
-        calculateScore(current, query, queryIntent) > calculateScore(prev, query, queryIntent)
-          ? current : prev, searchResults[0]
-      );
+      // Enhanced primary result selection that prefers exact title matches
+      const primaryResult = queryIntent.isLikelyTitle
+        ? searchResults.find(r => 
+            (r.title && r.title.toLowerCase() === query.toLowerCase()) || 
+            (r.name && r.name.toLowerCase() === query.toLowerCase())
+          ) || searchResults[0]
+        : searchResults.reduce((prev, current) =>
+            calculateScore(current, query, queryIntent) > calculateScore(prev, query, queryIntent)
+              ? current : prev, searchResults[0]);
 
       // Validation for Primary Result
       if (!primaryResult?.id || !primaryResult.media_type) {

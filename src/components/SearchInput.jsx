@@ -108,6 +108,7 @@ const SearchIcon = React.memo(({ isLoading, searchIconClasses }) => (
       rotate: isLoading ? 360 : 0,
       transition: { duration: 0.5 }
     }}
+    title="Search for movies or TV shows"
     style={{ willChange: 'transform' }}
   >
     <MagnifyingGlassIcon className="w-6 h-6" />
@@ -123,9 +124,10 @@ const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocus
     onFocus={() => setIsFocused(true)}
     onBlur={() => setTimeout(() => setIsFocused(false), 200)}
     onKeyDown={handleKeyDown}
-    placeholder="Search for movies or TV shows..."
-    className={`flex-grow pl-4 pr-3 py-3 text-lg bg-transparent focus:outline-none font-medium ${inputFieldClasses}`}
-    aria-label="Search for movies or TV shows"
+    className={inputFieldClasses}
+    placeholder="Search movies, TV shows, or discover something new..."
+    aria-label="Search for content"
+    autoComplete="off"
   />
 ));
 
@@ -213,6 +215,9 @@ const SuggestionsDropdown = React.memo(({ suggestions, isFocused, handleSuggesti
 const SuggestionItem = React.memo(({ suggestion, index, onClick, onHover, suggestionItemClasses, suggestionItemTextClasses, suggestionItemTypeTextClasses }) => {
   const handleClick = useCallback(() => onClick(suggestion), [onClick, suggestion]);
   const handleHover = useCallback(() => onHover(suggestion), [onHover, suggestion]);
+  
+  // Highlight if this is an exact title match
+  const isExactMatch = suggestion.exactMatch;
 
   return (
     <motion.div
@@ -220,21 +225,23 @@ const SuggestionItem = React.memo(({ suggestion, index, onClick, onHover, sugges
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ delay: index * 0.05, type: 'spring', stiffness: 200 }}
-      className={`cursor-pointer group suggestion-item ${suggestionItemClasses}`}
+      className={`cursor-pointer group suggestion-item ${suggestionItemClasses} ${
+        isExactMatch ? 'bg-indigo-900/50 ring-1 ring-indigo-500' : ''
+      }`}
       role="option"
       tabIndex={0}
       onClick={handleClick}
       onMouseEnter={handleHover}
       onFocus={handleHover}
     >
-      <div className="px-4 py-2  transition-colors duration-200 flex items-center justify-between">
+      <div className="px-4 py-2 transition-colors duration-200 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <MagnifyingGlassIcon className={`w-4 h-4 ${suggestionItemTextClasses}`} />
-          <span className={`text-base font-medium ${suggestionItemTextClasses}`}>
+          <MagnifyingGlassIcon className={`w-4 h-4 ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`} />
+          <span className={`text-base font-medium ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`}>
             {suggestion.title}
           </span>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full  transition-colors duration-200 ${suggestionItemTypeTextClasses}`}>
+        <span className={`text-xs px-2 py-1 rounded-full transition-colors duration-200 ${suggestionItemTypeTextClasses}`}>
           {suggestion.type}
         </span>
       </div>
