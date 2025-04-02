@@ -10,6 +10,7 @@ import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
 import { LightBulbIcon, SparklesIcon, DocumentDuplicateIcon } from '@heroicons/react/24/solid';
 import { formatQueryIntentSummary } from './SearchBarUtils';
+import { MediaCard } from './MediaCard'; // Add this import
 
 export const SearchBar = ({ currentUser }) => {
   const [showFilters, setShowFilters] = useState(true);
