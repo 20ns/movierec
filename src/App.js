@@ -327,6 +327,21 @@ function AppContent() {
     return () => document.removeEventListener('open-preferences', handleOpenPreferences);
   }, []);
 
+  // Add this event listener in the AppContent component
+
+  // Listen for the open-questionnaire event
+  useEffect(() => {
+    const handleOpenQuestionnaire = () => {
+      setShowQuestionnaire(true);
+    };
+    
+    document.addEventListener('open-questionnaire', handleOpenQuestionnaire);
+    
+    return () => {
+      document.removeEventListener('open-questionnaire', handleOpenQuestionnaire);
+    };
+  }, []);
+
   // Handle backdrop clicks for modals
   const handleModalBackdropClick = (e, ref, closeAction) => {
     if (ref.current && !ref.current.contains(e.target)) {

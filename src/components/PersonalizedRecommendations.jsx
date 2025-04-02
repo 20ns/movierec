@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { MediaCard } from './MediaCard';
-import { SparklesIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
+import { SparklesIcon, ArrowPathIcon, LightBulbIcon } from '@heroicons/react/24/solid';
 
 // Convert to forwardRef to accept ref from parent
 const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, preferencesUpdated = 0, userPreferences: propUserPreferences }, ref) => {
@@ -16,6 +16,8 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [shownRecommendations, setShownRecommendations] = useState(new Set());
+  const [recommendationReason, setRecommendationReason] = useState('');
+  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(true);
   
   // Add fetch lock to prevent concurrent fetches
   const isFetchingRef = useRef(false);
@@ -32,6 +34,15 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       }
     }
   }, [propUserPreferences]);
+
+  // Check if user has completed the questionnaire
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.attributes?.sub) {
+      // Check if user has completed questionnaire
+      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+      setHasCompletedQuestionnaire(completionStatus === 'true');
+    }
+  }, [isAuthenticated, currentUser]);
 
   // Define the fetchGenericRecommendations function using useCallback before it's used
   const fetchGenericRecommendations = useCallback(async () => {
@@ -302,6 +313,17 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       setIsThinking(true);
       setIsLoading(true);
       
+      // Check if the user has completed the questionnaire
+      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
+      const hasQuestionnaire = completionStatus === 'true';
+      
+      if (!hasQuestionnaire) {
+        console.log('User has not completed questionnaire, showing generic recommendations');
+        setDataSource('none');
+        await fetchGenericRecommendations();
+        return;
+      }
+      
       // Check if we have preferences (from props or state)
       const effectivePreferences = userPreferences || propUserPreferences;
       
@@ -316,7 +338,8 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
          prefsToUse.contentType || 
          prefsToUse.eraPreferences?.length > 0 ||
          prefsToUse.moodPreferences?.length > 0 ||
-         prefsToUse.languagePreferences?.length > 0);
+         prefsToUse.languagePreferences?.length > 0 ||
+         prefsToUse.runtimePreference);
          
       const hasFavorites = favoriteGenres.length > 0;
       
@@ -332,8 +355,12 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       // Prioritize preferences over favorites
       if (hasPreferences) {
         setDataSource(hasFavorites ? 'both' : 'preferences');
+        setRecommendationReason(hasFavorites 
+          ? 'Based on your preferences and favorites' 
+          : 'Based on your questionnaire responses');
       } else {
         setDataSource('favorites');
+        setRecommendationReason('Based on your favorites');
       }
       
       // Determine content type from preferences, favorites, or random if neither specifies
@@ -371,34 +398,77 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       if (hasPreferences && prefsToUse.eraPreferences?.length > 0) {
         if (prefsToUse.eraPreferences.includes('classic')) {
           yearParams = { 'release_date.lte': '1980-12-31' };
+          if (mediaType === 'tv') {
+            yearParams = { 'first_air_date.lte': '1980-12-31' };
+          }
         } else if (prefsToUse.eraPreferences.includes('modern')) {
-          yearParams = { 
-            'release_date.gte': '1980-01-01',
-            'release_date.lte': '2010-12-31'
-          };
+          if (mediaType === 'movie') {
+            yearParams = { 
+              'release_date.gte': '1980-01-01',
+              'release_date.lte': '2010-12-31'
+            };
+          } else {
+            yearParams = {
+              'first_air_date.gte': '1980-01-01',
+              'first_air_date.lte': '2010-12-31'
+            };
+          }
         } else if (prefsToUse.eraPreferences.includes('recent')) {
-          yearParams = { 'release_date.gte': '2011-01-01' };
+          if (mediaType === 'movie') {
+            yearParams = { 'release_date.gte': '2011-01-01' };
+          } else {
+            yearParams = { 'first_air_date.gte': '2011-01-01' };
+          }
         }
       }
       
       // Add mood-based parameters
       let moodParams = {};
       if (hasPreferences && prefsToUse.moodPreferences?.length > 0) {
-        if (prefsToUse.moodPreferences.includes('exciting')) {
-          moodParams.with_genres = (moodParams.with_genres || '') + ',28,12,10752'; // Action, Adventure, War
+        const moodGenresMap = {
+          'exciting': '28,12,10752,878', // Action, Adventure, War, Science Fiction
+          'funny': '35,16,10751', // Comedy, Animation, Family
+          'thoughtful': '18,99,36,9648', // Drama, Documentary, History, Mystery
+          'scary': '27,9648,53', // Horror, Mystery, Thriller
+          'emotional': '10749,18,10751,10402' // Romance, Drama, Family, Music
+        };
+        
+        let moodGenres = [];
+        prefsToUse.moodPreferences.forEach(mood => {
+          if (moodGenresMap[mood]) {
+            moodGenres.push(...moodGenresMap[mood].split(','));
+          }
+        });
+        
+        // Deduplicate genres
+        moodGenres = [...new Set(moodGenres)];
+        
+        if (moodGenres.length > 0) {
+          moodParams.with_genres = moodGenres.join(',');
         }
-        if (prefsToUse.moodPreferences.includes('funny')) {
-          moodParams.with_genres = (moodParams.with_genres || '') + ',35,16'; // Comedy, Animation
+      }
+      
+      // Add runtime preferences
+      let runtimeParams = {};
+      if (hasPreferences && prefsToUse.runtimePreference) {
+        if (mediaType === 'movie') {
+          switch (prefsToUse.runtimePreference) {
+            case 'short':
+              runtimeParams['with_runtime.lte'] = '90';
+              break;
+            case 'medium':
+              runtimeParams['with_runtime.gte'] = '90';
+              runtimeParams['with_runtime.lte'] = '120';
+              break;
+            case 'long':
+              runtimeParams['with_runtime.gte'] = '120';
+              break;
+            default:
+              // Don't set any runtime params for 'any'
+              break;
+          }
         }
-        if (prefsToUse.moodPreferences.includes('thoughtful')) {
-          moodParams.with_genres = (moodParams.with_genres || '') + ',18,99,36'; // Drama, Documentary, History
-        }
-        if (prefsToUse.moodPreferences.includes('scary')) {
-          moodParams.with_genres = (moodParams.with_genres || '') + ',27,9648,53'; // Horror, Mystery, Thriller
-        }
-        if (prefsToUse.moodPreferences.includes('emotional')) {
-          moodParams.with_genres = (moodParams.with_genres || '') + ',10749,18,10751'; // Romance, Drama, Family
-        }
+        // For TV shows, we can't easily filter by episode runtime
       }
       
       // Add language/region preferences
@@ -406,17 +476,20 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       if (hasPreferences && prefsToUse.languagePreferences?.length > 0) {
         // Map language preferences to region and language codes
         const languageMap = {
-          'hollywood': { region: 'US', language: 'en' },
-          'bollywood': { region: 'IN', language: 'hi' },
-          'korean': { region: 'KR', language: 'ko' },
-          'japanese': { region: 'JP', language: 'ja' },
-          'european': { region: 'GB,FR,DE,IT,ES', language: 'en,fr,de,it,es' },
-          'international': {} // No specific region/language for international
+          'en': { region: 'US,GB,CA,AU', language: 'en' },
+          'es': { region: 'ES,MX', language: 'es' },
+          'fr': { region: 'FR,CA', language: 'fr' },
+          'de': { region: 'DE,AT', language: 'de' },
+          'hi': { region: 'IN', language: 'hi' },
+          'ja': { region: 'JP', language: 'ja' },
+          'ko': { region: 'KR', language: 'ko' },
+          'zh': { region: 'CN,TW,HK', language: 'zh' },
+          'any': {} // No specific region/language for any
         };
         
-        // Find the first matching language preference
+        // Find the first matching language preference that's not 'any'
         for (const pref of prefsToUse.languagePreferences) {
-          if (languageMap[pref]) {
+          if (pref !== 'any' && languageMap[pref]) {
             if (languageMap[pref].region) {
               regionParams.region = languageMap[pref].region;
             }
@@ -426,9 +499,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             break; // Use the first matching preference
           }
         }
-
-        // Special handling for Bollywood - ensure we get Hindi films from India
-        if (prefsToUse.languagePreferences.includes('bollywood')) {
+        
+        // Special case for Bollywood - check if Hindi is selected
+        if (prefsToUse.languagePreferences.includes('hi')) {
           console.log("Applying Bollywood preference");
           regionParams.region = 'IN';
           regionParams.with_original_language = 'hi';
@@ -438,7 +511,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
       let initialResults = [];
       
       // Only proceed with API call if we have genres to use or other parameters
-      if (genresToUse.length > 0 || Object.keys(regionParams).length > 0) {
+      if (genresToUse.length > 0 || Object.keys(regionParams).length > 0 || 
+          Object.keys(yearParams).length > 0 || Object.keys(moodParams).length > 0) {
+        
         // Add a small random delay to simulate "thinking" - but only the first time
         if (!initialFetchCompletedRef.current) {
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -447,20 +522,28 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
         // Add randomness to results with varying page
         const page = Math.floor(Math.random() * 3) + 1; // Page 1, 2, or 3
 
-        console.log(`Fetching recommendations with region params:`, regionParams);
+        console.log(`Fetching ${mediaType} recommendations with:`, { 
+          genres: genresToUse, 
+          region: regionParams, 
+          year: yearParams,
+          mood: moodParams,
+          runtime: runtimeParams
+        });
 
         const response = await axios.get(
           `https://api.themoviedb.org/3/discover/${endpoint}`,
           {
             params: {
               api_key: process.env.REACT_APP_TMDB_API_KEY,
-              with_genres: genresToUse.join(','),
+              with_genres: genresToUse.length > 0 ? genresToUse.join(',') : undefined,
               sort_by: 'popularity.desc',
               page: page,
               ...yearParams,
               ...moodParams,
-              ...regionParams, // Add the region/language parameters
-              'vote_count.gte': 50, // Lower threshold to get more diverse content
+              ...regionParams,
+              ...runtimeParams,
+              'vote_count.gte': 30, // Lower threshold to get more diverse content
+              include_adult: false,
             }
           }
         );
@@ -475,6 +558,42 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
             score: Math.round((item.vote_average / 10) * 100)
           }))
           .slice(0, 6);
+
+        // If we still don't have enough, try with less strict filters (just keep genres)
+        if (initialResults.length < 3 && Object.keys(regionParams).length > 0) {
+          console.log("Not enough results with region filter, trying without region");
+          const fallbackResponse = await axios.get(
+            `https://api.themoviedb.org/3/discover/${endpoint}`,
+            {
+              params: {
+                api_key: process.env.REACT_APP_TMDB_API_KEY,
+                with_genres: genresToUse.length > 0 ? genresToUse.join(',') : undefined,
+                sort_by: 'popularity.desc',
+                page: page,
+                ...yearParams, // Keep year params
+                ...moodParams, // Keep mood params
+                'vote_count.gte': 30,
+                include_adult: false,
+              }
+            }
+          );
+          
+          // Get IDs from initial results
+          const existingIds = new Set(initialResults.map(item => item.id));
+          
+          // Add unique results from fallback
+          const fallbackResults = fallbackResponse.data.results
+            .filter(item => !favoriteIds.has(item.id.toString()) && 
+                           !shownRecommendations.has(item.id) &&
+                           !existingIds.has(item.id))
+            .map(item => ({
+              ...item,
+              media_type: mediaType,
+              score: Math.round((item.vote_average / 10) * 100)
+            }));
+          
+          initialResults = [...initialResults, ...fallbackResults].slice(0, 6);
+        }
       }
       
       // If we don't have enough initial results, try generic recommendations
@@ -542,8 +661,9 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
     isAuthenticated,
     fetchGenericRecommendations,
     propUserPreferences,
-    shownRecommendations
-  ]); // Removed unnecessary dependencies to prevent re-running
+    shownRecommendations,
+    currentUser
+  ]); 
 
   // Only fetch recommendations once on initial mount
   useEffect(() => {
@@ -646,9 +766,56 @@ const PersonalizedRecommendations = forwardRef(({ currentUser, isAuthenticated, 
           </motion.button>
         )}
       </div>
+
+      {/* Show recommendation reason if available */}
+      {recommendationReason && !isThinking && !isLoading && recommendations.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center bg-gray-800/50 rounded-lg p-2 mb-4 text-sm text-gray-300"
+        >
+          <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2" />
+          <span>{recommendationReason}</span>
+        </motion.div>
+      )}
       
       <AnimatePresence mode="wait">
-        {dataSource === 'none' && recommendations.length === 0 && !isLoading && !isThinking && !isRefreshing && (
+        {!hasCompletedQuestionnaire && (
+          <motion.div 
+            key="questionnaire-prompt"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 mb-6 shadow-lg border border-indigo-800"
+          >
+            <div className="flex items-center">
+              <motion.div
+                initial={{ rotate: -10, scale: 0.9 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="mr-5"
+              >
+                <SparklesIcon className="h-10 w-10 text-purple-300" />
+              </motion.div>
+              <div>
+                <h3 className="text-xl font-semibold text-white mb-2">Complete Your Preference Profile</h3>
+                <p className="text-purple-200 leading-relaxed mb-4">
+                  Take our quick questionnaire to get personalized movie and TV show recommendations
+                  that match your unique taste!
+                </p>
+                <button
+                  className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
+                  onClick={() => document.dispatchEvent(new CustomEvent('open-questionnaire'))}
+                >
+                  Get Started
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {dataSource === 'none' && recommendations.length === 0 && !isLoading && !isThinking && !isRefreshing && hasCompletedQuestionnaire && (
           <motion.div 
             key="prompt"
             initial={{ opacity: 0, y: 20 }}
