@@ -36,6 +36,7 @@ export const SearchBar = ({ currentUser }) => {
     resultsToShow,
     setResultsToShow
   } = useSearch();
+  
 
   // For pagination instead of "load more"
   const [currentPage, setCurrentPage] = useState(1);
