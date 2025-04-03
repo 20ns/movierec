@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { MediaCard } from './MediaCard'; // Ensure this import exists
+import ScrollContainer from './ScrollContainer'; // Import the new component
 
 export const MediaResults = ({
   hasSearched,
@@ -37,49 +38,31 @@ export const MediaResults = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-full flex-grow flex flex-col items-center justify-center">
-        <div className="w-16 h-16 border-t-4 border-b-4 border-indigo-500 rounded-full animate-spin"></div>
-        <p className="mt-4 text-xl font-medium text-gray-300">Searching...</p>
-      </div>
-    );
-  }
-
-  if (!hasSearched) {
-    return (
-      <div className="w-full flex-grow flex flex-col items-center justify-center text-center px-4">
-        <h2 className="text-2xl font-bold text-gray-300 mb-2">Search for movies and TV shows</h2>
-        <p className="text-gray-400 max-w-lg">
-          Use the search bar above to discover content based on titles, genres, moods, or contexts.
-        </p>
-      </div>
-    );
-  }
-
-  if (!displayedResults || displayedResults.length === 0) {
-    return (
-      <div className="w-full flex-grow flex flex-col items-center justify-center text-center px-4">
-        <h2 className="text-xl font-bold text-gray-300 mb-2">No results found</h2>
-        <p className="text-gray-400 max-w-lg">
-          Try adjusting your search terms or filters to find more content.
-        </p>
-      </div>
-    );
-  }
-
-  // Add console logging for debugging
-  console.log("Rendering media results:", displayedResults);
-
+  // Change from a standard div to the ScrollContainer for search results
   return (
-    <motion.div
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ staggerChildren: 0.1 }}
-    >
-      {renderSafeResults()}
-    </motion.div>
+    <div className="search-results-container w-full">
+      {!hasSearched ? (
+        <div className="text-center py-8 text-gray-400">
+          Search for movies or TV shows to see results
+        </div>
+      ) : isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      ) : displayedResults.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          No results found. Try a different search.
+        </div>
+      ) : (
+        <ScrollContainer 
+          maxHeight="80vh" 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4"
+          showShadows={true}
+        >
+          {renderSafeResults()}
+        </ScrollContainer>
+      )}
+    </div>
   );
 };
 

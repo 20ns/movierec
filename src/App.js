@@ -17,6 +17,7 @@ import Header from './components/Header';
 import AccountDetailsModal from './components/AccountDetailsModal'; // Import the new component
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToastProvider } from './components/ToastManager'; // Import ToastProvider
+import ScrollContainer from './components/ScrollContainer'; // Import ScrollContainer
 
 // Landing page component for non-authenticated users
 const LandingPage = ({ onSignInClick }) => {
@@ -555,131 +556,139 @@ function AppContent() {
         </>
       )}
 
-      <main className="relative z-10 pt-8">
-        <Routes>
-          <Route
-            path="/auth"
-            element={
-              <AuthPage
-                onSignupSuccess={handleAuthSuccess}
-                onSigninSuccess={handleAuthSuccess}
-              />
-            }
-          />
-          {/* Change the auth/* route to just /auth to fix 404 issues */}
-          
-          <Route
-            path="/onboarding"
-            element={
-              isAuthenticated ? (
-                <OnboardingQuestionnaire 
-                  currentUser={currentUser} 
-                  onComplete={() => {
-                    setHasCompletedQuestionnaire(true);
-                    navigate('/');
-                  }}
+      {/* Wrap the main content in our ScrollContainer */}
+      <ScrollContainer
+        className="relative z-10 pt-8 w-full"
+        maxHeight="none" // Allow full height
+        showShadows={false} // Don't show shadows on main content
+        style={{ height: 'calc(100vh - 80px)' }}
+      >
+        <main className="relative z-10 pt-8">
+          <Routes>
+            <Route
+              path="/auth"
+              element={
+                <AuthPage
+                  onSignupSuccess={handleAuthSuccess}
+                  onSigninSuccess={handleAuthSuccess}
                 />
-              ) : (
-                <Navigate to="/auth" replace />
-              )
-            }
-          />
-          
-          <Route
-            path="/"
-            element={
-              <div className="container mx-auto px-4 mt-12">
-                {isAuthenticated ? (
-                  <div className="space-y-12">
-                    {/* Personalized recommendations with improved loading */}
-                    <AnimatePresence mode="wait">
-                      {/* Show recommendations section or placeholder based on questionnaire status */}
-                      {showRecommendations && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          key="recommendations"
-                        >
-                          <PersonalizedRecommendations 
-                            key={recommendationsKey}
-                            ref={personalizedRecommendationsRef}
-                            currentUser={currentUser}
-                            isAuthenticated={isAuthenticated}
-                            preferencesUpdated={prefUpdateCounter}
-                            userPreferences={userPreferences}
-                            initialLoadComplete={initialLoadComplete}
-                          />
-                        </motion.div>
-                      )}
-                      
-                      {/* Show recommendation placeholder for users without completed questionnaire */}
-                      {!showRecommendations && initialLoadComplete && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          key="recommendation-prompt"
-                          className="mb-12"
-                        >
-                          <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-white">Personalize Your Experience</h2>
-                          </div>
-                          
-                          <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 mb-6 shadow-lg border border-indigo-800">
-                            <div className="flex items-center">
-                              <div className="mr-5">
-                                <SparklesIcon className="h-10 w-10 text-purple-300" />
-                              </div>
-                              <div>
-                                <h3 className="text-xl font-semibold text-white mb-2">Complete Your Preference Profile</h3>
-                                <p className="text-purple-200 leading-relaxed mb-4">
-                                  Take our quick questionnaire to get personalized movie and TV show recommendations
-                                  that match your unique taste!
-                                </p>
-                                <button
-                                  className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
-                                  onClick={() => setShowQuestionnaire(true)}
-                                >
-                                  Get Started
-                                </button>
+              }
+            />
+            {/* Change the auth/* route to just /auth to fix 404 issues */}
+            
+            <Route
+              path="/onboarding"
+              element={
+                isAuthenticated ? (
+                  <OnboardingQuestionnaire 
+                    currentUser={currentUser} 
+                    onComplete={() => {
+                      setHasCompletedQuestionnaire(true);
+                      navigate('/');
+                    }}
+                  />
+                ) : (
+                  <Navigate to="/auth" replace />
+                )
+              }
+            />
+            
+            <Route
+              path="/"
+              element={
+                <div className="container mx-auto px-4 mt-12">
+                  {isAuthenticated ? (
+                    <div className="space-y-12">
+                      {/* Personalized recommendations with improved loading */}
+                      <AnimatePresence mode="wait">
+                        {/* Show recommendations section or placeholder based on questionnaire status */}
+                        {showRecommendations && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            key="recommendations"
+                          >
+                            <PersonalizedRecommendations 
+                              key={recommendationsKey}
+                              ref={personalizedRecommendationsRef}
+                              currentUser={currentUser}
+                              isAuthenticated={isAuthenticated}
+                              preferencesUpdated={prefUpdateCounter}
+                              userPreferences={userPreferences}
+                              initialLoadComplete={initialLoadComplete}
+                            />
+                          </motion.div>
+                        )}
+                        
+                        {/* Show recommendation placeholder for users without completed questionnaire */}
+                        {!showRecommendations && initialLoadComplete && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            key="recommendation-prompt"
+                            className="mb-12"
+                          >
+                            <div className="flex justify-between items-center mb-6">
+                              <h2 className="text-2xl font-bold text-white">Personalize Your Experience</h2>
+                            </div>
+                            
+                            <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 mb-6 shadow-lg border border-indigo-800">
+                              <div className="flex items-center">
+                                <div className="mr-5">
+                                  <SparklesIcon className="h-10 w-10 text-purple-300" />
+                                </div>
+                                <div>
+                                  <h3 className="text-xl font-semibold text-white mb-2">Complete Your Preference Profile</h3>
+                                  <p className="text-purple-200 leading-relaxed mb-4">
+                                    Take our quick questionnaire to get personalized movie and TV show recommendations
+                                    that match your unique taste!
+                                  </p>
+                                  <button
+                                    className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
+                                    onClick={() => setShowQuestionnaire(true)}
+                                  >
+                                    Get Started
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      
+                      {/* Trending content section */}
+                      <TrendingSection currentUser={currentUser} />
+                      
+                      {/* Category browser section */}
+                      <CategoryBrowser onCategorySelect={setSelectedGenre} />
+                      
+                      {/* Genre-specific results */}
+                      {selectedGenre && (
+                        <div className="mt-8">
+                          <GenreResults 
+                            genreId={selectedGenre}
+                            currentUser={currentUser}
+                          />
+                        </div>
                       )}
-                    </AnimatePresence>
-                    
-                    {/* Trending content section */}
-                    <TrendingSection currentUser={currentUser} />
-                    
-                    {/* Category browser section */}
-                    <CategoryBrowser onCategorySelect={setSelectedGenre} />
-                    
-                    {/* Genre-specific results */}
-                    {selectedGenre && (
-                      <div className="mt-8">
-                        <GenreResults 
-                          genreId={selectedGenre}
-                          currentUser={currentUser}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <LandingPage onSignInClick={handleSignInClick} />
-                )}
-              </div>
-            }
-          />
-          
-          {/* Add a catch-all redirect to handle any 404s */}
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
-        </Routes>
-      </main>
+                    </div>
+                  ) : (
+                    <LandingPage onSignInClick={handleSignInClick} />
+                  )}
+                </div>
+              }
+            />
+            
+            {/* Add a catch-all redirect to handle any 404s */}
+            <Route
+              path="*"
+              element={<Navigate to="/" replace />}
+            />
+          </Routes>
+        </main>
+      </ScrollContainer>
     </>
   );
 }

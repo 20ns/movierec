@@ -2,9 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
+/* Global scrolling behavior */
 html {
   scroll-behavior: smooth;
+  height: 100%;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
 body {
@@ -18,13 +20,17 @@ body {
   background-color: #f0f0f0;
   margin: 0;
   padding: 0;
+  overflow-y: overlay; /* Modern overlay scrollbars */
+  overflow-x: hidden;
+  scroll-padding-top: 80px; /* Account for fixed header when scrolling to anchors */
 }
 
-/* Custom scrollbar styles */
+/* More refined custom scrollbar styles for the entire site */
 * {
   /* Firefox */
   scrollbar-width: thin;
-  scrollbar-color: rgba(79, 70, 229, 0.5) rgba(17, 24, 39, 0.3);
+  scrollbar-color: rgba(99, 102, 241, 0.5) rgba(17, 24, 39, 0.2);
+  scroll-behavior: smooth;
 }
 
 /* Chrome, Edge, and Safari */
@@ -34,29 +40,35 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.3);
+  background: rgba(17, 24, 39, 0.2);
   border-radius: 10px;
+  margin: 2px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(79, 70, 229, 0.5);
+  background-color: rgba(99, 102, 241, 0.5);
   border-radius: 10px;
-  border: 2px solid rgba(17, 24, 39, 0.3);
-  transition: all 0.2s ease;
+  border: 2px solid rgba(17, 24, 39, 0.1);
+  transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(79, 70, 229, 0.7);
+  background-color: rgba(99, 102, 241, 0.8);
 }
 
-/* Add this after your existing scrollbar styles */
+::-webkit-scrollbar-corner {
+  background: rgba(17, 24, 39, 0.1);
+}
 
+/* Enhanced custom scrollbar for content areas */
 .custom-scrollbar {
   /* Firefox */
   scrollbar-width: thin;
-  scrollbar-color: rgba(99, 102, 241, 0.6) rgba(17, 24, 39, 0.2);
-  scroll-padding: 5px;
+  scrollbar-color: rgba(129, 140, 248, 0.6) rgba(17, 24, 39, 0.1);
+  scroll-padding: 8px;
   transition: all 0.3s ease;
+  scroll-behavior: smooth;
+  overflow-y: overlay; /* Modern approach */
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -65,36 +77,60 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.2);
+  background: rgba(17, 24, 39, 0.1);
   border-radius: 8px;
-  margin: 5px;
+  margin: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(99, 102, 241, 0.6);
+  background-color: rgba(129, 140, 248, 0.6);
   border-radius: 8px;
-  border: 2px solid rgba(17, 24, 39, 0.2);
+  border: 2px solid rgba(17, 24, 39, 0.1);
+  transition: background-color 0.3s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(99, 102, 241, 0.8);
+  background-color: rgba(129, 140, 248, 0.8);
+}
+
+/* Smooth appearance/disappearance of scrollbars */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  opacity: 1;
 }
 
 /* Shadow effects for scroll indicators */
 .shadow-inner-top {
-  box-shadow: inset 0 10px 8px -8px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 8px 6px -6px rgba(0, 0, 0, 0.2);
 }
 
 .shadow-inner-bottom {
-  box-shadow: inset 0 -10px 8px -8px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 -8px 6px -6px rgba(0, 0, 0, 0.2);
 }
 
 .shadow-inner-top.shadow-inner-bottom {
   box-shadow: 
-    inset 0 10px 8px -8px rgba(0, 0, 0, 0.3),
-    inset 0 -10px 8px -8px rgba(0, 0, 0, 0.3);
+    inset 0 8px 6px -6px rgba(0, 0, 0, 0.2),
+    inset 0 -8px 6px -6px rgba(0, 0, 0, 0.2);
 }
 
+/* Add smooth scrolling to all main content containers */
+main, section, .content-container, .results-container {
+  scroll-behavior: smooth;
+  scroll-padding: 20px;
+}
+
+/* Utility class for elements that should have smooth scrolling */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  scroll-padding: 20px;
+}
+
+/* Keep the rest of the existing styles */
 #backgroundCanvas {
   position: fixed;
   top: 0;
@@ -106,6 +142,7 @@ body {
   overflow: hidden;
 }
 
+/* Add the custom-scrollbar class to search results */
 .search-container {
   width: 100%;
   max-width: 1200px;
@@ -113,6 +150,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  scroll-behavior: smooth;
+  overflow: hidden;
 }
 
 .search-results {
@@ -122,8 +161,11 @@ body {
   max-width: 1200px;
   margin: 20px auto;
   flex-wrap: nowrap;
-  position: relative; /* Add this */
-  z-index: 0;      /* Add this, or use a smaller value than suggestions */
+  position: relative;
+  z-index: 0;
+  scroll-behavior: smooth;
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal overflow */
 }
 
 .search-results .result-item {
