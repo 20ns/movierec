@@ -84,33 +84,24 @@ function AccountDetailsModal({ currentUser, onClose }) {
         {/* Content */}
         <div className="p-5">
           {activeTab === 'profile' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm text-gray-400">Email</h3>
-                <p className="text-white">{currentUser?.attributes?.email || currentUser?.signInUserSession?.idToken?.payload?.email || 'N/A'}</p>
+            <div className="space-y-6">
+              <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
+                <h3 className="text-sm text-gray-400 mb-2">Email</h3>
+                <p className="text-white text-lg">{currentUser?.attributes?.email || currentUser?.signInUserSession?.idToken?.payload?.email || 'N/A'}</p>
               </div>
               
-              <div>
-                <h3 className="text-sm text-gray-400">User ID</h3>
-                <p className="text-white font-mono text-xs bg-gray-800 p-2 rounded overflow-x-auto">
+              <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
+                <h3 className="text-sm text-gray-400 mb-2">User ID</h3>
+                <p className="text-white font-mono text-xs bg-gray-800 p-3 rounded-md overflow-x-auto border border-gray-700">
                   {userId}
                 </p>
               </div>
+
+              {/* Account created and Last session information removed */}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm text-gray-400">Account Created</h3>
-                  <p className="text-white">
-                    {creationDate ? formatDate(creationDate * 1000) : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm text-gray-400">Last Session</h3>
-                  <p className="text-white">
-                    {currentUser?.signInUserSession ? 
-                      formatDate(currentUser.signInUserSession.idToken.payload.auth_time * 1000) : 
-                      'N/A'}
-                  </p>
+              <div className="mt-4 flex justify-center">
+                <div className="px-4 py-2 bg-gray-800/70 rounded-full text-gray-400 text-sm border border-gray-700/50">
+                  Account in good standing
                 </div>
               </div>
             </div>
@@ -118,20 +109,22 @@ function AccountDetailsModal({ currentUser, onClose }) {
           
           {activeTab === 'preferences' && (
             <div className="space-y-4">
-              <p className="text-gray-300">
+              <p className="text-gray-300 text-center">
                 Manage your movie preferences to get better recommendations.
               </p>
               
-              <button
-                onClick={() => {
-                  onClose();
-                  // Delay slightly to prevent visual conflicts between modals
-                  setTimeout(() => document.dispatchEvent(new CustomEvent('open-preferences')), 100);
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all text-sm"
-              >
-                Edit Preferences
-              </button>
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => {
+                    onClose();
+                    // Delay slightly to prevent visual conflicts between modals
+                    setTimeout(() => document.dispatchEvent(new CustomEvent('open-preferences')), 100);
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+                >
+                  Edit Preferences
+                </button>
+              </div>
             </div>
           )}
         </div>

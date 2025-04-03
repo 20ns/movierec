@@ -61,6 +61,14 @@ const RUNTIME_OPTIONS = [
   { id: 'any', name: 'Any Length' }
 ];
 
+const MODAL_STYLES = {
+  width: "100%",
+  maxWidth: "800px",
+  minHeight: "600px",
+  display: "flex",
+  flexDirection: "column"
+};
+
 const OnboardingQuestionnaire = ({ 
   currentUser, 
   onComplete, 
@@ -192,240 +200,121 @@ const OnboardingQuestionnaire = ({
   };
 
   return (
-    <div className={`bg-gray-900 text-white rounded-lg shadow-xl ${isModal ? 'p-6' : 'p-8 max-w-3xl mx-auto mt-8 mb-20'}`}>
-      {/* Header area with title and close button if it's a modal */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">
-          {isUpdate ? 'Update Your Preferences' : 'Personalize Your Experience'}
-        </h1>
-        {isModal && (
-          <button 
-            onClick={skipOnboarding}
-            className="text-gray-400 hover:text-white"
-          >
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        )}
-      </div>
-      
-      {/* Progress indicator */}
-      <div className="mb-8">
-        <div className="h-1 w-full bg-gray-700 rounded-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black bg-opacity-75">
+      <div 
+        className="bg-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden transition-all"
+        style={MODAL_STYLES}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-gray-700 bg-gray-800">
+          <h2 className="text-xl font-bold text-white">
+            {isUpdate ? 'Update Your Preferences' : 'Set Your Preferences'}
+          </h2>
+          {isModal && (
+            <button 
+              onClick={onSkip}
+              className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        
+        {/* Progress bar */}
+        <div className="w-full bg-gray-800 h-2">
           <div 
-            className="h-1 bg-indigo-500 rounded-full transition-all duration-300"
+            className="h-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all duration-300"
             style={{ width: `${(step / totalSteps) * 100}%` }}
           ></div>
         </div>
-        <div className="text-right text-sm text-gray-400 mt-2">
-          Step {step} of {totalSteps}
-        </div>
-      </div>
-      
-      {/* Error message */}
-      {error && (
-        <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200">
-          {error}
-        </div>
-      )}
-      
-      {/* Questionnaire steps */}
-      <div className="min-h-[300px]">
-        <AnimatePresence mode="wait">
-          {/* Step 1: Genre preferences */}
-          {step === 1 && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <h2 className="text-xl font-semibold text-white mb-4">
-                What genres do you enjoy?
-              </h2>
-              <p className="text-gray-400 mb-4">Select all that interest you.</p>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-                {GENRE_OPTIONS.map(genre => (
-                  <button
-                    key={genre.id}
-                    onClick={() => toggleArrayItem('favoriteGenres', genre.id)}
-                    className={`py-3 px-4 rounded-lg transition-all duration-200 ${
-                      preferences.favoriteGenres?.includes(genre.id) 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {genre.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {/* Step 2: Content type preference */}
-          {step === 2 && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <h2 className="text-xl font-semibold text-white mb-4">
-                Do you prefer movies or TV shows?
-              </h2>
-              <p className="text-gray-400 mb-4">We'll focus on what you enjoy most.</p>
-              
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                {[
-                  { id: 'movies', name: 'Movies' },
-                  { id: 'tv', name: 'TV Shows' },
-                  { id: 'both', name: 'Both Equally' }
-                ].map(option => (
-                  <button
-                    key={option.id}
-                    onClick={() => updatePreference('contentType', option.id)}
-                    className={`py-3 px-4 rounded-lg transition-all duration-200 ${
-                      preferences.contentType === option.id 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {option.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {/* Step 3: Mood preferences */}
-          {step === 3 && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <h2 className="text-xl font-semibold text-white mb-4">
-                What kind of mood do you enjoy in content?
-              </h2>
-              <p className="text-gray-400 mb-4">Select all that apply.</p>
-              
-              <div className="flex flex-col gap-3 mb-6">
-                {MOOD_OPTIONS.map(mood => (
-                  <button
-                    key={mood.id}
-                    onClick={() => toggleArrayItem('moodPreferences', mood.id)}
-                    className={`py-3 px-4 rounded-lg transition-all duration-200 text-left ${
-                      preferences.moodPreferences?.includes(mood.id) 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {mood.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {/* Step 4: Era preferences */}
-          {step === 4 && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <h2 className="text-xl font-semibold text-white mb-4">
-                Which time periods do you prefer?
-              </h2>
-              <p className="text-gray-400 mb-4">Select all that apply.</p>
-              
-              <div className="flex flex-col gap-3 mb-6">
-                {ERA_OPTIONS.map(era => (
-                  <button
-                    key={era.id}
-                    onClick={() => toggleArrayItem('eraPreferences', era.id)}
-                    className={`py-3 px-4 rounded-lg transition-all duration-200 text-left ${
-                      preferences.eraPreferences?.includes(era.id) 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {era.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {/* Step 5: Language preferences (new) */}
-          {step === 5 && !isUpdate && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <h2 className="text-xl font-semibold text-white mb-4">
-                Do you have language preferences?
-              </h2>
-              <p className="text-gray-400 mb-4">Select all that you're comfortable with.</p>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-                {LANGUAGE_OPTIONS.map(language => (
-                  <button
-                    key={language.id}
-                    onClick={() => toggleArrayItem('languagePreferences', language.id)}
-                    className={`py-3 px-4 rounded-lg transition-all duration-200 text-center ${
-                      preferences.languagePreferences?.includes(language.id) 
-                        ? 'bg-indigo-600 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {language.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
         
-      {/* Navigation buttons */}
-      <div className="flex justify-between mt-8">
-        <div>
+        {/* Content area with fixed height */}
+        <div className="flex-grow p-6 flex flex-col" style={{ minHeight: "400px" }}>
+          {/* Question title */}
+          <h3 className="text-2xl font-bold mb-6 text-white text-center">
+            {getQuestionTitle(step)}
+          </h3>
+          
+          {/* Options container with consistent height */}
+          <div className="flex-grow flex flex-col justify-center">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 content-center">
+              {/* The options will be rendered here based on the current step */}
+              {renderQuestionOptions(step)}
+            </div>
+          </div>
+          
+          {error && (
+            <div className="mt-4 p-4 bg-red-900 bg-opacity-50 border border-red-700 rounded-lg text-red-200">
+              {error}
+            </div>
+          )}
+        </div>
+        
+        {/* Footer with navigation buttons */}
+        <div className="p-5 border-t border-gray-700 bg-gray-800 flex items-center justify-between">
           {step > 1 ? (
             <button
-              onClick={prevStep}
-              className="px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
+              onClick={() => setStep(step - 1)}
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50"
             >
               Back
             </button>
-          ) : isModal && (
+          ) : (
             <button
-              onClick={skipOnboarding}
-              className="px-6 py-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
+              onClick={onSkip}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
             >
               Skip
             </button>
           )}
+          
+          <div className="text-sm text-gray-400">
+            Step {step} of {totalSteps}
+          </div>
+          
+          <button
+            onClick={step === totalSteps ? handleSubmit : () => setStep(step + 1)}
+            disabled={isSubmitting}
+            className={`px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 
+                         hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg
+                         disabled:opacity-50 flex items-center`}
+          >
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              step === totalSteps ? 'Finish' : 'Next'
+            )}
+          </button>
         </div>
-        <button
-          onClick={nextStep}
-          disabled={isLoading}
-          className={`px-6 py-2 rounded-full transition-colors ${
-            isLoading 
-              ? 'bg-indigo-800 cursor-not-allowed' 
-              : 'bg-indigo-600 hover:bg-indigo-700'
-          } text-white min-w-[100px]`}
-        >
-          {isLoading ? (
-            <span className="inline-block animate-pulse">Processing...</span>
-          ) : step === totalSteps ? (
-            isUpdate ? 'Update' : 'Finish'
-          ) : (
-            'Next'
-          )}
-        </button>
       </div>
     </div>
   );
 };
+
+function getQuestionTitle(step) {
+  switch (step) {
+    case 1:
+      return "What genres do you enjoy?";
+    case 2:
+      return "What type of content do you prefer?";
+    case 3:
+      return "What mood are you usually in for movies?";
+    case 4:
+      return "Do you have a preferred era?";
+    case 5:
+      return "Any language preferences?";
+    default:
+      return "Tell us your preferences";
+  }
+}
 
 export default OnboardingQuestionnaire;
