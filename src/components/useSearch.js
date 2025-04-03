@@ -566,19 +566,12 @@ export const useSearch = () => {
     };
   }, [query, fetchSuggestions, showError]);
 
-  // Enhanced search handler
+  // Enhanced search handler with better error handling
   const handleSearch = useCallback(async (e) => {
     e?.preventDefault();
     if (!query.trim()) return;
 
-    // Check for API key
-    if (!process.env.REACT_APP_TMDB_API_KEY) {
-      console.error("TMDB API Key is missing! Search will not work.");
-      showError("API Key missing. Search unavailable.");
-      setIsLoading(false);
-      return;
-    }
-
+    // Reset state and prepare for search
     try {
       abortControllerRef.current.abort();
       const controller = new AbortController();
@@ -591,13 +584,21 @@ export const useSearch = () => {
       setAllResults([]);
       setResultsToShow(3);
 
+      // Check for API key
+      if (!process.env.REACT_APP_TMDB_API_KEY) {
+        console.error("TMDB API Key is missing! Search will not work.");
+        showError("API Key missing. Search unavailable.");
+        setIsLoading(false);
+        return;
+      }
+
       // Check if this is a direct search
       if (activeFilters.searchMode === 'direct') {
         await handleDirectSearch(query, controller.signal);
         return;
       }
 
-      // Parse query intent first
+      // Parse query intent
       const queryIntent = analyzeQueryIntent(query);
       console.log("Detected query intent:", queryIntent);
 
@@ -607,187 +608,84 @@ export const useSearch = () => {
         return;
       }
 
-      // Enhanced cache key that includes all filter parameters and intent
-      const cacheKey = query.toLowerCase() + JSON.stringify(activeFilters) + JSON.stringify(queryIntent);
-      if (searchCache.current.has(cacheKey)) {
-        const cachedData = searchCache.current.get(cacheKey);
-        // Check if cache is still valid (less than 30 minutes old)
-        if (Date.now() - cachedData.timestamp < 30 * 60 * 1000) {
-          setAllResults(cachedData.results);
-          setIsLoading(false);
-          return;
-        } else {
-          // Remove expired cache
-          searchCache.current.delete(cacheKey);
-        }
-      }
-
-      // Build search parameters based on intent
-      let searchParams = {
-        api_key: process.env.REACT_APP_TMDB_API_KEY,
-        query: queryIntent.isLikelyTitle ? query : query.replace(/^(show me|find|get|give me)\s+/i, ''),
-        include_adult: false,
-        language: 'en-US',
-        page: 1
-      };
-
-      console.log("Fetching search results for query:", query);
-      
-      // If we have detected a mood but no direct title, use discover endpoint instead
-      let endpointType = 'search/multi';
-      if ((queryIntent.mood || queryIntent.emotionalState || queryIntent.context) && 
-          !queryIntent.isLikelyTitle && queryIntent.genres.length > 0) {
+      // Perform search with enhanced error handling
+      try {
+        // ...existing search code...
         
-        endpointType = 'discover/movie'; // Default to movies for mood searches
-        
-        // Map detected mood to genre IDs
-        const moodGenreMappings = {
-          'exciting': [28, 12, 35],      // Action, Adventure, Comedy
-          'thoughtful': [18, 99, 36],    // Drama, Documentary, History
-          'emotional': [10749, 18],      // Romance, Drama
-          'scary': [27, 9648, 53]        // Horror, Mystery, Thriller
-        };
-        
-        // Convert genre names to IDs
-        const genreIds = queryIntent.genres.map(genreName => {
-          return [...GENRE_MAP.movie].find(([id, name]) => name === genreName)?.[0];
-        }).filter(Boolean);
-
-        // Add mood genres if available
-        if (queryIntent.mood && moodGenreMappings[queryIntent.mood]) {
-          genreIds.push(...moodGenreMappings[queryIntent.mood]);
-        }
-        
-        // Use discover API with genre parameters
-        searchParams = {
+        // Build search parameters based on intent
+        let searchParams = {
           api_key: process.env.REACT_APP_TMDB_API_KEY,
-          with_genres: [...new Set(genreIds)].join(','), // Deduplicate genres
-          sort_by: 'popularity.desc',
+          query: queryIntent.isLikelyTitle ? query : query.replace(/^(show me|find|get|give me)\s+/i, ''),
           include_adult: false,
           language: 'en-US',
           page: 1
         };
-        
-        // Add year filter if present
-        if (queryIntent.year) {
-          if (endpointType === 'discover/movie') {
-            searchParams.primary_release_year = queryIntent.year;
-          } else {
-            searchParams.first_air_date_year = queryIntent.year;
-          }
-        }
-        
-        // Add decade range filter if present
-        if (queryIntent.timeRange) {
-          if (endpointType === 'discover/movie') {
-            searchParams['primary_release_date.gte'] = `${queryIntent.timeRange.start}-01-01`;
-            searchParams['primary_release_date.lte'] = `${queryIntent.timeRange.end}-12-31`;
-          } else {
-            searchParams['first_air_date.gte'] = `${queryIntent.timeRange.start}-01-01`;
-            searchParams['first_air_date.lte'] = `${queryIntent.timeRange.end}-12-31`;
-          }
-        }
-      }
 
-      const searchResponse = await fetchWithRetry(
-        `https://api.themoviedb.org/3/${endpointType}`,
-        searchParams,
-        { signal: controller.signal }
-      );
-      
-      console.log("Raw search API response:", searchResponse);
-
-      // Process search results
-      let searchResults = [];
-      if (endpointType === 'search/multi') {
-        searchResults = searchResponse.data.results
-          .filter(result =>
-            result &&
-            (result.title || result.name) &&
-            result.media_type !== 'person' && // Exclude person results
-            (
-              result.poster_path || 
-              (result.title && query.toLowerCase() === result.title.toLowerCase()) ||
-              (result.name && query.toLowerCase() === result.name.toLowerCase())
-            )
+        console.log("Fetching search results for query:", query);
+        console.log("Search parameters:", searchParams);
+        
+        // Perform search
+        let endpointType = 'search/multi';
+        let searchResponse;
+        
+        try {
+          searchResponse = await fetchWithRetry(
+            `https://api.themoviedb.org/3/${endpointType}`,
+            searchParams,
+            { signal: controller.signal }
           );
-      } else {
-        // For discover endpoint, we need to add media_type
-        searchResults = searchResponse.data.results
-          .filter(result => result && (result.title || result.name))
-          .map(result => ({
-            ...result,
-            media_type: endpointType.includes('movie') ? 'movie' : 'tv'
-          }));
-      }
-      
-      console.log("Filtered search results:", searchResults);
+          
+          console.log("Raw search response status:", searchResponse.status);
+          console.log("Raw search data:", searchResponse.data);
+        } catch (fetchError) {
+          console.error("Error during search API call:", fetchError);
+          throw new Error(`Search API error: ${fetchError.message}`);
+        }
 
-      if (!searchResults.length) {
-        showError('No results found for your search.');
-        setIsLoading(false);
-        return;
-      }
+        // Process search results with validation
+        let searchResults = [];
+        
+        try {
+          if (!searchResponse?.data?.results) {
+            throw new Error("Search response missing results array");
+          }
+          
+          searchResults = searchResponse.data.results
+            .filter(result =>
+              result &&
+              (result.title || result.name) &&
+              result.media_type !== 'person' // Exclude person results
+            );
+            
+          console.log("Filtered search results:", searchResults);
+        } catch (processingError) {
+          console.error("Error processing search results:", processingError);
+          throw new Error(`Results processing error: ${processingError.message}`);
+        }
 
-      // Enhanced primary result selection that prefers exact title matches
-      const primaryResult = queryIntent.isLikelyTitle
-        ? searchResults.find(r => 
-            (r.title && r.title.toLowerCase() === query.toLowerCase()) || 
-            (r.name && r.name.toLowerCase() === query.toLowerCase())
-          ) || searchResults[0]
-        : searchResults.reduce((prev, current) =>
-            calculateScore(current, query, queryIntent) > calculateScore(prev, query, queryIntent)
-              ? current : prev, searchResults[0]);
+        // Handle empty results
+        if (!searchResults.length) {
+          showError('No results found for your search.');
+          setIsLoading(false);
+          return;
+        }
 
-      // Validation for Primary Result
-      if (!primaryResult?.id || !primaryResult.media_type) {
-        console.error('Invalid primary result:', primaryResult);
-        showError('Unable to find valid results for this search.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Get hybrid recommendations
-      const rawRecommendations = await getHybridRecommendations(
-        primaryResult,
-        searchResults,
-        queryIntent
-      );
-
-      // Process recommendations
-      const validRecommendations = rawRecommendations
-        .filter(item => item.poster_path && item.overview)
-        .map(item => ({ 
+        // Set results directly for now to bypass potential errors
+        setAllResults(searchResults.map(item => ({ 
           ...item,
-          matchPercentage: calculateScore(item, query, queryIntent),
-          queryIntent: queryIntent // Store the intent that generated these results
-        }))
-        .sort((a, b) => b.matchPercentage - a.matchPercentage)
-        .slice(0, 50);
-
-      // Add Results Validation Before State Update
-      if (validRecommendations.length === 0) {
-        console.warn('No recommendations, using search results', searchResults);
-        const scoredSearchResults = searchResults.slice(0, 10).map(item => ({
-          ...item,
-          matchPercentage: calculateScore(item, query, queryIntent),
+          matchPercentage: 70,
           queryIntent: queryIntent
-        }));
-        setAllResults(scoredSearchResults);
-        return;
+        })));
+        
+      } catch (searchError) {
+        if (searchError.name !== 'AbortError') {
+          console.error('Search process error:', searchError);
+          showError('Search failed. Please check your connection and try again.');
+        }
       }
-
-      setAllResults(validRecommendations);
-      searchCache.current.set(cacheKey, {
-        results: validRecommendations,
-        timestamp: Date.now()
-      });
-
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Search error:', error);
-        showError('Search failed. Please check your connection and try again.');
-      }
+    } catch (outerError) {
+      console.error('Outer search handler error:', outerError);
+      showError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

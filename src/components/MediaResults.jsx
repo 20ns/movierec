@@ -9,6 +9,34 @@ export const MediaResults = ({
   handleResultClick,
   currentUser
 }) => {
+  // Add error boundary
+  const renderSafeResults = () => {
+    try {
+      return displayedResults.map((result) => (
+        <motion.div
+          key={`${result.id}-${result.media_type}`}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <MediaCard
+            result={result}
+            currentUser={currentUser}
+            onClick={() => handleResultClick(result)}
+            promptLogin={() => {}}
+          />
+        </motion.div>
+      ));
+    } catch (error) {
+      console.error("Error rendering media results:", error);
+      return (
+        <div className="col-span-full p-4 bg-red-100 text-red-800 rounded-lg">
+          <p>Error displaying results. Please try refreshing the page.</p>
+        </div>
+      );
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="w-full flex-grow flex flex-col items-center justify-center">
@@ -29,7 +57,7 @@ export const MediaResults = ({
     );
   }
 
-  if (displayedResults.length === 0) {
+  if (!displayedResults || displayedResults.length === 0) {
     return (
       <div className="w-full flex-grow flex flex-col items-center justify-center text-center px-4">
         <h2 className="text-xl font-bold text-gray-300 mb-2">No results found</h2>
@@ -40,6 +68,9 @@ export const MediaResults = ({
     );
   }
 
+  // Add console logging for debugging
+  console.log("Rendering media results:", displayedResults);
+
   return (
     <motion.div
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full"
@@ -47,21 +78,7 @@ export const MediaResults = ({
       animate={{ opacity: 1 }}
       transition={{ staggerChildren: 0.1 }}
     >
-      {displayedResults.map((result) => (
-        <motion.div
-          key={`${result.id}-${result.media_type}`}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <MediaCard
-            result={result}
-            currentUser={currentUser}
-            onClick={() => handleResultClick(result)}
-            promptLogin={() => {}}
-          />
-        </motion.div>
-      ))}
+      {renderSafeResults()}
     </motion.div>
   );
 };

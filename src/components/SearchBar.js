@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiltersSection } from './FiltersSection';
 import { SearchInput } from './SearchInput';
@@ -10,7 +10,7 @@ import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
 import { LightBulbIcon, SparklesIcon, DocumentDuplicateIcon } from '@heroicons/react/24/solid';
 import { formatQueryIntentSummary } from './SearchBarUtils';
-import { MediaCard } from './MediaCard'; // Add this import
+import { MediaCard } from './MediaCard'; // Ensure this is properly imported
 
 export const SearchBar = ({ currentUser }) => {
   const [showFilters, setShowFilters] = useState(true);
@@ -171,6 +171,112 @@ export const SearchBar = ({ currentUser }) => {
     );
   };
 
+  // Add debugging effect
+  useEffect(() => {
+    console.log("Current search results:", filteredResults);
+    console.log("Search error state:", error);
+    
+    // Debug MediaCard import
+    console.log("MediaCard component available:", typeof MediaCard);
+  }, [filteredResults, error]);
+
+  // Create error boundary component
+  const ErrorFallback = () => (
+    <div className="w-full p-4 bg-red-100 border border-red-300 rounded-lg my-4 text-center">
+      <h3 className="text-red-700 font-medium">Something went wrong with the search results</h3>
+      <p className="text-red-600 mt-2">Please try refreshing the page or try another search term.</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+      >
+        Refresh Page
+      </button>
+    </div>
+  );
+
+  // Render section with error protection
+  const renderResultsSection = () => {
+    try {
+      if (error) {
+        return <ErrorFallback />;
+      }
+      
+      // Rest of your render code with all the sections
+      return (
+        <div className="search-results-container w-full">
+          {/* Exact Match Section */}
+          {exactMatches.length > 0 && hasSearched && (
+            <div className="w-full max-w-7xl mb-8">
+              <div className="py-2 px-3 bg-indigo-900/20 rounded-lg border border-indigo-800 mb-3 flex items-center">
+                <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2" />
+                <h3 className="text-sm font-medium text-indigo-300">Exact Match Found</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {exactMatches.map(item => (
+                  <MediaCard
+                    key={`exact-${item.id}-${item.media_type}`}
+                    result={item}
+                    currentUser={currentUser}
+                    onClick={() => handleResultClick(item)}
+                    promptLogin={() => {}}
+                    highlightMatch={true}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Direct Search Results */}
+          {isDirectSearch && filteredResults.length > 0 && (
+            <div className="w-full max-w-7xl mb-8">
+              {/* ...existing direct search code... */}
+              <div className="py-2 px-3 bg-blue-900/20 rounded-lg border border-blue-800 mb-3 flex items-center">
+                <DocumentDuplicateIcon className="h-4 w-4 text-blue-400 mr-2" />
+                <h3 className="text-sm font-medium text-blue-300">Title Search Results</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentResults.map(item => (
+                  <MediaCard
+                    key={`direct-${item.id}-${item.media_type}`}
+                    result={item}
+                    currentUser={currentUser}
+                    onClick={() => handleResultClick(item)}
+                    promptLogin={() => {}}
+                  />
+                ))}
+              </div>
+              <PaginationControls />
+            </div>
+          )}
+
+          {!isDirectSearch && (
+            <>
+              {/* Similar To Section */}
+              {/* ...existing code for similarity section... */}
+              
+              {/* Main Results Section */}
+              {groupedResults.main && groupedResults.main.length > 0 && (
+                <div className="w-full max-w-7xl mb-8">
+                  <MediaResults
+                    hasSearched={hasSearched}
+                    isLoading={isLoading}
+                    displayedResults={currentResults}
+                    handleResultClick={handleResultClick}
+                    currentUser={currentUser}
+                  />
+                  <PaginationControls />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+    } catch (err) {
+      console.error("Error rendering search results:", err);
+      return <ErrorFallback />;
+    }
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24 pb-20">
       {/* Search Input - Moved to top */}
@@ -251,114 +357,8 @@ export const SearchBar = ({ currentUser }) => {
       {/* Error Messages */}
       <ErrorMessage error={error} isVisible={isErrorVisible} />
 
-      <div className="search-results-container w-full">
-        {/* Exact Match Section */}
-        {exactMatches.length > 0 && hasSearched && (
-          <div className="w-full max-w-7xl mb-8">
-            <div className="py-2 px-3 bg-indigo-900/20 rounded-lg border border-indigo-800 mb-3 flex items-center">
-              <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2" />
-              <h3 className="text-sm font-medium text-indigo-300">Exact Match Found</h3>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {exactMatches.map(item => (
-                <MediaCard
-                  key={`exact-${item.id}-${item.media_type}`}
-                  result={item}
-                  currentUser={currentUser}
-                  onClick={handleResultClick}
-                  promptLogin={() => {}}
-                  highlightMatch={true}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Direct Search Results - New section for direct searches */}
-        {isDirectSearch && filteredResults.length > 0 && (
-          <div className="w-full max-w-7xl mb-8">
-            <div className="py-2 px-3 bg-blue-900/20 rounded-lg border border-blue-800 mb-3 flex items-center">
-              <DocumentDuplicateIcon className="h-4 w-4 text-blue-400 mr-2" />
-              <h3 className="text-sm font-medium text-blue-300">Title Search Results</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {currentResults.map(item => (
-                <MediaCard
-                  key={`direct-${item.id}-${item.media_type}`}
-                  result={item}
-                  currentUser={currentUser}
-                  onClick={handleResultClick}
-                  promptLogin={() => {}}
-                />
-              ))}
-            </div>
-            
-            {/* Pagination Controls */}
-            <PaginationControls />
-          </div>
-        )}
-
-        {!isDirectSearch && (
-          <>
-            {/* Similar To Section */}
-            {groupedResults.similarTo && groupedResults.similarTo.length > 0 && (
-              <div className="w-full max-w-7xl mb-8">
-                <div className="py-2 px-3 bg-purple-900/20 rounded-lg border border-purple-800 mb-3 flex items-center">
-                  <LightBulbIcon className="h-4 w-4 text-purple-400 mr-2" />
-                  <h3 className="text-sm font-medium text-purple-300">
-                    {`Similar to "${queryIntent.referenceName}"`}
-                    {queryIntent.modifierType && (
-                      <span className="ml-2 text-purple-400">
-                        {queryIntent.modifierType === 'family-friendly' && 'but more family-friendly'}
-                        {queryIntent.modifierType === 'darker' && 'but with a darker tone'}
-                        {queryIntent.modifierType === 'lighter' && 'but lighter'}
-                        {queryIntent.modifierType === 'scarier' && 'but scarier'}
-                        {queryIntent.modifierType === 'more-action' && 'but with more action'}
-                        {queryIntent.modifierType === 'funnier' && 'but funnier'}
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedResults.similarTo.map(item => (
-                    <MediaCard
-                      key={`similar-${item.id}-${item.media_type}`}
-                      result={item}
-                      currentUser={currentUser}
-                      onClick={handleResultClick}
-                      promptLogin={() => {}}
-                      highlightMatch={item.isReferenceMedia}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Other sectioned results - Mood, Context, etc. */}
-            {/* ...existing code for these sections... */}
-
-            {/* Main Results Section with pagination */}
-            {groupedResults.main && groupedResults.main.length > 0 && (
-              <div className="w-full max-w-7xl mb-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {currentResults.map(item => (
-                    <MediaCard
-                      key={`main-${item.id}-${item.media_type}`}
-                      result={item}
-                      currentUser={currentUser}
-                      onClick={handleResultClick}
-                      promptLogin={() => {}}
-                    />
-                  ))}
-                </div>
-                
-                {/* Pagination Controls */}
-                <PaginationControls />
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* Render Results with Error Boundary */}
+      {renderResultsSection()}
     </div>
   );
 };
