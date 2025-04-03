@@ -199,6 +199,133 @@ const OnboardingQuestionnaire = ({
     if (onSkip) onSkip();
   };
 
+  const handleSubmit = () => {
+    savePreferences();
+  };
+  
+  // Function to render the appropriate options based on the current step
+  const renderQuestionOptions = (step) => {
+    switch (step) {
+      case 1:
+        // Genre selection
+        return GENRE_OPTIONS.map(genre => (
+          <motion.button
+            key={genre.id}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+              preferences.favoriteGenres.includes(genre.id)
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+            onClick={() => toggleArrayItem('favoriteGenres', genre.id)}
+          >
+            {genre.name}
+          </motion.button>
+        ));
+        
+      case 2:
+        // Content type preference
+        return (
+          <>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-lg text-sm font-medium transition-colors col-span-2 md:col-span-1 ${
+                preferences.contentType === 'movies'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+              onClick={() => updatePreference('contentType', 'movies')}
+            >
+              Movies
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-lg text-sm font-medium transition-colors col-span-2 md:col-span-1 ${
+                preferences.contentType === 'tv'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+              onClick={() => updatePreference('contentType', 'tv')}
+            >
+              TV Shows
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-lg text-sm font-medium transition-colors col-span-2 md:col-span-1 ${
+                preferences.contentType === 'both'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+              onClick={() => updatePreference('contentType', 'both')}
+            >
+              Both
+            </motion.button>
+          </>
+        );
+        
+      case 3:
+        // Mood preferences
+        return MOOD_OPTIONS.map(mood => (
+          <motion.button
+            key={mood.id}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+              preferences.moodPreferences.includes(mood.id)
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+            onClick={() => toggleArrayItem('moodPreferences', mood.id)}
+          >
+            {mood.name}
+          </motion.button>
+        ));
+        
+      case 4:
+        // Era preferences
+        return ERA_OPTIONS.map(era => (
+          <motion.button
+            key={era.id}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+              preferences.eraPreferences.includes(era.id)
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+            onClick={() => toggleArrayItem('eraPreferences', era.id)}
+          >
+            {era.name}
+          </motion.button>
+        ));
+        
+      case 5:
+        // Language preferences
+        return LANGUAGE_OPTIONS.map(language => (
+          <motion.button
+            key={language.id}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+              preferences.languagePreferences.includes(language.id)
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+            onClick={() => toggleArrayItem('languagePreferences', language.id)}
+          >
+            {language.name}
+          </motion.button>
+        ));
+        
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black bg-opacity-75">
       <div 
