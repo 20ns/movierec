@@ -691,7 +691,7 @@ export const useSearch = () => {
     }
   }, [query, activeFilters, showError, calculateScore, analyzeQueryIntent, getHybridRecommendations, handleDirectSearch, handleSimilaritySearch]);
 
-  // New function to handle "movies like X" searches with better title matching
+  // Enhanced similarity search with better anime handling
   const handleSimilaritySearch = useCallback(async (query, queryIntent, signal) => {
     try {
       console.log("Handling similarity search for:", queryIntent.similarTo);
@@ -711,8 +711,8 @@ export const useSearch = () => {
       
       // Check if we have any results at all
       if (!referenceSearch.data.results || referenceSearch.data.results.length === 0) {
-        // Try searching for the title directly with a relaxed filter
-        console.log(`No results for "${queryIntent.similarTo}", trying direct search`);
+        // Try searching with a more permissive search
+        console.log(`No results for "${queryIntent.similarTo}", trying with relaxed filters`);
         const directSearch = await fetchWithRetry(
           'https://api.themoviedb.org/3/search/multi',
           {
@@ -771,6 +771,17 @@ export const useSearch = () => {
       );
       
       const referenceDetails = detailsResponse.data;
+      console.log("Reference details:", referenceDetails);
+      
+      // Is this likely an anime? Check title, genres, keywords
+      const animeKeywords = ["anime", "animation", "manga", "japanese animation"];
+      const isAnime = 
+        (referenceDetails.genres?.some(g => g.name === "Animation")) &&
+        ((referenceDetails.keywords?.keywords || [])
+          .some(k => animeKeywords.includes(k.name.toLowerCase())) ||
+       (referenceMedia.title || referenceMedia.name || "").toLowerCase().includes("anime"));
+      
+      console.log("Is anime detection:", isAnime);
       
       // Try to get similar content
       let similarResults = [];
@@ -788,8 +799,11 @@ export const useSearch = () => {
           media_type: referenceMedia.media_type
         }));
         
+        console.log(`Similar results count from API: ${similarResults.length}`);
+        
         // If we don't have enough results, try recommendations
         if (similarResults.length < 5) {
+          console.log("Not enough similar results, trying recommendations");
           const recommendationsResponse = await fetchWithRetry(
             `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}/recommendations`,
             { api_key: process.env.REACT_APP_TMDB_API_KEY },
@@ -809,18 +823,27 @@ export const useSearch = () => {
               existingIds.add(item.id);
             }
           }
+          
+          console.log(`Combined similar+recommendations count: ${similarResults.length}`);
         }
         
-        // If still not enough results, use the genre-based discover endpoint
-        if (similarResults.length < 8 && referenceDetails.genres && referenceDetails.genres.length > 0) {
+        // For anime or shows with very few similar results, use broader genre matching
+        if ((isAnime || similarResults.length < 3) && referenceDetails.genres) {
+          console.log("Using genre-based discovery for anime/low-result show");
+          
+          // Extract genres for discovery
           const genreIds = referenceDetails.genres.map(g => g.id).join(',');
           
+          // New approach for anime: Add animation genre (16) and sort by popularity
           const discoverResponse = await fetchWithRetry(
             `https://api.themoviedb.org/3/discover/${referenceMedia.media_type}`,
             { 
               api_key: process.env.REACT_APP_TMDB_API_KEY,
-              with_genres: genreIds,
-              sort_by: 'popularity.desc'
+              with_genres: isAnime ? "16," + genreIds : genreIds, // Add animation genre for anime
+              sort_by: 'popularity.desc',
+              page: 1,
+              // For anime content, search specifically for Japanese language content
+              ...(isAnime ? { with_original_language: 'ja' } : {})
             },
             { signal }
           );
@@ -830,6 +853,30 @@ export const useSearch = () => {
             media_type: referenceMedia.media_type
           }));
           
+          // If it's anime, try another page for more variety
+          if (isAnime && discoverResults.length > 0) {
+            try {
+              const page2Response = await fetchWithRetry(
+                `https://api.themoviedb.org/3/discover/${referenceMedia.media_type}`,
+                { 
+                  api_key: process.env.REACT_APP_TMDB_API_KEY,
+                  with_genres: "16," + genreIds,
+                  sort_by: 'popularity.desc',
+                  with_original_language: 'ja',
+                  page: 2
+                },
+                { signal }
+              );
+              
+              discoverResults.push(...page2Response.data.results.map(item => ({
+                ...item,
+                media_type: referenceMedia.media_type
+              })));
+            } catch (pageError) {
+              console.warn("Error fetching second page:", pageError);
+            }
+          }
+          
           // Add unique discover results
           const existingIds = new Set(similarResults.map(item => item.id));
           for (const item of discoverResults) {
@@ -838,6 +885,33 @@ export const useSearch = () => {
               existingIds.add(item.id);
             }
           }
+          
+          console.log(`Final results count after genre discovery: ${similarResults.length}`);
+        }
+        
+        // If we still have no similar content, use search by title
+        if (similarResults.length === 0) {
+          console.log("No similar content found, falling back to title search");
+          const fallbackSearch = await fetchWithRetry(
+            'https://api.themoviedb.org/3/search/multi',
+            {
+              api_key: process.env.REACT_APP_TMDB_API_KEY,
+              query: isAnime ? "anime" : referenceMedia.media_type === 'tv' ? "tv series" : "movie",
+              include_adult: false,
+              language: 'en-US',
+              page: 1
+            },
+            { signal }
+          );
+          
+          similarResults = fallbackSearch.data.results
+            .filter(item => item.media_type === referenceMedia.media_type)
+            .map(item => ({
+              ...item,
+              media_type: referenceMedia.media_type
+            }));
+          
+          console.log(`Last resort fallback results: ${similarResults.length}`);
         }
       } catch (error) {
         console.warn('Error getting similar content, falling back to direct search:', error);
@@ -862,9 +936,9 @@ export const useSearch = () => {
             // Filtering for family-friendly: lower violence, no adult content
             similarResults = similarResults.filter(item => 
               item.adult === false && 
-              (item.genre_ids.includes(10751) || // Family genre
-               item.genre_ids.includes(16) || // Animation
-               !item.genre_ids.includes(27)) // Not horror
+              (item.genre_ids?.includes(10751) || // Family genre
+               item.genre_ids?.includes(16) || // Animation
+               !item.genre_ids?.includes(27)) // Not horror
             );
             break;
             
@@ -909,6 +983,7 @@ export const useSearch = () => {
           .sort((a, b) => b.similarityScore - a.similarityScore)
       ];
       
+      console.log(`Returning ${formattedResults.length} results`);
       setAllResults(formattedResults);
       
     } catch (error) {

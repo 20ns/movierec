@@ -251,10 +251,60 @@ export const SearchBar = ({ currentUser }) => {
 
           {!isDirectSearch && (
             <>
-              {/* Similar To Section */}
-              {/* ...existing code for similarity section... */}
-              
-              {/* Main Results Section */}
+              {/* Similar To Section - ENHANCED */}
+              {queryIntent?.referenceName && hasSearched && (
+                <div className="w-full max-w-7xl mb-8">
+                  <div className="py-2 px-3 bg-purple-900/20 rounded-lg border border-purple-800 mb-3 flex items-center">
+                    <LightBulbIcon className="h-4 w-4 text-purple-400 mr-2" />
+                    <h3 className="text-sm font-medium text-purple-300">
+                      {`Similar to "${queryIntent.referenceName}"`}
+                      {queryIntent.modifierType && (
+                        <span className="ml-2 text-purple-400">
+                          {queryIntent.modifierType === 'family-friendly' && 'but more family-friendly'}
+                          {queryIntent.modifierType === 'darker' && 'but with a darker tone'}
+                          {queryIntent.modifierType === 'lighter' && 'but lighter'}
+                          {queryIntent.modifierType === 'scarier' && 'but scarier'}
+                          {queryIntent.modifierType === 'more-action' && 'but with more action'}
+                          {queryIntent.modifierType === 'funnier' && 'but funnier'}
+                        </span>
+                      )}
+                    </h3>
+                  </div>
+                  
+                  {/* Show no results message when we have a reference but no similar results */}
+                  {groupedResults.similarTo?.length === 0 ? (
+                    <div className="bg-gray-800/80 rounded-lg p-6 text-center">
+                      <h3 className="text-lg font-semibold text-gray-200 mb-2">No Similar Titles Found</h3>
+                      <p className="text-gray-300 mb-4">
+                        We couldn't find shows similar to "{queryIntent.referenceName}". This might be because:
+                      </p>
+                      <ul className="text-gray-400 list-disc list-inside text-left max-w-xl mx-auto mb-4">
+                        <li>The title is new or not yet cataloged with similar shows</li>
+                        <li>It may be a very unique show with few similar titles</li>
+                        <li>The title could be from a niche category</li>
+                      </ul>
+                      <p className="text-gray-300">
+                        Try searching for a broader category like "{queryIntent.referenceName?.split(' ')[0]} anime" or "anime action"
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {groupedResults.similarTo.map(item => (
+                        <MediaCard
+                          key={`similar-${item.id}-${item.media_type}`}
+                          result={item}
+                          currentUser={currentUser}
+                          onClick={handleResultClick}
+                          promptLogin={() => {}}
+                          highlightMatch={item.isReferenceMedia}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Main Results Section with pagination */}
               {groupedResults.main && groupedResults.main.length > 0 && (
                 <div className="w-full max-w-7xl mb-8">
                   <MediaResults
