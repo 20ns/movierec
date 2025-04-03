@@ -29,22 +29,21 @@ const PersonalizedRecommendations = forwardRef(({
   // Add fetch lock to prevent concurrent fetches
   const isFetchingRef = useRef(false);
   const initialFetchCompletedRef = useRef(false);
+  const initialStateSetRef = useRef(false);
   
   // Update local state when props change, but prevent triggering unnecessary fetches
   useEffect(() => {
     if (propUserPreferences) {
       setUserPreferences(propUserPreferences);
-      
-      // Only trigger a fetch if recommendations are empty and we haven't already fetched
-      if (propUserPreferences && recommendations.length === 0 && !isLoading && !isRefreshing && !isFetchingRef.current && !initialFetchCompletedRef.current) {
-        fetchRecommendations();
-      }
     }
   }, [propUserPreferences]);
 
   // Check if user has completed the questionnaire - enhanced for early detection
   useEffect(() => {
-    if (isAuthenticated && currentUser?.attributes?.sub) {
+    if (isAuthenticated && currentUser?.attributes?.sub && !initialStateSetRef.current) {
+      // Make sure we only run this initialization logic once
+      initialStateSetRef.current = true;
+      
       // Check if user has completed questionnaire - do this early to avoid layout shifts
       const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
       setHasCompletedQuestionnaire(completionStatus === 'true');
@@ -247,9 +246,7 @@ const PersonalizedRecommendations = forwardRef(({
 
   // Fetch user favorites - with safeguards
   useEffect(() => {
-    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      setIsLoading(false);
-      setIsThinking(false);
+    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken || initialFetchCompletedRef.current) {
       return;
     }
 
@@ -675,7 +672,7 @@ const PersonalizedRecommendations = forwardRef(({
         
         // Release the fetch lock
         isFetchingRef.current = false;
-      }, 500);
+      }, 800); // Increased delay for smoother transition
     }
   }, [
     userPreferences,

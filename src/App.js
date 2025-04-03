@@ -300,15 +300,18 @@ function AppContent() {
     }
   }, [isAuthenticated, currentUser]);
 
-  // Function to fetch latest recommendations
-  const refreshRecommendations = () => {
+  // Function to fetch latest recommendations - with debouncing
+  const refreshRecommendations = useCallback(() => {
+    // Don't refresh if we haven't completed initial load
+    if (!initialLoadComplete) return;
+    
     // Force re-render of the recommendations component
     setRecommendationsKey(prevKey => prevKey + 1);
     
     // Dispatch a custom event that the PersonalizedRecommendations component can listen for
     const refreshEvent = new CustomEvent('refresh-recommendations');
     document.dispatchEvent(refreshEvent);
-  };
+  }, [initialLoadComplete]);
 
   // Enhanced sign-in success handler to fetch preferences
   const handleAuthSuccess = useCallback(async (user) => {
@@ -316,6 +319,7 @@ function AppContent() {
     
     // Wait for auth state to be updated
     setTimeout(() => {
+      // Just fetch preferences - don't force a recommendation refresh yet
       fetchUserPreferences();
     }, 500);
   }, [handleSigninSuccess, fetchUserPreferences]);
@@ -329,20 +333,10 @@ function AppContent() {
     // Fetch the latest preferences
     fetchUserPreferences();
     
-    // Refresh recommendations with updated preferences
-    setPrefUpdateCounter(prev => prev + 1);
-    refreshRecommendations();
-    
-    // Show a success message to the user
-    const successMessage = document.createElement('div');
-    successMessage.className = 'fixed bottom-6 right-6 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-fade-in-out';
-    successMessage.innerHTML = 'Preferences updated! Refreshing your recommendations...';
-    document.body.appendChild(successMessage);
-    
-    // Remove the message after 3 seconds
+    // Refresh recommendations with updated preferences - with a slight delay
     setTimeout(() => {
-      document.body.removeChild(successMessage);
-    }, 3000);
+      refreshRecommendations();
+    }, 500);
   };
 
   // New handler for skipping the questionnaire
