@@ -31,6 +31,9 @@ const PersonalizedRecommendations = forwardRef(({
   const initialFetchCompletedRef = useRef(false);
   const initialStateSetRef = useRef(false);
   
+  // Add a ref for the recommendations container
+  const recommendationsContainerRef = useRef(null);
+  
   // Update local state when props change, but prevent triggering unnecessary fetches
   useEffect(() => {
     if (propUserPreferences) {
@@ -707,7 +710,7 @@ const PersonalizedRecommendations = forwardRef(({
     }
   }, [preferencesUpdated]);
 
-  // Handle refresh button click
+  // Modified handleRefresh to include smooth scrolling to top
   const handleRefresh = async () => {
     // Skip if already refreshing
     if (isRefreshing || isFetchingRef.current) return;
@@ -715,6 +718,14 @@ const PersonalizedRecommendations = forwardRef(({
     setIsRefreshing(true);
     setIsThinking(true);
     setRefreshCounter(prev => prev + 1);
+    
+    // Scroll to the top of recommendations with smooth behavior
+    if (recommendationsContainerRef.current) {
+      recommendationsContainerRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
     
     // Create a nice visual delay to show the refresh animation
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -758,10 +769,11 @@ const PersonalizedRecommendations = forwardRef(({
   // Show recommendations section even if empty, to display the prompt
   return (
     <motion.section 
+      ref={recommendationsContainerRef}
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="mb-12 max-w-7xl mx-auto px-4"
+      className="mb-12 max-w-7xl mx-auto px-4 scroll-mt-24" // Added scroll-mt-24 for smooth scrolling offset
     >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-white">
@@ -1035,7 +1047,7 @@ const PersonalizedRecommendations = forwardRef(({
         {!isLoading && !isThinking && recommendations.length > 0 ? (
           <motion.div 
             key={`recommendations-${refreshCounter}`}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 custom-scrollbar"
             initial="hidden"
             animate="visible"
             exit="exit"

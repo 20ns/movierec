@@ -670,10 +670,10 @@ export const useSearch = () => {
           return;
         }
 
-        // Set results directly for now to bypass potential errors
+        // Calculate scores for each item and set results
         setAllResults(searchResults.map(item => ({ 
           ...item,
-          matchPercentage: 70,
+          matchPercentage: calculateScore(item, query, queryIntent),
           queryIntent: queryIntent
         })));
         
@@ -967,12 +967,22 @@ export const useSearch = () => {
                 g => referenceDetails.genres.map(rg => rg.id).includes(g)
               ).length / Math.max(item.genre_ids.length, 1) : 0.5;
             
-            const similarityScore = Math.round(genreSimilarity * 70);
+            // Calculate similarity score more accurately
+            const baseSimilarityScore = Math.round(genreSimilarity * 70);
+            
+            // Apply popularity boost for more recognizable results (max 15 points)
+            const popularityBoost = Math.min(Math.round((item.popularity || 0) / 20), 15);
+            
+            // Apply vote average boost for quality results (max 15 points) 
+            const voteBoost = Math.min(Math.round((item.vote_average || 0) * 1.5), 15);
+            
+            // Calculate final score with minimum threshold
+            const similarityScore = Math.max(50, Math.min(99, baseSimilarityScore + popularityBoost + voteBoost));
             
             return {
               ...item,
               similarityScore,
-              matchPercentage: calculateScore(item, query, queryIntent),
+              matchPercentage: similarityScore,
               queryIntent: {
                 ...queryIntent,
                 referenceName: referenceMedia.title || referenceMedia.name
@@ -1014,17 +1024,37 @@ export const useSearch = () => {
         { signal }
       );
       
+      const queryIntent = analyzeQueryIntent(query);
+      
       const results = searchResponse.data.results
         .filter(result => 
           result &&
           (result.media_type === 'movie' || result.media_type === 'tv') &&
           (result.title || result.name)
         )
-        .map(item => ({
-          ...item,
-          matchPercentage: 100,
-          directSearch: true
-        }));
+        .map(item => {
+          // Calculate proper match percentage for direct searches
+          const title = (item.title || item.name || '').toLowerCase();
+          const queryLower = query.toLowerCase();
+          let exactMatch = title === queryLower ? 100 : 0;
+          let titleStartMatch = title.startsWith(queryLower) ? 85 : 0;
+          let titleContainsMatch = title.includes(queryLower) ? 70 : 0;
+          
+          const matchPercentage = Math.max(
+            exactMatch, 
+            titleStartMatch, 
+            titleContainsMatch, 
+            Math.min(60 + Math.round((item.popularity || 0) / 10), 80)
+          );
+          
+          return {
+            ...item,
+            matchPercentage: matchPercentage,
+            directSearch: true,
+            queryIntent
+          };
+        })
+        .sort((a, b) => b.matchPercentage - a.matchPercentage);
         
       if (results.length === 0) {
         showError('No results found. Try a different search term.');
@@ -1040,7 +1070,7 @@ export const useSearch = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithRetry, showError]);
+  }, [fetchWithRetry, showError, analyzeQueryIntent]);
 
   const fetchDirectorRecommendations = useCallback(async (item) => {
     try {

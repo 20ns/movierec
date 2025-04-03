@@ -10,6 +10,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const panelRef = useRef(null);
+  const favoritesScrollRef = useRef(null);
   
   // Add an effect to handle clicks outside the panel
   useEffect(() => {
@@ -83,6 +84,34 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       fetchFavorites();
     }
   }, [isOpen, isAuthenticated, currentUser?.signInUserSession]);
+
+  useEffect(() => {
+    if (favoritesScrollRef.current) {
+      const scrollableDiv = favoritesScrollRef.current;
+      
+      const handleScroll = () => {
+        const scrollPosition = scrollableDiv.scrollTop;
+        const maxScroll = scrollableDiv.scrollHeight - scrollableDiv.clientHeight;
+        const scrollPercentage = scrollPosition / maxScroll;
+        
+        // Apply subtle shadow based on scroll position
+        if (scrollPosition > 10) {
+          scrollableDiv.classList.add('shadow-inner-top');
+        } else {
+          scrollableDiv.classList.remove('shadow-inner-top');
+        }
+        
+        if (scrollPosition < maxScroll - 10 && maxScroll > 0) {
+          scrollableDiv.classList.add('shadow-inner-bottom');
+        } else {
+          scrollableDiv.classList.remove('shadow-inner-bottom');
+        }
+      };
+      
+      scrollableDiv.addEventListener('scroll', handleScroll);
+      return () => scrollableDiv.removeEventListener('scroll', handleScroll);
+    }
+  }, [userFavorites]);
 
   if (!isAuthenticated) {
     return null;
@@ -193,7 +222,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 }
               }}
               style={{ willChange: "transform, opacity, box-shadow" }}
-              className="relative w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] overflow-y-auto border border-gray-700 z-50"
+              className="relative w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] border border-gray-700 z-50"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -234,7 +263,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div 
+                  ref={favoritesScrollRef}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
+                  style={{
+                    scrollBehavior: 'smooth',
+                  }}
+                >
                   <AnimatePresence mode="popLayout">
                     {userFavorites.map((fav) => {
                       // Fix the data issues while maintaining the existing visual style
