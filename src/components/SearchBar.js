@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiltersSection } from './FiltersSection';
 import { SearchInput } from './SearchInput';
@@ -36,7 +36,84 @@ export const SearchBar = ({ currentUser }) => {
     resultsToShow,
     setResultsToShow
   } = useSearch();
+
+  // Add ref to track if initial URL search is being performed
+  const isInitialUrlSearch = useRef(false);
   
+  // Function to handle search with URL update
+  const handleSearchWithUrlUpdate = (e) => {
+    e?.preventDefault();
+    handleSearch(e);
+    
+    // Update URL after search but not for initial URL-triggered search
+    if (!isInitialUrlSearch.current) {
+      setTimeout(() => {
+        const searchParams = new URLSearchParams();
+        if (query) searchParams.set('q', query);
+        if (activeFilters.searchMode !== 'smart') searchParams.set('mode', activeFilters.searchMode);
+        if (activeFilters.genre !== 'diverse') searchParams.set('genre', activeFilters.genre);
+        if (activeFilters.time !== 'any') searchParams.set('time', activeFilters.time);
+        if (activeFilters.type !== 'all') searchParams.set('type', activeFilters.type);
+        if (activeFilters.releaseYear !== 'any') searchParams.set('year', activeFilters.releaseYear);
+        if (activeFilters.popularity !== 'any') searchParams.set('pop', activeFilters.popularity);
+        if (activeFilters.contentType !== 'any') searchParams.set('content', activeFilters.contentType);
+        
+        const newURL = `${window.location.pathname}?${searchParams.toString()}`;
+        window.history.pushState({ path: newURL }, '', newURL);
+      }, 100);
+    } else {
+      isInitialUrlSearch.current = false;
+    }
+  };
+  
+  // Function to handle result click with redirect
+  const handleResultClickWithRedirect = (item) => {
+    handleResultClick(item);
+    // Short delay before redirect
+    setTimeout(() => window.location.href = '/', 100);
+  };
+  
+  // Read URL parameters on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlQuery = urlParams.get('q');
+    
+    if (urlQuery) {
+      isInitialUrlSearch.current = true;
+      
+      // Set query from URL
+      setQuery(urlQuery);
+      
+      // Set filters from URL
+      const newFilters = { ...activeFilters };
+      
+      const mode = urlParams.get('mode');
+      if (mode === 'direct') newFilters.searchMode = mode;
+      
+      const genre = urlParams.get('genre');
+      if (genre) newFilters.genre = genre;
+      
+      const time = urlParams.get('time');
+      if (time) newFilters.time = time;
+      
+      const type = urlParams.get('type');
+      if (type) newFilters.type = type;
+      
+      const year = urlParams.get('year');
+      if (year) newFilters.releaseYear = year;
+      
+      const pop = urlParams.get('pop');
+      if (pop) newFilters.popularity = pop;
+      
+      const content = urlParams.get('content');
+      if (content) newFilters.contentType = content;
+      
+      setActiveFilters(newFilters);
+      
+      // Trigger search
+      setTimeout(() => handleSearch(), 100);
+    }
+  }, []);
 
   // For pagination instead of "load more"
   const [currentPage, setCurrentPage] = useState(1);
@@ -218,7 +295,7 @@ export const SearchBar = ({ currentUser }) => {
                     key={`exact-${item.id}-${item.media_type}`}
                     result={item}
                     currentUser={currentUser}
-                    onClick={() => handleResultClick(item)}
+                    onClick={() => handleResultClickWithRedirect(item)}
                     promptLogin={() => {}}
                     highlightMatch={true}
                   />
@@ -230,7 +307,6 @@ export const SearchBar = ({ currentUser }) => {
           {/* Direct Search Results */}
           {isDirectSearch && filteredResults.length > 0 && (
             <div className="w-full max-w-7xl mb-8">
-              {/* ...existing direct search code... */}
               <div className="py-2 px-3 bg-blue-900/20 rounded-lg border border-blue-800 mb-3 flex items-center">
                 <DocumentDuplicateIcon className="h-4 w-4 text-blue-400 mr-2" />
                 <h3 className="text-sm font-medium text-blue-300">Title Search Results</h3>
@@ -241,7 +317,7 @@ export const SearchBar = ({ currentUser }) => {
                     key={`direct-${item.id}-${item.media_type}`}
                     result={item}
                     currentUser={currentUser}
-                    onClick={() => handleResultClick(item)}
+                    onClick={() => handleResultClickWithRedirect(item)}
                     promptLogin={() => {}}
                   />
                 ))}
@@ -295,7 +371,7 @@ export const SearchBar = ({ currentUser }) => {
                           key={`similar-${item.id}-${item.media_type}`}
                           result={item}
                           currentUser={currentUser}
-                          onClick={handleResultClick}
+                          onClick={() => handleResultClickWithRedirect(item)}
                           promptLogin={() => {}}
                           highlightMatch={item.isReferenceMedia}
                         />
@@ -312,7 +388,7 @@ export const SearchBar = ({ currentUser }) => {
                     hasSearched={hasSearched}
                     isLoading={isLoading}
                     displayedResults={currentResults}
-                    handleResultClick={handleResultClick}
+                    handleResultClick={handleResultClickWithRedirect}
                     currentUser={currentUser}
                   />
                   <PaginationControls />
@@ -335,7 +411,7 @@ export const SearchBar = ({ currentUser }) => {
         <SearchInput
           query={query}
           setQuery={setQuery}
-          handleSearch={handleSearch}
+          handleSearch={handleSearchWithUrlUpdate} // Updated to use URL updater
           isLoading={isLoading}
           isFocused={isFocused}
           setIsFocused={setIsFocused}
