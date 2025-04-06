@@ -11,6 +11,7 @@ const useAuth = () => {
     checkAuthState();
   }, []);
 
+  
   const checkAuthState = async () => {
     try {
       const user = await Auth.currentAuthenticatedUser();
