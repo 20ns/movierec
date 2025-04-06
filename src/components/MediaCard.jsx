@@ -277,13 +277,8 @@ export const MediaCard = ({
             overview: result.overview
           });
           
-          // Show toast only when adding to favorites - with better debug info
-          console.log("About to show toast:", result.title || result.name);
           if (toast && toast.showToast) {
             toast.showToast(`Added "${result.title || result.name}" to favorites`, 'favorite');
-            console.log("Toast function called");
-          } else {
-            console.error("Toast function not available!", toast);
           }
         }
       }
