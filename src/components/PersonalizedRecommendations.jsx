@@ -4,6 +4,10 @@ import axios from 'axios';
 import { MediaCard } from './MediaCard';
 import { SparklesIcon, ArrowPathIcon, LightBulbIcon } from '@heroicons/react/24/solid';
 
+// Constants for caching
+const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const RECOMMENDATIONS_CACHE_KEY = 'movieRec_recommendations';
+
 // Convert to forwardRef to accept ref from parent
 const PersonalizedRecommendations = forwardRef(({ 
   currentUser, 
@@ -33,6 +37,41 @@ const PersonalizedRecommendations = forwardRef(({
   
   // Add a ref for the recommendations container
   const recommendationsContainerRef = useRef(null);
+  
+  // Cache management functions
+  const saveRecommendationsToCache = useCallback((data, userId) => {
+    const cache = {
+      timestamp: Date.now(),
+      data,
+      userId
+    };
+    localStorage.setItem(RECOMMENDATIONS_CACHE_KEY, JSON.stringify(cache));
+  }, []);
+  
+  const getRecommendationsFromCache = useCallback((userId) => {
+    try {
+      const cachedData = localStorage.getItem(RECOMMENDATIONS_CACHE_KEY);
+      if (!cachedData) return null;
+      
+      const cache = JSON.parse(cachedData);
+      const isExpired = Date.now() - cache.timestamp > CACHE_EXPIRATION_TIME;
+      const isSameUser = cache.userId === userId;
+      
+      // Return cached data if it's not expired and belongs to current user
+      if (!isExpired && isSameUser) {
+        return cache.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error reading recommendations from cache:', error);
+      return null;
+    }
+  }, []);
+
+  const isCacheValid = useCallback((userId) => {
+    const cachedRecommendations = getRecommendationsFromCache(userId);
+    return cachedRecommendations !== null && cachedRecommendations.length > 0;
+  }, [getRecommendationsFromCache]);
   
   // Update local state when props change, but prevent triggering unnecessary fetches
   useEffect(() => {
@@ -306,7 +345,7 @@ const PersonalizedRecommendations = forwardRef(({
   }, [currentUser?.signInUserSession?.accessToken?.jwtToken, isAuthenticated]);
 
   // Enhanced function to fetch recommendations based on preferences first, then favorites
-  const fetchRecommendations = useCallback(async () => {
+  const fetchRecommendations = useCallback(async (forceRefresh = false) => {
     // First check if user has completed questionnaire to avoid unnecessary work
     if (!hasCompletedQuestionnaire && hasCheckedQuestionnaire) {
       console.log('User has not completed questionnaire, skipping recommendations');
@@ -322,10 +361,25 @@ const PersonalizedRecommendations = forwardRef(({
       return;
     }
     
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !currentUser?.attributes?.sub) {
       setIsLoading(false);
       setIsThinking(false);
       return;
+    }
+
+    const userId = currentUser.attributes.sub;
+    
+    // Check cache first if not forcing refresh
+    if (!forceRefresh) {
+      const cachedRecommendations = getRecommendationsFromCache(userId);
+      if (cachedRecommendations) {
+        console.log('Using cached recommendations');
+        setRecommendations(cachedRecommendations);
+        setIsLoading(false);
+        setIsThinking(false);
+        initialFetchCompletedRef.current = true;
+        return;
+      }
     }
     
     try {
@@ -653,6 +707,9 @@ const PersonalizedRecommendations = forwardRef(({
         // We have enough results from our initial query
         setRecommendations(initialResults);
         
+        // Cache the recommendations
+        saveRecommendationsToCache(initialResults, userId);
+        
         // Track these recommendations to avoid repeats
         setShownRecommendations(prev => {
           const newShown = new Set(prev);
@@ -687,28 +744,58 @@ const PersonalizedRecommendations = forwardRef(({
     shownRecommendations,
     currentUser,
     hasCompletedQuestionnaire,
-    hasCheckedQuestionnaire
+    hasCheckedQuestionnaire,
+    getRecommendationsFromCache,
+    saveRecommendationsToCache
   ]); 
 
   // Only fetch recommendations once on initial mount - with enhanced early check
   useEffect(() => {
     // Only proceed if authenticated and questionnaire is completed
     if (isAuthenticated && initialLoadComplete && hasCompletedQuestionnaire && !initialFetchCompletedRef.current && !isFetchingRef.current) {
-      fetchRecommendations();
+      
+      // Check if we have a valid cache first
+      if (currentUser?.attributes?.sub && isCacheValid(currentUser.attributes.sub)) {
+        // Load from cache immediately
+        const cachedRecommendations = getRecommendationsFromCache(currentUser.attributes.sub);
+        setRecommendations(cachedRecommendations);
+        setIsLoading(false);
+        setIsThinking(false);
+        initialFetchCompletedRef.current = true;
+        
+        // Set data source from localStorage if possible
+        const cachedDataSource = localStorage.getItem(`movieRec_dataSource_${currentUser.attributes.sub}`);
+        if (cachedDataSource) {
+          setDataSource(cachedDataSource);
+        } else {
+          setDataSource('cached'); // Default label for cached content
+        }
+        
+        // Set recommendation reason
+        setRecommendationReason('Based on your preferences');
+      } else {
+        // No valid cache, fetch fresh recommendations
+        fetchRecommendations(false);
+      }
     } else if (isAuthenticated && hasCheckedQuestionnaire && !hasCompletedQuestionnaire) {
       // If questionnaire is not completed, immediately set loading states to false
       setIsLoading(false);
       setIsThinking(false);
       initialFetchCompletedRef.current = true;
     }
-  }, [isAuthenticated, hasCompletedQuestionnaire, hasCheckedQuestionnaire, initialLoadComplete]); 
+  }, [isAuthenticated, hasCompletedQuestionnaire, hasCheckedQuestionnaire, initialLoadComplete, currentUser?.attributes?.sub, isCacheValid, getRecommendationsFromCache, fetchRecommendations]); 
 
   // Handle explicit preference updates
   useEffect(() => {
     if (preferencesUpdated > 0 && initialFetchCompletedRef.current) {
+      // Clear cache when preferences are updated
+      if (currentUser?.attributes?.sub) {
+        localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
+      }
+      // Force refresh to get new recommendations
       handleRefresh();
     }
-  }, [preferencesUpdated]);
+  }, [preferencesUpdated, currentUser?.attributes?.sub]);
 
   // Modified handleRefresh to include smooth scrolling to top
   const handleRefresh = async () => {
@@ -730,11 +817,16 @@ const PersonalizedRecommendations = forwardRef(({
     // Create a nice visual delay to show the refresh animation
     await new Promise(resolve => setTimeout(resolve, 800));
     
+    // Clear cache to force new fetch
+    if (currentUser?.attributes?.sub) {
+      localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
+    }
+    
     // Try to get fresh preferences first
     await fetchLatestPreferences();
     
-    // Then get recommendations
-    await fetchRecommendations();
+    // Then get recommendations - force refresh from API
+    await fetchRecommendations(true);
   };
 
   // Expose methods to parent via ref
@@ -755,6 +847,13 @@ const PersonalizedRecommendations = forwardRef(({
       document.removeEventListener('refresh-recommendations', handleRefreshEvent);
     };
   }, []);
+
+  // Save data source to localStorage when it changes
+  useEffect(() => {
+    if (dataSource && currentUser?.attributes?.sub) {
+      localStorage.setItem(`movieRec_dataSource_${currentUser.attributes.sub}`, dataSource);
+    }
+  }, [dataSource, currentUser?.attributes?.sub]);
 
   // Don't render anything during initial load check to prevent layout shifts
   if (!isAuthenticated) {
