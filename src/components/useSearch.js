@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchWithRetry, fetchEnhancedRecommendations, axiosInstance } from './SearchBarUtils';
 
-// Log the API key at the start to verify it's being read
-console.log("API Key from environment:", process.env.REACT_APP_TMDB_API_KEY);
-
 // Updated genre maps for better tree-shaking
 const GENRE_MAP = {
   movie: new Map([
@@ -397,7 +394,7 @@ export const useSearch = () => {
 
       return uniqueRecs.slice(0, 10);
     } catch (error) {
-      console.error('Recommendations error:', error);
+      showError('Recommendations error. Please try again.');
       return searchResults.slice(0, 10);
     }
   }, [fetchDirectorRecommendations, fetchCastRecommendations, fetchKeywordRecommendations, fetchSimilarContent, fetchTopSearchResults, isValidRecommendation]); // Removed processResult as it's not used directly in getHybridRecommendations
@@ -493,7 +490,6 @@ export const useSearch = () => {
 
   const displayedResults = useMemo(() => {
     const results = filteredResults.slice(0, resultsToShow);
-    console.log("Displayed Results:", results); // Debugging log
     return results;
   }, [filteredResults, resultsToShow]);
 
@@ -530,9 +526,8 @@ export const useSearch = () => {
         }));
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Error fetching suggestions:', error);
         showError('Error fetching suggestions. Please try again.');
-        }
+      }
       return [];
     }
   }, [showError]);
@@ -554,7 +549,6 @@ export const useSearch = () => {
         }
       } catch (error) {
         if (error.name !== 'AbortError') {
-          console.error('Error fetching suggestions:', error);
           showError('Error fetching suggestions. Please try again.');
         }
       }
@@ -586,7 +580,6 @@ export const useSearch = () => {
 
       // Check for API key
       if (!process.env.REACT_APP_TMDB_API_KEY) {
-        console.error("TMDB API Key is missing! Search will not work.");
         showError("API Key missing. Search unavailable.");
         setIsLoading(false);
         return;
@@ -600,7 +593,6 @@ export const useSearch = () => {
 
       // Parse query intent
       const queryIntent = analyzeQueryIntent(query);
-      console.log("Detected query intent:", queryIntent);
 
       // Handle similarity searches differently
       if (queryIntent.similarTo) {
@@ -610,8 +602,6 @@ export const useSearch = () => {
 
       // Perform search with enhanced error handling
       try {
-        // ...existing search code...
-        
         // Build search parameters based on intent
         let searchParams = {
           api_key: process.env.REACT_APP_TMDB_API_KEY,
@@ -620,9 +610,6 @@ export const useSearch = () => {
           language: 'en-US',
           page: 1
         };
-
-        console.log("Fetching search results for query:", query);
-        console.log("Search parameters:", searchParams);
         
         // Perform search
         let endpointType = 'search/multi';
@@ -634,11 +621,7 @@ export const useSearch = () => {
             searchParams,
             { signal: controller.signal }
           );
-          
-          console.log("Raw search response status:", searchResponse.status);
-          console.log("Raw search data:", searchResponse.data);
         } catch (fetchError) {
-          console.error("Error during search API call:", fetchError);
           throw new Error(`Search API error: ${fetchError.message}`);
         }
 
@@ -656,10 +639,7 @@ export const useSearch = () => {
               (result.title || result.name) &&
               result.media_type !== 'person' // Exclude person results
             );
-            
-          console.log("Filtered search results:", searchResults);
         } catch (processingError) {
-          console.error("Error processing search results:", processingError);
           throw new Error(`Results processing error: ${processingError.message}`);
         }
 
@@ -679,12 +659,10 @@ export const useSearch = () => {
         
       } catch (searchError) {
         if (searchError.name !== 'AbortError') {
-          console.error('Search process error:', searchError);
           showError('Search failed. Please check your connection and try again.');
         }
       }
     } catch (outerError) {
-      console.error('Outer search handler error:', outerError);
       showError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -694,7 +672,6 @@ export const useSearch = () => {
   // Enhanced similarity search with better anime handling
   const handleSimilaritySearch = useCallback(async (query, queryIntent, signal) => {
     try {
-      console.log("Handling similarity search for:", queryIntent.similarTo);
       
       // First, search for the reference media
       const referenceSearch = await fetchWithRetry(
@@ -712,7 +689,6 @@ export const useSearch = () => {
       // Check if we have any results at all
       if (!referenceSearch.data.results || referenceSearch.data.results.length === 0) {
         // Try searching with a more permissive search
-        console.log(`No results for "${queryIntent.similarTo}", trying with relaxed filters`);
         const directSearch = await fetchWithRetry(
           'https://api.themoviedb.org/3/search/multi',
           {
@@ -758,8 +734,6 @@ export const useSearch = () => {
         return;
       }
       
-      console.log("Reference media found:", referenceMedia.title || referenceMedia.name);
-      
       // Get details of the reference media to understand its characteristics
       const detailsResponse = await fetchWithRetry(
         `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}`,
@@ -771,7 +745,6 @@ export const useSearch = () => {
       );
       
       const referenceDetails = detailsResponse.data;
-      console.log("Reference details:", referenceDetails);
       
       // Is this likely an anime? Check title, genres, keywords
       const animeKeywords = ["anime", "animation", "manga", "japanese animation"];
@@ -781,7 +754,6 @@ export const useSearch = () => {
           .some(k => animeKeywords.includes(k.name.toLowerCase())) ||
        (referenceMedia.title || referenceMedia.name || "").toLowerCase().includes("anime"));
       
-      console.log("Is anime detection:", isAnime);
       
       // Try to get similar content
       let similarResults = [];
@@ -799,11 +771,8 @@ export const useSearch = () => {
           media_type: referenceMedia.media_type
         }));
         
-        console.log(`Similar results count from API: ${similarResults.length}`);
-        
         // If we don't have enough results, try recommendations
         if (similarResults.length < 5) {
-          console.log("Not enough similar results, trying recommendations");
           const recommendationsResponse = await fetchWithRetry(
             `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}/recommendations`,
             { api_key: process.env.REACT_APP_TMDB_API_KEY },
@@ -823,13 +792,10 @@ export const useSearch = () => {
               existingIds.add(item.id);
             }
           }
-          
-          console.log(`Combined similar+recommendations count: ${similarResults.length}`);
         }
         
         // For anime or shows with very few similar results, use broader genre matching
         if ((isAnime || similarResults.length < 3) && referenceDetails.genres) {
-          console.log("Using genre-based discovery for anime/low-result show");
           
           // Extract genres for discovery
           const genreIds = referenceDetails.genres.map(g => g.id).join(',');
@@ -873,7 +839,6 @@ export const useSearch = () => {
                 media_type: referenceMedia.media_type
               })));
             } catch (pageError) {
-              console.warn("Error fetching second page:", pageError);
             }
           }
           
@@ -885,13 +850,10 @@ export const useSearch = () => {
               existingIds.add(item.id);
             }
           }
-          
-          console.log(`Final results count after genre discovery: ${similarResults.length}`);
         }
         
         // If we still have no similar content, use search by title
         if (similarResults.length === 0) {
-          console.log("No similar content found, falling back to title search");
           const fallbackSearch = await fetchWithRetry(
             'https://api.themoviedb.org/3/search/multi',
             {
@@ -910,13 +872,8 @@ export const useSearch = () => {
               ...item,
               media_type: referenceMedia.media_type
             }));
-          
-          console.log(`Last resort fallback results: ${similarResults.length}`);
         }
       } catch (error) {
-        console.warn('Error getting similar content, falling back to direct search:', error);
-        // If we can't get similar content, fall back to returning the reference media and
-        // potentially other search results
         similarResults = [
           { ...referenceMedia },
           ...referenceSearch.data.results
@@ -928,7 +885,6 @@ export const useSearch = () => {
       
       // If we have a modifier, adjust the results
       if (queryIntent.modifierType && similarResults.length > 0) {
-        console.log("Applying modifier:", queryIntent.modifierType);
           
         // Apply the modifier to filter/modify results
         switch(queryIntent.modifierType) {
@@ -993,12 +949,10 @@ export const useSearch = () => {
           .sort((a, b) => b.similarityScore - a.similarityScore)
       ];
       
-      console.log(`Returning ${formattedResults.length} results`);
       setAllResults(formattedResults);
       
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Similarity search error:', error);
         showError('Search failed. Please check your connection and try again.');
       }
     } finally {
@@ -1010,7 +964,6 @@ export const useSearch = () => {
   const handleDirectSearch = useCallback(async (query, signal) => {
     try {
       setIsLoading(true);
-      console.log("Performing direct title search for:", query);
       
       const searchResponse = await fetchWithRetry(
         'https://api.themoviedb.org/3/search/multi',
@@ -1064,7 +1017,6 @@ export const useSearch = () => {
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Direct search error:', error);
         showError('Search failed. Please try again later.');
       }
     } finally {
@@ -1088,19 +1040,17 @@ export const useSearch = () => {
         ? await fetchPersonWorks(directors[0].id)
         : [];
     } catch (error) {
-      console.error('Director recommendations error:', error);
+      showError('Director recommendations error. Please try again.');
       return [];
     }
   }, [fetchWithRetry, fetchPersonWorks]);
 
   const fetchCastRecommendations = useCallback(async (item) => {
-    console.log("fetchCastRecommendations item:", item); // Log item at start
     try {
       const credits = await fetchWithRetry(
         `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
          { api_key: process.env.REACT_APP_TMDB_API_KEY }
       );
-      console.log('Credits response:', credits); // Log credits response
       if (!credits?.data?.cast || !Array.isArray(credits.data.cast)) { // Enhanced error checks
         return [];
       }
@@ -1109,7 +1059,7 @@ export const useSearch = () => {
         actor.id ? fetchPersonWorks(actor.id) : [] // Check if actor.id exists
       ));
     } catch (error) {
-      console.error('Cast recommendations error:', error);
+      showError('Cast recommendations error. Please try again.');
       return []; // Return empty array on error
     }
   }, [fetchWithRetry, fetchPersonWorks]);
@@ -1139,7 +1089,7 @@ export const useSearch = () => {
       );
       return response.data.results || [];
     } catch (error) {
-      console.error('Similar content error:', error);
+      showError('Similar content error. Please try again.');
       return [];
     }
   }, [fetchWithRetry]);
@@ -1151,7 +1101,7 @@ export const useSearch = () => {
           `https://api.themoviedb.org/3/${item.media_type}/${item.id}`,
            { api_key: process.env.REACT_APP_TMDB_API_KEY }
         ).catch(error => {
-          console.error('Error fetching item details:', error);
+          showError('Error fetching item details. Please try again.');
           return null;
         })
       )
@@ -1188,7 +1138,6 @@ export const useSearch = () => {
       fetchEnhancedRecommendations(data);
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Prefetch error:', error);
         showError('Error prefetching data.');
       }
     }
@@ -1215,7 +1164,6 @@ export const useSearch = () => {
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Error fetching external IDs:', error);
         showError('Failed to open IMDb page. Please try again.');
       }
     }

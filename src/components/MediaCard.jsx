@@ -37,7 +37,6 @@ export const MediaCard = ({
   
   // Check if toast is available
   useEffect(() => {
-    console.log("Toast context available:", !!toast);
   }, [toast]);
 
   // Fallback genre color function (kept for robustness)
@@ -207,9 +206,6 @@ export const MediaCard = ({
     e.stopPropagation();
     
     const token = extractToken(currentUser);
-    
-    console.log("Favorite button clicked");
-    console.log("Favorite button clicked, user token is:", token);
     
     // Check for token
     if (!token) {

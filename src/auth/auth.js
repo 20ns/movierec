@@ -37,7 +37,7 @@ const useAuth = () => {
       setIsAuthenticated(false);
       setCurrentUser(null);
     } catch (error) {
-      console.error('Error signing out:', error);
+      // Removed logging for production
     }
   };
 
