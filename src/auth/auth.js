@@ -24,6 +24,7 @@ const useAuth = () => {
     }
   };
 
+  
   const handleSigninSuccess = useCallback((user, isNew = false) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
