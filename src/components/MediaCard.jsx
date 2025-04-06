@@ -320,11 +320,11 @@ export const MediaCard = ({
     if (simplifiedView) {
       // Simplified view for favorites section with WHITE background
       return (
-        <div className="p-3">
-          <h2 className="font-semibold text-gray-800 truncate">{result.title || result.name}</h2>
-          <div className="flex items-center justify-between mt-2 text-sm">
-            <div className="flex items-center space-x-2">
-              <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs">
+        <div className="p-2 sm:p-3">
+          <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base">{result.title || result.name}</h2>
+          <div className="flex items-center justify-between mt-1 sm:mt-2 text-xs sm:text-sm">
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <span className="bg-indigo-100 text-indigo-800 px-1.5 sm:px-2 py-0.5 rounded text-xs">
                 {result.media_type === 'movie' ? 'Movie' : 'TV Show'}
               </span>
               {year && (
@@ -344,41 +344,41 @@ export const MediaCard = ({
 
     // Regular view (reverting to white background)
     return (
-      <div className="p-3 flex flex-col flex-grow">
-        <h2 className="text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
+      <div className="p-2 sm:p-3 flex flex-col flex-grow">
+        <h2 className="text-sm sm:text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300">
           {result.title || result.name}
         </h2>
-        <p className="text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed flex-grow">
+        <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed flex-grow">
           {result.overview}
         </p>
 
-        <div className="mt-2 space-y-1">
+        <div className="mt-1 sm:mt-2 space-y-1">
           {result.scoreReasons?.map((reason, i) => (
-            <div key={i} className="flex items-center text-xs">
-              <CheckCircleIcon className="w-3 h-3 mr-1 text-green-500" />
-              <span className="text-gray-600">{reason}</span>
+            <div key={i} className="flex items-center text-[10px] sm:text-xs">
+              <CheckCircleIcon className="w-2 h-2 sm:w-3 sm:h-3 mr-1 text-green-500" />
+              <span className="text-gray-600 truncate">{reason}</span>
             </div>
           ))}
         </div>
 
         <div className="border-t border-gray-100 pt-2 flex items-center justify-between space-x-1">
           <div className="flex items-center space-x-1">
-            <StarIcon className="w-4 h-4 text-amber-400" />
-            <span className="font-medium text-sm text-gray-700">
+            <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400" />
+            <span className="font-medium text-xs sm:text-sm text-gray-700">
               {rating || 'N/A'}
             </span>
           </div>
 
           <div className="flex items-center space-x-1">
-            <CalendarIcon className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
+            <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+            <span className="text-xs sm:text-sm text-gray-600">
               {year || 'N/A'}
             </span>
           </div>
 
           <div className="flex items-center space-x-1">
-            <ChartBarIcon className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
+            <ChartBarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+            <span className="text-xs sm:text-sm text-gray-600">
               {Math.round(result.popularity) || 'N/A'}
             </span>
           </div>
@@ -405,7 +405,7 @@ export const MediaCard = ({
       <div className={`bg-white rounded-xl overflow-hidden shadow-lg ${
         isFavorited ? 'ring-2 ring-red-500' : ''
       } transition-all duration-300 h-full`}>
-        <div className="relative overflow-hidden h-[50%] md:h-[180px] flex-shrink-0">
+        <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[180px] flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
           <motion.img
             src={`https://image.tmdb.org/t/p/w500${result.poster_path}`}
@@ -418,13 +418,17 @@ export const MediaCard = ({
           <div className="absolute bottom-1 left-1 bg-black/60 px-1 py-0.5 rounded text-[0.6rem] text-white">
             Match: {result.score}%
           </div>
-          <motion.div className="absolute top-2 right-2 z-20 flex items-center space-x-2" whileHover={{ scale: 1.05 }}>
-            <span className="bg-indigo-500/90 text-white px-2 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm">
+          <motion.div className="absolute top-2 right-2 z-20 flex items-center space-x-1 sm:space-x-2" whileHover={{ scale: 1.05 }}>
+            <span className="bg-indigo-500/90 text-white px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold backdrop-blur-sm shadow-sm">
               {result.media_type === 'movie' ? '🎬 Movie' : '📺 TV Show'}
             </span>
-            <button onClick={handleFavorite} className="focus:outline-none">
+            <button 
+              onClick={handleFavorite} 
+              className="focus:outline-none touch-manipulation p-1"
+              aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
+            >
               <HeartIcon
-                className={`w-6 h-6 ${
+                className={`w-5 h-5 sm:w-6 sm:h-6 ${
                   isFavorited ? 'text-red-500 animate-pulse' : 'text-gray-300 hover:text-red-300'
                 }`}
               />
@@ -432,14 +436,14 @@ export const MediaCard = ({
           </motion.div>
           {socialProof.friendsLiked > 0 && (
             <div className="absolute bottom-2 left-2 flex items-center">
-              <UserGroupIcon className="w-4 h-4 text-white" />
-              <span className="ml-1 text-xs text-white">
+              <UserGroupIcon className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+              <span className="ml-1 text-[10px] sm:text-xs text-white">
                 {socialProof.friendsLiked} friends liked
               </span>
             </div>
           )}
           {highlightMatch && (
-            <div className="absolute top-2 left-2 z-10 bg-indigo-600 text-white text-xs py-1 px-2 rounded-full shadow-lg">
+            <div className="absolute top-2 left-2 z-10 bg-indigo-600 text-white text-[10px] sm:text-xs py-0.5 px-1.5 sm:py-1 sm:px-2 rounded-full shadow-lg">
               Exact Match
             </div>
           )}

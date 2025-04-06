@@ -38,89 +38,86 @@ function AccountDetailsModal({ currentUser, onClose }) {
                 'N/A';
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-75"
-      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+      onClick={() => onClose()}
     >
-      <motion.div 
-        ref={modalRef}
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.25 }}
-        className="w-full max-w-2xl bg-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden"
-        onClick={e => e.stopPropagation()} // Prevent clicks from reaching the backdrop
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", bounce: 0.3 }}
+        className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-gray-700 bg-gray-800">
-          <h2 className="text-xl font-bold text-white">Account Details</h2>
+        <div className="px-5 py-4 border-b border-gray-800 flex justify-between items-center">
+          <h2 className="text-lg sm:text-xl font-semibold text-white">Account Details</h2>
           <button 
-            onClick={onClose}
-            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700"
+            onClick={onClose} 
+            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
         
         {/* Tabs */}
-        <div className="flex border-b border-gray-700">
-          <button
-            className={`px-4 py-3 font-medium text-sm ${activeTab === 'profile' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            Profile
-          </button>
-          <button
-            className={`px-4 py-3 font-medium text-sm ${activeTab === 'preferences' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-            onClick={() => setActiveTab('preferences')}
-          >
-            Preferences
-          </button>
+        <div className="border-b border-gray-800">
+          <div className="flex -mb-px">
+            <button
+              className={`px-4 py-3 font-medium text-sm ${activeTab === 'profile' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              onClick={() => setActiveTab('profile')}
+            >
+              Profile
+            </button>
+            <button
+              className={`px-4 py-3 font-medium text-sm ${activeTab === 'preferences' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              onClick={() => setActiveTab('preferences')}
+            >
+              Preferences
+            </button>
+          </div>
         </div>
         
         {/* Content */}
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           {activeTab === 'profile' && (
-            <div className="space-y-6">
-              <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-                <h3 className="text-sm text-gray-400 mb-2">Email</h3>
-                <p className="text-white text-lg">{currentUser?.attributes?.email || currentUser?.signInUserSession?.idToken?.payload?.email || 'N/A'}</p>
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
+                <h3 className="text-xs sm:text-sm text-gray-400 mb-2">Email</h3>
+                <p className="text-base sm:text-lg text-white break-all">{currentUser?.attributes?.email || currentUser?.signInUserSession?.idToken?.payload?.email || 'N/A'}</p>
               </div>
               
-              <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
-                <h3 className="text-sm text-gray-400 mb-2">User ID</h3>
-                <p className="text-white font-mono text-xs bg-gray-800 p-3 rounded-md overflow-x-auto border border-gray-700">
-                  {userId}
-                </p>
-              </div>
-
-              {/* Account created and Last session information removed */}
-              
-              <div className="mt-4 flex justify-center">
-                <div className="px-4 py-2 bg-gray-800/70 rounded-full text-gray-400 text-sm border border-gray-700/50">
-                  Account in good standing
+              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
+                <h3 className="text-xs sm:text-sm text-gray-400 mb-2">Account Status</h3>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <p className="ml-2 text-base text-white">Active</p>
                 </div>
               </div>
             </div>
           )}
           
           {activeTab === 'preferences' && (
-            <div className="space-y-4">
-              <p className="text-gray-300 text-center">
-                Manage your movie preferences to get better recommendations.
-              </p>
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
+                <h3 className="text-sm text-gray-400 mb-2">Content Preferences</h3>
+                <p className="text-white text-sm sm:text-base">Personalize your movie and TV show recommendations by updating your preferences.</p>
+              </div>
               
-              <div className="flex justify-center mt-4">
+              <div className="flex justify-center">
                 <button
                   onClick={() => {
                     onClose();
                     // Delay slightly to prevent visual conflicts between modals
                     setTimeout(() => document.dispatchEvent(new CustomEvent('open-preferences')), 100);
                   }}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
                 >
                   Edit Preferences
                 </button>

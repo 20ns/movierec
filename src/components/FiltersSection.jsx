@@ -144,19 +144,19 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
 
   return (
     <motion.div 
-      className="w-full rounded-xl bg-gray-800/95 backdrop-blur-sm p-4"
+      className="w-full rounded-xl bg-gray-800/95 backdrop-blur-sm p-3 sm:p-4"
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         {/* Search Mode Filter - NEW */}
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Search Mode</label>
+          <label className="block text-sm font-medium text-gray-300 mb-1 sm:mb-2">Search Mode</label>
           <div className="flex bg-gray-700 p-1 rounded-lg">
             <button
               onClick={() => handleFilterChange('searchMode', 'smart')}
-              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+              className={`px-2 py-1 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium flex-1 transition-colors ${
                 activeFilters.searchMode === 'smart'
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-300 hover:bg-gray-600'
@@ -166,7 +166,7 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
             </button>
             <button
               onClick={() => handleFilterChange('searchMode', 'direct')}
-              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+              className={`px-2 py-1 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium flex-1 transition-colors ${
                 activeFilters.searchMode === 'direct'
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-300 hover:bg-gray-600'
@@ -255,7 +255,7 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
           <select
             value={activeFilters.popularity}
             onChange={(e) => handleFilterChange('popularity', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="any">Any Popularity</option>
             <option value="high">Highly Popular</option>
@@ -266,11 +266,11 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
 
         {/* Content Type */}
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Content Type</label>
+          <label className="block text-sm font-medium text-gray-300 mb-1 sm:mb-2">Content Type</label>
           <select
             value={activeFilters.contentType}
             onChange={(e) => handleFilterChange('contentType', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm rounded-lg bg-gray-700 border border-gray-600 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="any">All Content Types</option>
             <option value="documentary">Documentaries</option>

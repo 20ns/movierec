@@ -199,50 +199,73 @@ export const SearchBar = ({ currentUser }) => {
     return { main: otherResults };
   }, [displayedResults, queryIntent, exactMatches, isDirectSearch]);
 
-  // Pagination UI
+  // Updated pagination controls for mobile
   const PaginationControls = () => {
     if (totalPages <= 1) return null;
     
     return (
-      <div className="flex justify-center my-6">
+      <div className="flex justify-center my-4 sm:my-6">
         <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`relative inline-flex items-center px-3 py-2 rounded-l-md border 
+            className={`relative inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-l-md border 
               ${currentPage === 1 
                 ? 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed' 
                 : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
           >
-            Previous
+            <span className="sr-only sm:not-sr-only">Previous</span>
+            <span className="sm:hidden">&laquo;</span>
           </button>
           
-          {/* Page numbers */}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-            <button
-              key={pageNum}
-              onClick={() => handlePageChange(pageNum)}
-              className={`relative inline-flex items-center px-4 py-2 border
-                ${pageNum === currentPage
-                  ? 'bg-indigo-600 text-white border-indigo-500'
-                  : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+          {/* Page numbers - simplified for mobile */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+            // On mobile, only show current page, first, last, and adjacent pages
+            const isMobile = window.innerWidth < 640;
+            const showOnMobile = 
+              pageNum === 1 || 
+              pageNum === totalPages || 
+              Math.abs(pageNum - currentPage) <= 1;
+            
+            if (isMobile && !showOnMobile) {
+              // Show ellipsis for skipped pages on mobile
+              if (pageNum === 2 || pageNum === totalPages - 1) {
+                return (
+                  <span key={`ellipsis-${pageNum}`} className="relative inline-flex items-center px-3 py-2 border border-gray-600 bg-gray-700 text-gray-400">
+                    ...
+                  </span>
+                );
+              }
+              return null;
+            }
+            
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                className={`relative inline-flex items-center px-3 py-1 sm:py-2 border
+                  ${pageNum === currentPage
+                    ? 'bg-indigo-600 text-white border-indigo-500'
+                    : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
                 }`}
-            >
-              {pageNum}
-            </button>
-          ))}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
           
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`relative inline-flex items-center px-3 py-2 rounded-r-md border 
+            className={`relative inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-r-md border 
               ${currentPage === totalPages
                 ? 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed'
                 : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
           >
-            Next
+            <span className="sr-only sm:not-sr-only">Next</span>
+            <span className="sm:hidden">&raquo;</span>
           </button>
         </nav>
       </div>
@@ -405,7 +428,7 @@ export const SearchBar = ({ currentUser }) => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24 pb-20">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24 pb-20">
       {/* Search Input - Moved to top */}
       <div className="w-full max-w-2xl mb-4">
         <SearchInput
@@ -427,10 +450,10 @@ export const SearchBar = ({ currentUser }) => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-4 p-3 rounded-lg bg-blue-900/30 border border-blue-800 text-blue-200 flex items-center"
+          className="w-full max-w-4xl mb-4 p-2 sm:p-3 rounded-lg bg-blue-900/30 border border-blue-800 text-blue-200 flex items-center"
         >
-          <DocumentDuplicateIcon className="h-5 w-5 mr-2 text-blue-400" />
-          <p className="text-sm font-medium">
+          <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-400 flex-shrink-0" />
+          <p className="text-xs sm:text-sm font-medium truncate">
             Direct Title Search: {query}
             {filteredResults.length > 0 && ` (${filteredResults.length} results found)`}
           </p>
@@ -442,10 +465,10 @@ export const SearchBar = ({ currentUser }) => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-4 p-3 rounded-lg bg-indigo-900/30 border border-indigo-800 text-indigo-200 flex items-center"
+          className="w-full max-w-4xl mb-4 p-2 sm:p-3 rounded-lg bg-indigo-900/30 border border-indigo-800 text-indigo-200 flex items-center"
         >
-          <SparklesIcon className="h-5 w-5 mr-2 text-indigo-400" />
-          <p className="text-sm font-medium">{intentSummary}</p>
+          <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-indigo-400 flex-shrink-0" />
+          <p className="text-xs sm:text-sm font-medium truncate">{intentSummary}</p>
         </motion.div>
       )}
 
@@ -454,7 +477,7 @@ export const SearchBar = ({ currentUser }) => {
         <div className="w-full max-w-4xl mb-4 space-y-2">
           <motion.button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all ${
+            className={`flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all ${
               showFilters 
                 ? 'bg-indigo-500 text-white shadow-lg'
                 : 'bg-white/90 text-indigo-500 hover:bg-indigo-50 backdrop-blur-sm'
@@ -463,11 +486,11 @@ export const SearchBar = ({ currentUser }) => {
             whileTap={{ scale: 0.95 }}
           >
             {showFilters ? (
-              <FunnelSolidIcon className="w-5 h-5" />
+              <FunnelSolidIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             ) : (
-              <FunnelIcon className="w-5 h-5" />
+              <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
-            <span className="font-semibold text-sm">
+            <span className="font-semibold text-xs sm:text-sm">
               {showFilters ? 'Hide Filters' : 'Show Filters'}
             </span>
           </motion.button>

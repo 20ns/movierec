@@ -139,12 +139,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   };
 
   return (
-    <div className={inHeader ? "bg-gray-800 rounded-xl shadow-xl overflow-hidden" : "fixed right-20 top-4 z-50"}>
+    <div className={inHeader ? "bg-gray-800 rounded-xl shadow-xl overflow-hidden w-full" : "fixed right-4 sm:right-20 top-4 z-50"}>
       {!inHeader && (
         <motion.button
           onClick={() => setIsOpen(!isOpen)}
           disabled={!currentUser?.signInUserSession}
-          className={`flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors duration-300 shadow-md ${
+          className={`flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors duration-300 shadow-md ${
             !currentUser?.signInUserSession ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
           }`}
           whileHover={{ scale: 1.05 }}
@@ -152,8 +152,8 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         >
           {currentUser?.signInUserSession ? (
             <>
-              <HeartIcon className="w-6 h-6 inline-block mr-2 text-red-200" />
-              <span className="font-medium">Favorites</span>
+              <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 inline-block mr-1 sm:mr-2 text-red-200" />
+              <span className="font-medium text-sm sm:text-base">Favorites</span>
             </>
           ) : (
             'Loading auth...'
@@ -222,11 +222,11 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 }
               }}
               style={{ willChange: "transform, opacity, box-shadow" }}
-              className="relative w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[70vh] border border-gray-700 z-50"
+              className="relative w-full bg-gray-800 rounded-xl shadow-xl overflow-hidden max-h-[80vh] sm:max-h-[70vh] border border-gray-700 z-50"
             >
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-white">
+              <div className="p-4 sm:p-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">
                     Your Favorites
                   </h2>
                   <button
@@ -234,7 +234,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                     className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
                   >
                     <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -265,7 +265,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
                 <div 
                   ref={favoritesScrollRef}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
                   style={{
                     scrollBehavior: 'smooth',
                   }}

@@ -327,100 +327,81 @@ const OnboardingQuestionnaire = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black bg-opacity-75">
-      <div 
-        className="bg-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden transition-all"
-        style={MODAL_STYLES}
-      >
-        {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-gray-700 bg-gray-800">
-          <h2 className="text-xl font-bold text-white">
-            {isUpdate ? 'Update Your Preferences' : 'Set Your Preferences'}
-          </h2>
-          {isModal && (
-            <button 
-              onClick={onSkip}
-              className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-        
+    <div className="w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div className="relative">
         {/* Progress bar */}
-        <div className="w-full bg-gray-800 h-2">
+        <div className="w-full bg-gray-700 rounded-full h-1.5 mb-6">
           <div 
-            className="h-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all duration-300"
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 h-1.5 rounded-full transition-all"
             style={{ width: `${(step / totalSteps) * 100}%` }}
           ></div>
         </div>
         
-        {/* Content area with fixed height */}
-        <div className="flex-grow p-6 flex flex-col" style={{ minHeight: "400px" }}>
-          {/* Question title */}
-          <h3 className="text-2xl font-bold mb-6 text-white text-center">
-            {getQuestionTitle(step)}
-          </h3>
-          
-          {/* Options container with consistent height */}
-          <div className="flex-grow flex flex-col justify-center">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 content-center">
-              {/* The options will be rendered here based on the current step */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="mb-8"
+          >
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-1">{getQuestionTitle(step)}</h3>
+            <p className="text-sm sm:text-base text-gray-300 mb-6">{getQuestionDescription(step)}</p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
               {renderQuestionOptions(step)}
             </div>
-          </div>
-          
-          {error && (
-            <div className="mt-4 p-4 bg-red-900 bg-opacity-50 border border-red-700 rounded-lg text-red-200">
-              {error}
-            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      
+      <div className="flex justify-between pt-6 border-t border-gray-700 mt-6">
+        <div>
+          {step > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={prevStep}
+              className="px-4 py-2 text-sm sm:text-base text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            >
+              Back
+            </motion.button>
           )}
         </div>
         
-        {/* Footer with navigation buttons */}
-        <div className="p-5 border-t border-gray-700 bg-gray-800 flex items-center justify-between">
-          {step > 1 ? (
-            <button
-              onClick={() => setStep(step - 1)}
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50"
+        <div className="flex space-x-2 sm:space-x-4">
+          {step < totalSteps ? (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={nextStep}
+              className={`px-4 py-2 text-sm sm:text-base text-white rounded-lg ${
+                'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
+              } transition-colors shadow-md`}
             >
-              Back
-            </button>
+              Next
+            </motion.button>
           ) : (
-            <button
-              onClick={onSkip}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSubmit}
+              className="px-5 py-2 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg shadow-md"
             >
-              Skip
-            </button>
+              Finish
+            </motion.button>
           )}
           
-          <div className="text-sm text-gray-400">
-            Step {step} of {totalSteps}
-          </div>
-          
-          <button
-            onClick={step === totalSteps ? handleSubmit : () => setStep(step + 1)}
-            disabled={isSubmitting}
-            className={`px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 
-                         hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg
-                         disabled:opacity-50 flex items-center`}
-          >
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Saving...
-              </>
-            ) : (
-              step === totalSteps ? 'Finish' : 'Next'
-            )}
-          </button>
+          {step > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={skipOnboarding}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300"
+            >
+              Skip for now
+            </motion.button>
+          )}
         </div>
       </div>
     </div>
@@ -441,6 +422,23 @@ function getQuestionTitle(step) {
       return "Any language preferences?";
     default:
       return "Tell us your preferences";
+  }
+}
+
+function getQuestionDescription(step) {
+  switch (step) {
+    case 1:
+      return "Select your favorite genres.";
+    case 2:
+      return "Choose the type of content you prefer.";
+    case 3:
+      return "Pick the moods that match your movie preferences.";
+    case 4:
+      return "Select the eras you enjoy the most.";
+    case 5:
+      return "Choose your preferred languages.";
+    default:
+      return "";
   }
 }
 

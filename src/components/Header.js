@@ -5,7 +5,9 @@ import {
   MagnifyingGlassIcon as SearchIcon, 
   UserIcon, 
   AdjustmentsHorizontalIcon, 
-  HeartIcon 
+  HeartIcon,
+  Bars3Icon,
+  XMarkIcon 
 } from '@heroicons/react/24/outline';
 
 function Header({ 
@@ -21,6 +23,7 @@ function Header({
 }) {
   const [hoveredButton, setHoveredButton] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Animation variants
   const iconButtonVariants = {
@@ -60,14 +63,30 @@ function Header({
         <motion.div 
           whileHover={{ scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          className="flex-shrink-0"
         >
-          <Link to="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
+          <Link to="/" className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
             MovieRec
           </Link>
         </motion.div>
 
-        {/* Navigation buttons */}
-        <div className="flex items-center space-x-1 sm:space-x-2">
+        {/* Mobile menu button */}
+        <div className="md:hidden">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="p-2 rounded-full text-gray-300 hover:bg-gray-800/70 hover:text-white"
+          >
+            {showMobileMenu ? 
+              <XMarkIcon className="w-6 h-6" /> : 
+              <Bars3Icon className="w-6 h-6" />
+            }
+          </motion.button>
+        </div>
+
+        {/* Desktop navigation */}
+        <div className="hidden md:flex items-center space-x-1 sm:space-x-2">
           {/* Search button - always visible */}
           <motion.button 
             variants={iconButtonVariants}
@@ -215,6 +234,89 @@ function Header({
           )}
         </div>
       </div>
+
+      {/* Mobile menu overlay */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden absolute left-0 right-0 top-full mt-2 bg-gray-900 shadow-lg rounded-b-lg overflow-hidden z-50 border-t border-gray-800"
+          >
+            <div className="px-4 py-3 space-y-3">
+              <button 
+                onClick={() => {
+                  setShowSearch(!showSearch);
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+              >
+                <SearchIcon className="w-5 h-5 mr-3" />
+                <span>Search</span>
+              </button>
+              
+              {isAuthenticated && (
+                <>
+                  <button 
+                    onClick={() => {
+                      setShowQuestionnaire(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+                  >
+                    <AdjustmentsHorizontalIcon className="w-5 h-5 mr-3" />
+                    <span>Preferences</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setShowFavorites(!showFavorites);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+                  >
+                    <HeartIcon className="w-5 h-5 mr-3" />
+                    <span>Favorites</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setShowAccountDetails(true);
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+                  >
+                    <UserIcon className="w-5 h-5 mr-3" />
+                    <span>Account</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      onSignout();
+                      setShowMobileMenu(false);
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+                  >
+                    <span>Sign out</span>
+                  </button>
+                </>
+              )}
+              
+              {!isAuthenticated && (
+                <Link 
+                  to="/auth"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="block w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-center text-white rounded-lg"
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.header>
   );
 }

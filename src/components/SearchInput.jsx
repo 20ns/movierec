@@ -106,7 +106,7 @@ export const SearchInput = React.memo(({
 
 const SearchIcon = React.memo(({ isLoading, searchIconClasses }) => (
   <motion.div
-    className={`pl-4 ${searchIconClasses}`}
+    className={`pl-2 sm:pl-4 ${searchIconClasses}`}
     animate={{
       scale: isLoading ? [1, 1.2, 1] : 1,
       rotate: isLoading ? 360 : 0,
@@ -115,7 +115,7 @@ const SearchIcon = React.memo(({ isLoading, searchIconClasses }) => (
     title="Search for movies or TV shows"
     style={{ willChange: 'transform' }}
   >
-    <MagnifyingGlassIcon className="w-6 h-6" />
+    <MagnifyingGlassIcon className="w-5 h-5 sm:w-6 sm:h-6" />
   </motion.div>
 ));
 
@@ -159,7 +159,7 @@ const InputField = React.memo(({ inputRef, localQuery, setLocalQuery, setIsFocus
       onFocus={() => setIsFocused(true)}
       onBlur={() => setTimeout(() => setIsFocused(false), 200)}
       onKeyDown={handleKeyDown}
-      className={`flex-1 py-3 px-2 bg-transparent focus:outline-none text-lg ${inputFieldClasses}`}
+      className={`w-full px-2 py-3 sm:px-4 bg-transparent border-none outline-none text-sm sm:text-base ${inputFieldClasses}`}
       placeholder={placeholders[placeholderIndex]}
       aria-label={searchMode === 'direct' ? "Direct title search" : "Search for content"}
       autoComplete="off"
@@ -174,7 +174,7 @@ const SubmitButton = React.memo(({ isLoading, buttonClasses, searchMode }) => (
       disabled={isLoading}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className={`px-5 py-2 text-base ${
+      className={`px-3 sm:px-5 py-1 sm:py-2 text-sm sm:text-base ${
         searchMode === 'direct' 
           ? 'bg-blue-700 hover:bg-blue-800 text-white' 
           : `bg-gradient-to-br ${buttonClasses}`
@@ -275,14 +275,14 @@ const SuggestionItem = React.memo(({ suggestion, index, onClick, onHover, sugges
       onMouseEnter={handleHover}
       onFocus={handleHover}
     >
-      <div className="px-4 py-2 transition-colors duration-200 flex items-center justify-between">
+      <div className="px-3 py-2 sm:px-4 sm:py-2 transition-colors duration-200 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <MagnifyingGlassIcon className={`w-4 h-4 ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`} />
-          <span className={`text-base font-medium ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`}>
+          <MagnifyingGlassIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`} />
+          <span className={`text-sm sm:text-base font-medium truncate max-w-[180px] sm:max-w-full ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`}>
             {suggestion.title}
           </span>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full transition-colors duration-200 ${suggestionItemTypeTextClasses}`}>
+        <span className={`text-xs px-2 py-0.5 rounded-full transition-colors duration-200 ${suggestionItemTypeTextClasses}`}>
           {suggestion.type}
         </span>
       </div>

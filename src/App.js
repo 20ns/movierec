@@ -306,13 +306,18 @@ function AppContent() {
     // Don't refresh if we haven't completed initial load
     if (!initialLoadComplete) return;
     
+    // Call refreshRecommendations method on the ref if it exists
+    if (personalizedRecommendationsRef.current?.refreshRecommendations) {
+      personalizedRecommendationsRef.current.refreshRecommendations();
+    }
+    
     // Force re-render of the recommendations component
     setRecommendationsKey(prevKey => prevKey + 1);
     
     // Dispatch a custom event that the PersonalizedRecommendations component can listen for
     const refreshEvent = new CustomEvent('refresh-recommendations');
     document.dispatchEvent(refreshEvent);
-  }, [initialLoadComplete]);
+  }, [initialLoadComplete, personalizedRecommendationsRef]);
 
   // Enhanced sign-in success handler to fetch preferences
   const handleAuthSuccess = useCallback(async (user) => {
@@ -380,6 +385,18 @@ function AppContent() {
       closeAction();
     }
   };
+
+  // Adding dedicated hook for screen size
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (loading) {
     return (
@@ -523,13 +540,12 @@ function AppContent() {
             onSignout={handleSignout}
             setShowAccountDetails={setShowAccountDetails} // Pass the new state setter
           />
-          
           {showSearch && isAuthenticated && (
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="w-full max-w-4xl mx-auto mt-6 px-4"
+              className="fixed right-4 top-16 z-50 w-full max-w-md"
             >
               <SearchBar currentUser={currentUser} />
             </motion.div>
@@ -574,7 +590,6 @@ function AppContent() {
                 />
               }
             />
-            {/* Change the auth/* route to just /auth to fix 404 issues */}
             
             <Route
               path="/onboarding"
@@ -633,7 +648,6 @@ function AppContent() {
                             <div className="flex justify-between items-center mb-6">
                               <h2 className="text-2xl font-bold text-white">Personalize Your Experience</h2>
                             </div>
-                            
                             <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 mb-6 shadow-lg border border-indigo-800">
                               <div className="flex items-center">
                                 <div className="mr-5">
@@ -645,7 +659,7 @@ function AppContent() {
                                     Take our quick questionnaire to get personalized movie and TV show recommendations
                                     that match your unique taste!
                                   </p>
-                                  <button
+                                  <button 
                                     className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
                                     onClick={() => setShowQuestionnaire(true)}
                                   >
