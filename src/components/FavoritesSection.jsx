@@ -35,7 +35,6 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   const fetchFavorites = async () => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      console.error('No access token available');
       setError('Authentication token missing');
       return;
     }
@@ -43,7 +42,6 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     setIsLoading(true);
     
     try {
-      console.log('Fetching favorites from API...');
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
@@ -56,23 +54,19 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       );
 
       if (!response.ok) {
-        console.error('Error response:', response.status, response.statusText);
         throw new Error(`Failed to fetch favorites: ${response.status} ${response.statusText}`);
       }
 
       // Parse the response according to what your Lambda returns
       const data = await response.json();
-      console.log('Favorites data received:', data);
       
       // Check if the data has the expected structure
       if (data && data.items) {
         setUserFavorites(data.items);
       } else {
-        console.warn('Unexpected response format:', data);
         setUserFavorites(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      console.error('Error fetching favorites:', err);
       setError('Failed to load favorites. Please try again later.');
     } finally {
       setIsLoading(false);

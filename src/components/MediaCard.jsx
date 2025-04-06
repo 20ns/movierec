@@ -56,19 +56,7 @@ export const MediaCard = ({
   // Helper function to extract token from various user object structures
   const extractToken = (user) => {
     if (!user) {
-      console.log("User object is null in MediaCard");
       return null;
-    }
-    
-    // Only log this in development, not in production
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Current user object structure:", JSON.stringify({
-        hasToken: !!user.token,
-        hasSignIn: !!user.signInUserSession,
-        hasAccessToken: user.signInUserSession?.accessToken !== undefined,
-        userEmail: user.attributes?.email || 'not found',
-        keys: Object.keys(user)
-      }));
     }
     
     // Case 1: Direct token property
@@ -89,7 +77,6 @@ export const MediaCard = ({
       return user;
     }
     
-    console.log("Could not extract token from user object:", user);
     return null;
   };
 
@@ -144,7 +131,6 @@ export const MediaCard = ({
             mode: 'cors'
           }
         ).catch(error => {
-          console.warn("Error fetching favorites:", error.message);
           return null;
         });
 
@@ -189,7 +175,6 @@ export const MediaCard = ({
         
         hasFetchedRef.current = true;
       } catch (error) {
-        console.error("Error checking favorite status:", error);
         hasFetchedRef.current = true;
       }
     };
@@ -209,8 +194,6 @@ export const MediaCard = ({
     
     // Check for token
     if (!token) {
-      console.error("No authentication token available. User may not be properly signed in.");
-      console.error("Current user object:", currentUser);
       alert("Please sign in to save favorites");
       promptLogin?.();
       return;
@@ -239,8 +222,6 @@ export const MediaCard = ({
           })
         }
       ).catch(error => {
-        // Handle CORS or network errors
-        console.error("CORS or network error:", error.message);
         throw new Error("Network error. Please try again later.");
       });
 
@@ -292,8 +273,6 @@ export const MediaCard = ({
       }
       
     } catch (error) {
-      console.error("Error updating favorite:", error);
-      
       // Show more helpful error message
       if (error.message.includes("NetworkError") || error.message.includes("Failed to fetch")) {
         alert("Network error. This might be due to CORS settings in AWS.");
