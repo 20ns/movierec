@@ -1,241 +1,246 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { MediaCard } from './MediaCard';
+import { MediaCard } from './MediaCard'; // Assuming MediaCard exists in this path
 import { SparklesIcon, ArrowPathIcon, LightBulbIcon } from '@heroicons/react/24/solid';
 
 // Constants for caching
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 const RECOMMENDATIONS_CACHE_KEY = 'movieRec_recommendations';
+// Session flag to avoid loading screen during the current browsing session
+const SESSION_RECS_LOADED_FLAG = 'movieRec_session_loaded';
 
-// Convert to forwardRef to accept ref from parent
-const PersonalizedRecommendations = forwardRef(({ 
-  currentUser, 
-  isAuthenticated, 
-  preferencesUpdated = 0, 
-  userPreferences: propUserPreferences,
-  initialLoadComplete = false
+// Helper function to get cache initially (run outside component scope if possible, or early)
+const getInitialCache = (userId) => {
+  if (!userId) return null;
+  try {
+    const cachedString = localStorage.getItem(RECOMMENDATIONS_CACHE_KEY);
+    if (cachedString) {
+      const parsed = JSON.parse(cachedString);
+      const isExpired = Date.now() - parsed.timestamp > CACHE_EXPIRATION_TIME;
+      const isSameUser = parsed.userId === userId;
+      const hasValidData = Array.isArray(parsed.data) && parsed.data.length > 0;
+
+      if (!isExpired && isSameUser && hasValidData) {
+        console.log('Valid cached recommendations found on initial load for user:', userId);
+        sessionStorage.setItem(SESSION_RECS_LOADED_FLAG, 'true'); // Mark session as loaded
+        return parsed; // Return { timestamp, data, userId, dataSource, reason }
+      } else {
+         console.log('Cache invalid:', { isExpired, isSameUser, hasValidData });
+         localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY); // Clean up invalid cache
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error('Error reading initial cache:', e);
+    localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY); // Clean up potentially corrupted cache
+    return null;
+  }
+};
+
+
+const PersonalizedRecommendations = forwardRef(({
+  currentUser,
+  isAuthenticated,
+  preferencesUpdated = 0,
+  propUserPreferences, // Renamed for clarity
+  initialLoadComplete = false // Flag from parent indicating initial app load is done
 }, ref) => {
-  const [recommendations, setRecommendations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isThinking, setIsThinking] = useState(true); 
+
+  // --- Initial State Setup ---
+  // Attempt to load from cache *before* initial render effects run
+  const initialCachedData = getInitialCache(isAuthenticated ? currentUser?.attributes?.sub : null);
+  const hasLoadedThisSession = sessionStorage.getItem(SESSION_RECS_LOADED_FLAG) === 'true';
+
+  const [recommendations, setRecommendations] = useState(initialCachedData?.data || []);
+  const [userPreferences, setUserPreferences] = useState(null); // Local copy, updated from props
+  const [dataSource, setDataSource] = useState(initialCachedData?.dataSource || null);
+  const [recommendationReason, setRecommendationReason] = useState(initialCachedData?.reason || '');
+  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false); // Default to false
+  const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
+
+  // Loading States: Only true if NO cache AND haven't loaded this session yet
+  const [isLoading, setIsLoading] = useState(!initialCachedData && !hasLoadedThisSession);
+  const [isThinking, setIsThinking] = useState(!initialCachedData && !hasLoadedThisSession);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Internal State & Refs
   const [favoriteGenres, setFavoriteGenres] = useState([]);
   const [userFavorites, setUserFavorites] = useState([]);
-  const [userPreferences, setUserPreferences] = useState(null);
-  const [dataSource, setDataSource] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
-  const [shownRecommendations, setShownRecommendations] = useState(new Set());
-  const [recommendationReason, setRecommendationReason] = useState('');
-  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(true);
-  const [hasCheckedQuestionnaire, setHasCheckedQuestionnaire] = useState(false);
-  
-  // Add fetch lock to prevent concurrent fetches
+  const [shownRecommendations, setShownRecommendations] = useState(() => new Set(initialCachedData?.data?.map(item => item.id) || [])); // Initialize from cache
+
   const isFetchingRef = useRef(false);
-  const initialFetchCompletedRef = useRef(false);
-  const initialStateSetRef = useRef(false);
-  
-  // Add a ref for the recommendations container
+  // This ref tracks if we have successfully loaded data (from cache or fetch) for the *first time*
+  const initialFetchCompletedRef = useRef(initialCachedData !== null);
   const recommendationsContainerRef = useRef(null);
-  
-  // Cache management functions
-  const saveRecommendationsToCache = useCallback((data, userId) => {
+
+  // --- Cache Management ---
+  const saveRecommendationsToCache = useCallback((data, userId, currentDataSource, currentReason) => {
+    if (!userId || !Array.isArray(data)) return;
     const cache = {
       timestamp: Date.now(),
       data,
-      userId
+      userId,
+      dataSource: currentDataSource || 'unknown',
+      reason: currentReason || 'Based on your profile'
     };
+    console.log('Saving recommendations to cache:', { userId, count: data.length, dataSource: cache.dataSource });
     localStorage.setItem(RECOMMENDATIONS_CACHE_KEY, JSON.stringify(cache));
-  }, []);
-  
-  const getRecommendationsFromCache = useCallback((userId) => {
-    try {
-      const cachedData = localStorage.getItem(RECOMMENDATIONS_CACHE_KEY);
-      if (!cachedData) return null;
-      
-      const cache = JSON.parse(cachedData);
-      const isExpired = Date.now() - cache.timestamp > CACHE_EXPIRATION_TIME;
-      const isSameUser = cache.userId === userId;
-      
-      // Return cached data if it's not expired and belongs to current user
-      if (!isExpired && isSameUser) {
-        return cache.data;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error reading recommendations from cache:', error);
-      return null;
-    }
+    sessionStorage.setItem(SESSION_RECS_LOADED_FLAG, 'true'); // Mark session as loaded
   }, []);
 
-  const isCacheValid = useCallback((userId) => {
-    const cachedRecommendations = getRecommendationsFromCache(userId);
-    return cachedRecommendations !== null && cachedRecommendations.length > 0;
-  }, [getRecommendationsFromCache]);
-  
-  // Update local state when props change, but prevent triggering unnecessary fetches
+  const getRecommendationsFromCache = useCallback((userId) => {
+     // Re-uses the initial logic, could be DRYer but okay for clarity
+     return getInitialCache(userId);
+  }, []);
+
+  // --- Prop Synchronization ---
   useEffect(() => {
+    // Update local preferences when prop changes
     if (propUserPreferences) {
       setUserPreferences(propUserPreferences);
+      // We don't automatically fetch here; `preferencesUpdated` prop handles that explicitly.
     }
   }, [propUserPreferences]);
 
-  // Check if user has completed the questionnaire - enhanced for early detection
+  // --- Initial Checks (Questionnaire, etc.) ---
   useEffect(() => {
-    if (isAuthenticated && currentUser?.attributes?.sub && !initialStateSetRef.current) {
-      // Make sure we only run this initialization logic once
-      initialStateSetRef.current = true;
-      
-      // Check if user has completed questionnaire - do this early to avoid layout shifts
-      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
-      setHasCompletedQuestionnaire(completionStatus === 'true');
+    if (isAuthenticated && currentUser?.attributes?.sub && !hasCheckedQuestionnaire) {
+      const userId = currentUser.attributes.sub;
+      const completionStatus = localStorage.getItem(`questionnaire_completed_${userId}`);
+      const completed = completionStatus === 'true';
+
+      console.log(`Questionnaire check for user ${userId}:`, completed);
+      setHasCompletedQuestionnaire(completed);
       setHasCheckedQuestionnaire(true);
-      
-      // If user hasn't completed the questionnaire, don't even start the loading/thinking animations
-      if (completionStatus !== 'true') {
+
+      // If questionnaire isn't complete, ensure loading states are off
+      // and mark initial fetch as "complete" (since we won't fetch)
+      if (!completed) {
         setIsLoading(false);
         setIsThinking(false);
+        setDataSource('none'); // Indicate no personalization source
+        initialFetchCompletedRef.current = true; // Prevent fetch attempts
+        console.log('Questionnaire not complete, skipping personalized fetch.');
       }
     }
-  }, [isAuthenticated, currentUser]);
+  }, [isAuthenticated, currentUser, hasCheckedQuestionnaire]);
 
-  // Define the fetchGenericRecommendations function using useCallback before it's used
+
+  // --- Data Fetching Functions ---
+
   const fetchGenericRecommendations = useCallback(async () => {
+    console.log('Fetching generic recommendations...');
+    let fetchedItems = [];
     try {
-      const response = await axios.get(
-        'https://api.themoviedb.org/3/trending/all/week',
-        {
-          params: {
-            api_key: process.env.REACT_APP_TMDB_API_KEY,
-            page: Math.floor(Math.random() * 5) + 1 // Random page between 1-5 for variety
-          }
-        }
-      );
-      
-      // Filter out any previously shown recommendations
-      let formattedResults = response.data.results
+      // Fetch Trending
+      const trendingResponse = await axios.get('https://api.themoviedb.org/3/trending/all/week', {
+        params: { api_key: process.env.REACT_APP_TMDB_API_KEY, page: Math.floor(Math.random() * 5) + 1 }
+      });
+      fetchedItems = trendingResponse.data.results
         .filter(item => item.poster_path && item.overview && !shownRecommendations.has(item.id))
-        .map(item => ({
-          ...item,
-          score: Math.round((item.vote_average / 10) * 100)
-        }))
-        .slice(0, 6);
-      
-      // If we still don't have enough, try another source (top rated)
-      if (formattedResults.length < 3) {
-        try {
-          const topRatedResponse = await axios.get(
-            'https://api.themoviedb.org/3/movie/top_rated',
-            {
-              params: {
-                api_key: process.env.REACT_APP_TMDB_API_KEY,
-                page: Math.floor(Math.random() * 5) + 1
-              }
-            }
-          );
-          
-          const existingIds = new Set(formattedResults.map(item => item.id));
-          
-          const additionalResults = topRatedResponse.data.results
-            .filter(item => 
-              item.poster_path && 
-              item.overview && 
-              !existingIds.has(item.id) && 
-              !shownRecommendations.has(item.id)
-            )
-            .map(item => ({
-              ...item,
-              media_type: 'movie',
-              score: Math.round((item.vote_average / 10) * 100)
-            }))
-            .slice(0, 3 - formattedResults.length);
-            
-          formattedResults = [...formattedResults, ...additionalResults];
-        } catch (err) {
-          console.error('Error fetching top rated as fallback:', err);
-        }
+        .map(item => ({ ...item, score: Math.round((item.vote_average / 10) * 100) }));
+
+      // Fetch Top Rated Movies if needed
+      if (fetchedItems.length < 6) {
+        const needed = 6 - fetchedItems.length;
+        const topRatedResponse = await axios.get('https://api.themoviedb.org/3/movie/top_rated', {
+          params: { api_key: process.env.REACT_APP_TMDB_API_KEY, page: Math.floor(Math.random() * 5) + 1 }
+        });
+        const existingIds = new Set(fetchedItems.map(item => item.id));
+        const additionalItems = topRatedResponse.data.results
+          .filter(item => item.poster_path && item.overview && !existingIds.has(item.id) && !shownRecommendations.has(item.id))
+          .map(item => ({ ...item, media_type: 'movie', score: Math.round((item.vote_average / 10) * 100) }))
+          .slice(0, needed);
+        fetchedItems = [...fetchedItems, ...additionalItems];
       }
-        
-      if (formattedResults.length > 0) {
-        setRecommendations(formattedResults);
-        // Track these recommendations to avoid repeats
+
+      fetchedItems = fetchedItems.slice(0, 6); // Ensure max 6
+
+      if (fetchedItems.length > 0) {
+        console.log(`Fetched ${fetchedItems.length} generic recommendations.`);
+        setRecommendations(fetchedItems);
+        setDataSource('generic');
+        setRecommendationReason('Popular This Week');
+        // Update shown recommendations *only* for generic/fallbacks to avoid rapid cycling
         setShownRecommendations(prev => {
           const newShown = new Set(prev);
-          formattedResults.forEach(item => newShown.add(item.id));
+          fetchedItems.forEach(item => newShown.add(item.id));
+          // Limit shown history size to prevent excessive memory use
+          if (newShown.size > 100) {
+             const oldest = Array.from(newShown).slice(0, newShown.size - 100);
+             oldest.forEach(id => newShown.delete(id));
+          }
           return newShown;
         });
+        // Do NOT cache generic recommendations as personalized
+      } else {
+         console.log('No generic recommendations found.');
+         setRecommendations([]); // Clear if nothing found
       }
+      return fetchedItems;
+
     } catch (error) {
       console.error('Error fetching generic recommendations:', error);
-    } finally {
-      setIsLoading(false);
+      setRecommendations([]);
+      return [];
     }
-  }, [shownRecommendations]);
+  }, [shownRecommendations]); // Depend on shownRecommendations
 
-  // Add this new supplementary recommendations function after fetchGenericRecommendations
   const fetchSupplementaryRecommendations = useCallback(async (currentCount, existingIds = new Set()) => {
-    // Only fetch if we need more recommendations to reach minimum count
+    // Fetches popular/top-rated to fill gaps, avoiding duplicates
     const minRecommendationCount = 3;
     const neededCount = Math.max(0, minRecommendationCount - currentCount);
-    
     if (neededCount <= 0) return [];
-    
+
+    console.log(`Fetching ${neededCount} supplementary recommendations.`);
     try {
-      // Try to get a mix of top-rated and popular content
       const [topRatedResponse, popularResponse] = await Promise.all([
-        axios.get('https://api.themoviedb.org/3/movie/top_rated', {
-          params: {
-            api_key: process.env.REACT_APP_TMDB_API_KEY,
-            page: Math.floor(Math.random() * 5) + 1
-          }
-        }),
-        axios.get('https://api.themoviedb.org/3/movie/popular', {
-          params: {
-            api_key: process.env.REACT_APP_TMDB_API_KEY,
-            page: Math.floor(Math.random() * 3) + 1
-          }
-        })
+        axios.get('https://api.themoviedb.org/3/movie/top_rated', { params: { api_key: process.env.REACT_APP_TMDB_API_KEY, page: Math.floor(Math.random() * 2) + 1 } }),
+        axios.get('https://api.themoviedb.org/3/movie/popular', { params: { api_key: process.env.REACT_APP_TMDB_API_KEY, page: Math.floor(Math.random() * 2) + 1 } })
       ]);
-  
-      // Combine and filter results
+
       const supplementaryResults = [
         ...topRatedResponse.data.results.map(item => ({ ...item, media_type: 'movie' })),
         ...popularResponse.data.results.map(item => ({ ...item, media_type: 'movie' }))
       ]
-      // Filter out items that don't have posters or descriptions
-      .filter(item => 
-        item.poster_path && 
-        item.overview && 
-        !existingIds.has(item.id) && 
-        !shownRecommendations.has(item.id)
-      )
-      // Map them to have the same structure as our regular recommendations
-      .map(item => ({
-        ...item,
-        score: Math.round((item.vote_average / 10) * 100)
-      }));
-  
-      // Return just what we need, prioritizing top-rated content
-      return supplementaryResults
+      .filter(item => item.poster_path && item.overview && !existingIds.has(item.id) && !shownRecommendations.has(item.id))
+      .map(item => ({ ...item, score: Math.round((item.vote_average / 10) * 100) }));
+
+      // Unique items, sorted by vote average, limited to needed count
+      const uniqueMap = new Map();
+      supplementaryResults.forEach(item => {
+        if (!uniqueMap.has(item.id)) {
+          uniqueMap.set(item.id, item);
+        }
+      });
+
+      const finalSupplementary = Array.from(uniqueMap.values())
         .sort((a, b) => b.vote_average - a.vote_average)
         .slice(0, neededCount);
+
+      console.log(`Fetched ${finalSupplementary.length} supplementary items.`);
+      return finalSupplementary;
+
     } catch (error) {
       console.error('Error fetching supplementary recommendations:', error);
       return [];
     }
   }, [shownRecommendations]);
 
-  // Function to fetch user's latest preferences - now only used as a fallback
   const fetchLatestPreferences = useCallback(async () => {
-    // This function now serves as a fallback if props don't have preferences
+    // Only fetches if needed (e.g., not available from props during refresh)
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      console.log('Cannot fetch preferences: Not authenticated.');
       return null;
     }
-    
-    if (propUserPreferences) {
-      return propUserPreferences;
+    // If we already have them locally (from props), return them
+    if (userPreferences) {
+       return userPreferences;
     }
-    
+
+    console.log('Fetching latest preferences from API...');
     try {
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`,
@@ -247,53 +252,37 @@ const PersonalizedRecommendations = forwardRef(({
           credentials: 'include'
         }
       );
-      
       if (response.ok) {
         const data = await response.json();
         if (data && Object.keys(data).length > 0) {
-          setUserPreferences(data);
+          console.log('Fetched preferences successfully:', data);
+          setUserPreferences(data); // Update local state
+          localStorage.setItem('userPrefs', JSON.stringify(data)); // Also cache locally
           return data;
+        } else {
+           console.log('No preferences data returned from API.');
+           localStorage.removeItem('userPrefs');
         }
+      } else {
+         console.error('Failed to fetch preferences, status:', response.status);
+         localStorage.removeItem('userPrefs');
       }
     } catch (error) {
       console.error('Error fetching user preferences:', error);
+      localStorage.removeItem('userPrefs');
     }
+    setUserPreferences(null); // Ensure state is null if fetch fails
     return null;
-  }, [currentUser, isAuthenticated, propUserPreferences]);
-  
-  // Fetch user preferences - with safeguards against unnecessary fetches
-  useEffect(() => {
+  }, [currentUser, isAuthenticated, userPreferences]); // Depend on local userPreferences
+
+  const fetchUserFavoritesAndGenres = useCallback(async () => {
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      setIsLoading(false);
-      setIsThinking(false);
-      return;
-    }
-    
-    // Try to get preferences from localStorage first for immediate display
-    const localPrefs = localStorage.getItem('userPrefs');
-    if (localPrefs) {
-      try {
-        const parsedPrefs = JSON.parse(localPrefs);
-        setUserPreferences(parsedPrefs);
-      } catch (e) {
-        console.error('Failed to parse local preferences', e);
-      }
-    }
-    
-    // Only fetch preferences if we don't already have them from props
-    if (!propUserPreferences) {
-      fetchLatestPreferences();
-    }
-  }, [currentUser?.signInUserSession?.accessToken?.jwtToken, isAuthenticated]);
-
-  // Fetch user favorites - with safeguards
-  useEffect(() => {
-    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken || initialFetchCompletedRef.current) {
-      return;
+        console.log('Cannot fetch favorites: Not authenticated.');
+        return { favorites: [], genres: [] };
     }
 
-    const fetchFavorites = async () => {
-      try {
+    console.log('Fetching user favorites...');
+    try {
         const response = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
           {
@@ -305,937 +294,612 @@ const PersonalizedRecommendations = forwardRef(({
           }
         );
 
-        if (!response.ok) throw new Error('Failed to fetch favorites');
-        
+        if (!response.ok) throw new Error(`Failed to fetch favorites (status: ${response.status})`);
+
         const data = await response.json();
-        if (data && data.items && data.items.length > 0) {
-          setUserFavorites(data.items);
-          
-          // Extract genres from favorites for recommendation
-          const genrePromises = data.items.map(item => 
+        const favorites = data?.items || [];
+        setUserFavorites(favorites); // Update state
+
+        if (favorites.length > 0) {
+          console.log(`Fetched ${favorites.length} favorites.`);
+          // Extract genres
+          const genrePromises = favorites.map(item =>
             axios.get(`https://api.themoviedb.org/3/${item.mediaType}/${item.mediaId}`, {
               params: { api_key: process.env.REACT_APP_TMDB_API_KEY }
+            }).catch(e => {
+               console.warn(`Failed to fetch details for ${item.mediaType}/${item.mediaId}:`, e.message);
+               return null; // Ignore errors for individual items
             })
           );
-          
-          const genreResults = await Promise.all(genrePromises.map(p => p.catch(e => null)));
+
+          const genreResults = await Promise.all(genrePromises);
           const allGenres = genreResults
-            .filter(Boolean)
+            .filter(Boolean) // Filter out null results from errors
             .flatMap(res => res.data?.genres?.map(g => g.id) || []);
-          
-          // Get most common genres
-          const genreCount = {};
-          allGenres.forEach(g => {
-            genreCount[g] = (genreCount[g] || 0) + 1;
-          });
-          
+
+          const genreCount = allGenres.reduce((acc, g) => {
+            acc[g] = (acc[g] || 0) + 1;
+            return acc;
+          }, {});
+
           const topGenres = Object.entries(genreCount)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
+            .slice(0, 3) // Take top 3
             .map(([id]) => id);
-            
-          setFavoriteGenres(topGenres);
-        }
-      } catch (error) {
-        console.error('Error fetching user favorites:', error);
-      }
-    };
-    
-    fetchFavorites();
-  }, [currentUser?.signInUserSession?.accessToken?.jwtToken, isAuthenticated]);
 
-  // Enhanced function to fetch recommendations based on preferences first, then favorites
-  const fetchRecommendations = useCallback(async (forceRefresh = false) => {
-    // First check if user has completed questionnaire to avoid unnecessary work
-    if (!hasCompletedQuestionnaire && hasCheckedQuestionnaire) {
-      console.log('User has not completed questionnaire, skipping recommendations');
-      setIsLoading(false);
-      setIsThinking(false);
-      setDataSource('none');
-      return;
-    }
-    
-    // Prevent concurrent fetches
-    if (isFetchingRef.current) {
-      console.log('Fetch already in progress, skipping');
-      return;
-    }
-    
-    if (!isAuthenticated || !currentUser?.attributes?.sub) {
-      setIsLoading(false);
-      setIsThinking(false);
-      return;
-    }
-
-    const userId = currentUser.attributes.sub;
-    
-    // Check cache first if not forcing refresh
-    if (!forceRefresh) {
-      const cachedRecommendations = getRecommendationsFromCache(userId);
-      if (cachedRecommendations) {
-        console.log('Using cached recommendations');
-        setRecommendations(cachedRecommendations);
-        setIsLoading(false);
-        setIsThinking(false);
-        initialFetchCompletedRef.current = true;
-        return;
-      }
-    }
-    
-    try {
-      // Set fetch lock
-      isFetchingRef.current = true;
-      
-      // Start the thinking animation
-      setIsThinking(true);
-      setIsLoading(true);
-      
-      // Check if the user has completed the questionnaire
-      const completionStatus = localStorage.getItem(`questionnaire_completed_${currentUser.attributes.sub}`);
-      const hasQuestionnaire = completionStatus === 'true';
-      
-      if (!hasQuestionnaire) {
-        console.log('User has not completed questionnaire, showing generic recommendations');
-        setDataSource('none');
-        await fetchGenericRecommendations();
-        return;
-      }
-      
-      // Check if we have preferences (from props or state)
-      const effectivePreferences = userPreferences || propUserPreferences;
-      
-      // Immediately use preferences if available, otherwise fetch
-      let prefsToUse = effectivePreferences;
-      if (!effectivePreferences) {
-        prefsToUse = await fetchLatestPreferences();
-      }
-      
-      const hasPreferences = prefsToUse && 
-        (prefsToUse.favoriteGenres?.length > 0 || 
-         prefsToUse.contentType || 
-         prefsToUse.eraPreferences?.length > 0 ||
-         prefsToUse.moodPreferences?.length > 0 ||
-         prefsToUse.languagePreferences?.length > 0 ||
-         prefsToUse.runtimePreference);
-         
-      const hasFavorites = favoriteGenres.length > 0;
-      
-      // Exit early if we have neither preferences nor favorites
-      if (!hasPreferences && !hasFavorites) {
-        console.log('No preferences or favorites, showing generic recommendations');
-        setDataSource('none');
-        await fetchGenericRecommendations();
-        return;
-      }
-
-      // Determine which data source to use for recommendations
-      // Prioritize preferences over favorites
-      if (hasPreferences) {
-        setDataSource(hasFavorites ? 'both' : 'preferences');
-        setRecommendationReason(hasFavorites 
-          ? 'Based on your preferences and favorites' 
-          : 'Based on your questionnaire responses');
-      } else {
-        setDataSource('favorites');
-        setRecommendationReason('Based on your favorites');
-      }
-      
-      // Determine content type from preferences, favorites, or random if neither specifies
-      let mediaType;
-      
-      if (prefsToUse?.contentType === 'movies') {
-        mediaType = 'movie';
-      } else if (prefsToUse?.contentType === 'tv') {
-        mediaType = 'tv';
-      } else if (hasFavorites && userFavorites.length > 0) {
-        // Count movie vs TV favorites
-        const movieCount = userFavorites.filter(f => f.mediaType === 'movie').length;
-        const tvCount = userFavorites.filter(f => f.mediaType === 'tv').length;
-        mediaType = movieCount > tvCount ? 'movie' : 'tv';
-      } else {
-        // Default to movie if no preference is available
-        mediaType = 'movie';
-      }
-      
-      const endpoint = mediaType;
-      
-      // Determine which genres to use - prioritizing preferences
-      let genresToUse = [];
-      
-      if (hasPreferences && prefsToUse.favoriteGenres?.length > 0) {
-        // Use preference genres first
-        genresToUse = prefsToUse.favoriteGenres;
-      } else if (hasFavorites) {
-        // Fall back to favorites-derived genres if no preference genres
-        genresToUse = favoriteGenres;
-      }
-      
-      // Era preferences from the user's settings
-      let yearParams = {};
-      if (hasPreferences && prefsToUse.eraPreferences?.length > 0) {
-        if (prefsToUse.eraPreferences.includes('classic')) {
-          yearParams = { 'release_date.lte': '1980-12-31' };
-          if (mediaType === 'tv') {
-            yearParams = { 'first_air_date.lte': '1980-12-31' };
-          }
-        } else if (prefsToUse.eraPreferences.includes('modern')) {
-          if (mediaType === 'movie') {
-            yearParams = { 
-              'release_date.gte': '1980-01-01',
-              'release_date.lte': '2010-12-31'
-            };
-          } else {
-            yearParams = {
-              'first_air_date.gte': '1980-01-01',
-              'first_air_date.lte': '2010-12-31'
-            };
-          }
-        } else if (prefsToUse.eraPreferences.includes('recent')) {
-          if (mediaType === 'movie') {
-            yearParams = { 'release_date.gte': '2011-01-01' };
-          } else {
-            yearParams = { 'first_air_date.gte': '2011-01-01' };
-          }
-        }
-      }
-      
-      // Add mood-based parameters
-      let moodParams = {};
-      if (hasPreferences && prefsToUse.moodPreferences?.length > 0) {
-        const moodGenresMap = {
-          'exciting': '28,12,10752,878', // Action, Adventure, War, Science Fiction
-          'funny': '35,16,10751', // Comedy, Animation, Family
-          'thoughtful': '18,99,36,9648', // Drama, Documentary, History, Mystery
-          'scary': '27,9648,53', // Horror, Mystery, Thriller
-          'emotional': '10749,18,10751,10402' // Romance, Drama, Family, Music
-        };
-        
-        let moodGenres = [];
-        prefsToUse.moodPreferences.forEach(mood => {
-          if (moodGenresMap[mood]) {
-            moodGenres.push(...moodGenresMap[mood].split(','));
-          }
-        });
-        
-        // Deduplicate genres
-        moodGenres = [...new Set(moodGenres)];
-        
-        if (moodGenres.length > 0) {
-          moodParams.with_genres = moodGenres.join(',');
-        }
-      }
-      
-      // Add runtime preferences
-      let runtimeParams = {};
-      if (hasPreferences && prefsToUse.runtimePreference) {
-        if (mediaType === 'movie') {
-          switch (prefsToUse.runtimePreference) {
-            case 'short':
-              runtimeParams['with_runtime.lte'] = '90';
-              break;
-            case 'medium':
-              runtimeParams['with_runtime.gte'] = '90';
-              runtimeParams['with_runtime.lte'] = '120';
-              break;
-            case 'long':
-              runtimeParams['with_runtime.gte'] = '120';
-              break;
-            default:
-              // Don't set any runtime params for 'any'
-              break;
-          }
-        }
-        // For TV shows, we can't easily filter by episode runtime
-      }
-      
-      // Add language/region preferences
-      let regionParams = {};
-      if (hasPreferences && prefsToUse.languagePreferences?.length > 0) {
-        // Map language preferences to region and language codes
-        const languageMap = {
-          'en': { region: 'US,GB,CA,AU', language: 'en' },
-          'es': { region: 'ES,MX', language: 'es' },
-          'fr': { region: 'FR,CA', language: 'fr' },
-          'de': { region: 'DE,AT', language: 'de' },
-          'hi': { region: 'IN', language: 'hi' },
-          'ja': { region: 'JP', language: 'ja' },
-          'ko': { region: 'KR', language: 'ko' },
-          'zh': { region: 'CN,TW,HK', language: 'zh' },
-          'any': {} // No specific region/language for any
-        };
-        
-        // Find the first matching language preference that's not 'any'
-        for (const pref of prefsToUse.languagePreferences) {
-          if (pref !== 'any' && languageMap[pref]) {
-            if (languageMap[pref].region) {
-              regionParams.region = languageMap[pref].region;
-            }
-            if (languageMap[pref].language) {
-              regionParams.with_original_language = languageMap[pref].language;
-            }
-            break; // Use the first matching preference
-          }
-        }
-        
-        // Special case for Bollywood - check if Hindi is selected
-        if (prefsToUse.languagePreferences.includes('hi')) {
-          console.log("Applying Bollywood preference");
-          regionParams.region = 'IN';
-          regionParams.with_original_language = 'hi';
-        }
-      }
-      
-      let initialResults = [];
-      
-      // Only proceed with API call if we have genres to use or other parameters
-      if (genresToUse.length > 0 || Object.keys(regionParams).length > 0 || 
-          Object.keys(yearParams).length > 0 || Object.keys(moodParams).length > 0) {
-        
-        // Add a small random delay to simulate "thinking" - but only the first time
-        if (!initialFetchCompletedRef.current) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
-        
-        // Add randomness to results with varying page
-        const page = Math.floor(Math.random() * 3) + 1; // Page 1, 2, or 3
-
-        console.log(`Fetching ${mediaType} recommendations with:`, { 
-          genres: genresToUse, 
-          region: regionParams, 
-          year: yearParams,
-          mood: moodParams,
-          runtime: runtimeParams
-        });
-
-        const response = await axios.get(
-          `https://api.themoviedb.org/3/discover/${endpoint}`,
-          {
-            params: {
-              api_key: process.env.REACT_APP_TMDB_API_KEY,
-              with_genres: genresToUse.length > 0 ? genresToUse.join(',') : undefined,
-              sort_by: 'popularity.desc',
-              page: page,
-              ...yearParams,
-              ...moodParams,
-              ...regionParams,
-              ...runtimeParams,
-              'vote_count.gte': 30, // Lower threshold to get more diverse content
-              include_adult: false,
-            }
-          }
-        );
-        
-        // Format and filter out already favorited items and previously shown recommendations
-        const favoriteIds = new Set(userFavorites.map(fav => fav.mediaId));
-        initialResults = response.data.results
-          .filter(item => !favoriteIds.has(item.id.toString()) && !shownRecommendations.has(item.id))
-          .map(item => ({
-            ...item,
-            media_type: mediaType,
-            score: Math.round((item.vote_average / 10) * 100)
-          }))
-          .slice(0, 6);
-
-        // If we still don't have enough, try with less strict filters (just keep genres)
-        if (initialResults.length < 3 && Object.keys(regionParams).length > 0) {
-          console.log("Not enough results with region filter, trying without region");
-          const fallbackResponse = await axios.get(
-            `https://api.themoviedb.org/3/discover/${endpoint}`,
-            {
-              params: {
-                api_key: process.env.REACT_APP_TMDB_API_KEY,
-                with_genres: genresToUse.length > 0 ? genresToUse.join(',') : undefined,
-                sort_by: 'popularity.desc',
-                page: page,
-                ...yearParams, // Keep year params
-                ...moodParams, // Keep mood params
-                'vote_count.gte': 30,
-                include_adult: false,
-              }
-            }
-          );
-          
-          // Get IDs from initial results
-          const existingIds = new Set(initialResults.map(item => item.id));
-          
-          // Add unique results from fallback
-          const fallbackResults = fallbackResponse.data.results
-            .filter(item => !favoriteIds.has(item.id.toString()) && 
-                           !shownRecommendations.has(item.id) &&
-                           !existingIds.has(item.id))
-            .map(item => ({
-              ...item,
-              media_type: mediaType,
-              score: Math.round((item.vote_average / 10) * 100)
-            }));
-          
-          initialResults = [...initialResults, ...fallbackResults].slice(0, 6);
-        }
-      }
-      
-      // If we don't have enough initial results, try generic recommendations
-      if (initialResults.length < 3) {
-        if (initialResults.length === 0) {
-          await fetchGenericRecommendations();
+          setFavoriteGenres(topGenres); // Update state
+          console.log('Derived top genres from favorites:', topGenres);
+          return { favorites, genres: topGenres };
         } else {
-          // Get the IDs of our initial results to avoid duplicates
-          const existingIds = new Set(initialResults.map(item => item.id));
-          
-          // Get supplementary recommendations
-          const supplementaryResults = await fetchSupplementaryRecommendations(
-            initialResults.length, 
-            existingIds
-          );
-          
-          // Combine results
-          const combinedResults = [...initialResults, ...supplementaryResults];
-          if (combinedResults.length > 0) {
-            setRecommendations(combinedResults);
-            
-            // Track these recommendations to avoid repeats
-            setShownRecommendations(prev => {
-              const newShown = new Set(prev);
-              combinedResults.forEach(item => newShown.add(item.id));
-              return newShown;
-            });
-          } else {
-            // Fallback to generic if we still don't have enough
-            await fetchGenericRecommendations();
-          }
+          console.log('No favorites found.');
+          setFavoriteGenres([]);
+          return { favorites: [], genres: [] };
         }
-      } else {
-        // We have enough results from our initial query
-        setRecommendations(initialResults);
-        
-        // Cache the recommendations
-        saveRecommendationsToCache(initialResults, userId);
-        
-        // Track these recommendations to avoid repeats
-        setShownRecommendations(prev => {
-          const newShown = new Set(prev);
-          initialResults.forEach(item => newShown.add(item.id));
-          return newShown;
-        });
-      }
     } catch (error) {
-      console.error('Error fetching recommendations:', error);
-      await fetchGenericRecommendations();
-    } finally {
-      // Mark initial fetch as completed
-      initialFetchCompletedRef.current = true;
-      
-      // Add a small delay before hiding the thinking state for better UX
-      setTimeout(() => {
-        setIsThinking(false);
+        console.error('Error fetching user favorites or genres:', error);
+        setUserFavorites([]);
+        setFavoriteGenres([]);
+        return { favorites: [], genres: [] };
+    }
+}, [currentUser, isAuthenticated]); // Dependencies
+
+
+  // --- Core Recommendation Fetching Logic ---
+  const fetchRecommendations = useCallback(async (forceRefresh = false) => {
+    const userId = currentUser?.attributes?.sub;
+
+    // Guard: Check prerequisites
+    if (!isAuthenticated || !userId) {
+        console.log('fetchRecommendations skipped: Not authenticated.');
         setIsLoading(false);
-        setIsRefreshing(false);
-        
-        // Release the fetch lock
-        isFetchingRef.current = false;
-      }, 800); // Increased delay for smoother transition
+        setIsThinking(false);
+        return;
+    }
+    // Guard: Questionnaire must be completed
+     if (!hasCompletedQuestionnaire && hasCheckedQuestionnaire) {
+      console.log('fetchRecommendations skipped: Questionnaire not complete.');
+      setIsLoading(false);
+      setIsThinking(false);
+      setDataSource('none'); // Ensure data source reflects this
+      initialFetchCompletedRef.current = true; // Mark as "complete" since we won't fetch
+      return;
+    }
+    // Guard: Already fetching
+    if (isFetchingRef.current) {
+      console.log('fetchRecommendations skipped: Fetch already in progress.');
+      return;
+    }
+    // Guard: Already have data and not forcing refresh
+    // Check initialFetchCompletedRef *instead* of recommendations.length to allow cache invalidation to work
+    if (!forceRefresh && initialFetchCompletedRef.current) {
+      console.log('fetchRecommendations skipped: Initial fetch/cache load already completed.');
+      // Ensure loading states are off if we somehow got here with them on
+      if (isLoading || isThinking) {
+         setIsLoading(false);
+         setIsThinking(false);
+      }
+      return;
+    }
+
+    console.log(`fetchRecommendations called: forceRefresh=${forceRefresh}, userId=${userId}`);
+    isFetchingRef.current = true;
+    setIsLoading(true); // Show loading skeleton initially
+    setIsThinking(true); // Start thinking animation
+
+    // Short delay for "thinking" feel, only if not refreshing (refresh has its own delay)
+    if (!isRefreshing && !hasLoadedThisSession) {
+        await new Promise(resolve => setTimeout(resolve, 1200)); // Adjust delay as needed
+    }
+
+    let fetchedRecs = [];
+    let finalDataSource = 'generic'; // Default
+    let finalReason = 'Popular This Week';
+
+    try {
+        // Step 1: Get latest Preferences and Favorites (concurrently)
+        const [prefsData, favData] = await Promise.all([
+            fetchLatestPreferences(),
+            fetchUserFavoritesAndGenres()
+        ]);
+        const effectivePreferences = prefsData; // Already updated state in fetchLatestPreferences if successful
+        const currentFavorites = favData.favorites;
+        const derivedFavoriteGenres = favData.genres; // Genres from favorites
+
+        // Determine if we have enough data for personalized recs
+        const hasPreferences = effectivePreferences && (
+            effectivePreferences.favoriteGenres?.length > 0 ||
+            effectivePreferences.contentType ||
+            effectivePreferences.eraPreferences?.length > 0 ||
+            effectivePreferences.moodPreferences?.length > 0 ||
+            effectivePreferences.languagePreferences?.length > 0 ||
+            effectivePreferences.runtimePreference
+        );
+        const hasFavorites = currentFavorites.length > 0;
+
+        console.log('Personalization data check:', { hasPreferences, hasFavorites });
+
+        // Step 2: If no personalization data, fallback to generic
+        if (!hasPreferences && !hasFavorites) {
+            console.log('No personalization data available, fetching generic.');
+            finalDataSource = 'generic';
+            finalReason = 'Popular This Week';
+            fetchedRecs = await fetchGenericRecommendations();
+
+        } else {
+            // Step 3: Prepare parameters for personalized fetch
+            let mediaType = 'movie'; // Default
+            if (effectivePreferences?.contentType === 'tv') mediaType = 'tv';
+            else if (effectivePreferences?.contentType === 'movies') mediaType = 'movie';
+            // Could add logic here to infer from favorites if contentType is 'any' or unset
+
+            let genresToUse = effectivePreferences?.favoriteGenres?.length > 0
+                ? effectivePreferences.favoriteGenres
+                : derivedFavoriteGenres; // Fallback to favorite-derived genres
+
+            // Add other preference filters (era, mood, runtime, language/region)
+            // (Code for yearParams, moodParams, runtimeParams, regionParams - same as your original logic)
+            let yearParams = {};
+            if (hasPreferences && effectivePreferences.eraPreferences?.length > 0) {
+              // ... (same era logic as before)
+              if (effectivePreferences.eraPreferences.includes('classic')) { yearParams[mediaType === 'movie' ? 'release_date.lte' : 'first_air_date.lte'] = '1980-12-31'; }
+              else if (effectivePreferences.eraPreferences.includes('modern')) { /* 1980-2010 */ yearParams[mediaType === 'movie' ? 'release_date.gte' : 'first_air_date.gte'] = '1980-01-01'; yearParams[mediaType === 'movie' ? 'release_date.lte' : 'first_air_date.lte'] = '2010-12-31';}
+              else if (effectivePreferences.eraPreferences.includes('recent')) { yearParams[mediaType === 'movie' ? 'release_date.gte' : 'first_air_date.gte'] = '2011-01-01';}
+            }
+            let moodParams = {};
+             if (hasPreferences && effectivePreferences.moodPreferences?.length > 0) {
+                const moodGenresMap = { /* ... same map ... */ 'exciting': '28,12,10752,878', 'funny': '35,16,10751', 'thoughtful': '18,99,36,9648', 'scary': '27,9648,53', 'emotional': '10749,18,10751,10402' };
+                let moodGenres = [...new Set(effectivePreferences.moodPreferences.flatMap(mood => moodGenresMap[mood]?.split(',') || []))];
+                if (moodGenres.length > 0) moodParams.with_genres = moodGenres.join(','); // Will be merged/overridden by specific genres later if both exist
+            }
+            let runtimeParams = {};
+            if (hasPreferences && effectivePreferences.runtimePreference && mediaType === 'movie') {
+               switch (effectivePreferences.runtimePreference) { /* ... same runtime logic ... */ case 'short': runtimeParams['with_runtime.lte'] = '90'; break; case 'medium': runtimeParams['with_runtime.gte'] = '90'; runtimeParams['with_runtime.lte'] = '120'; break; case 'long': runtimeParams['with_runtime.gte'] = '120'; break; }
+            }
+            let regionParams = {};
+            if (hasPreferences && effectivePreferences.languagePreferences?.length > 0) {
+                const languageMap = { /* ... same map ... */ 'en': { region: 'US,GB,CA,AU', language: 'en' }, 'es': { region: 'ES,MX', language: 'es' }, 'fr': { region: 'FR,CA', language: 'fr' }, 'de': { region: 'DE,AT', language: 'de' }, 'hi': { region: 'IN', language: 'hi' }, 'ja': { region: 'JP', language: 'ja' }, 'ko': { region: 'KR', language: 'ko' }, 'zh': { region: 'CN,TW,HK', language: 'zh' }, 'any': {} };
+                for (const pref of effectivePreferences.languagePreferences) {
+                   if (pref !== 'any' && languageMap[pref]) { /* ... same language/region logic ... */ if(languageMap[pref].region) regionParams.region = languageMap[pref].region; if(languageMap[pref].language) regionParams.with_original_language = languageMap[pref].language; break;}
+                }
+                if (effectivePreferences.languagePreferences.includes('hi')) { regionParams.region = 'IN'; regionParams.with_original_language = 'hi';}
+            }
+
+            // Combine genre sources (prioritize specific over mood if both present)
+            const finalGenreParam = genresToUse.length > 0 ? genresToUse.join(',') : moodParams.with_genres;
+            if (genresToUse.length > 0 && moodParams.with_genres) {
+                // If specific genres are selected, they usually override broad mood genres
+                delete moodParams.with_genres;
+            }
+
+
+            // Step 4: Fetch from TMDB Discover endpoint
+            if (genresToUse.length > 0 || Object.keys(moodParams).length > 0 || Object.keys(regionParams).length > 0 || Object.keys(yearParams).length > 0 ) {
+                console.log(`Fetching personalized ${mediaType} recommendations with params:`, { genres: finalGenreParam, regionParams, yearParams, moodParams, runtimeParams });
+                const response = await axios.get(
+                    `https://api.themoviedb.org/3/discover/${mediaType}`,
+                    {
+                        params: {
+                            api_key: process.env.REACT_APP_TMDB_API_KEY,
+                            with_genres: finalGenreParam,
+                            sort_by: 'popularity.desc',
+                            page: Math.floor(Math.random() * 3) + 1,
+                            'vote_count.gte': 50, // Slightly higher vote count for personalized
+                            include_adult: false,
+                            ...yearParams,
+                            ...moodParams, // Will not contain with_genres if specific genres used
+                            ...regionParams,
+                            ...runtimeParams,
+                        }
+                    }
+                );
+
+                const favoriteIds = new Set(currentFavorites.map(fav => fav.mediaId));
+                fetchedRecs = response.data.results
+                    .filter(item => item.poster_path && item.overview && !favoriteIds.has(item.id.toString())) // Exclude favorited
+                    .map(item => ({
+                        ...item,
+                        media_type: mediaType,
+                        score: Math.round((item.vote_average / 10) * 100)
+                    }))
+                    .slice(0, 6); // Limit results
+
+                 console.log(`Fetched ${fetchedRecs.length} personalized items initially.`);
+
+                 // Determine data source and reason based on what was used
+                 if (hasPreferences && hasFavorites) {
+                     finalDataSource = 'both';
+                     finalReason = 'Based on your preferences and favorites';
+                 } else if (hasPreferences) {
+                     finalDataSource = 'preferences';
+                     finalReason = 'Based on your questionnaire responses';
+                 } else {
+                     finalDataSource = 'favorites';
+                     finalReason = 'Because you liked similar items';
+                 }
+
+                 // Step 5: Fetch supplementary if needed
+                 if (fetchedRecs.length < 3) {
+                     const existingIds = new Set(fetchedRecs.map(r => r.id));
+                     const supplementary = await fetchSupplementaryRecommendations(fetchedRecs.length, existingIds);
+                     fetchedRecs = [...fetchedRecs, ...supplementary].slice(0, 6);
+                     console.log(`Total recommendations after supplementary: ${fetchedRecs.length}`);
+                 }
+
+            } else {
+                 // Fallback if no specific criteria could be formed (should be rare if hasPrefs/hasFavs is true)
+                 console.log('No specific criteria for personalized fetch, falling back to generic.');
+                 finalDataSource = 'generic';
+                 finalReason = 'Popular This Week';
+                 fetchedRecs = await fetchGenericRecommendations();
+            }
+        }
+
+        // Step 6: Update state and cache (only cache personalized results)
+        if (fetchedRecs.length > 0) {
+            setRecommendations(fetchedRecs);
+            setDataSource(finalDataSource);
+            setRecommendationReason(finalReason);
+            // Only cache if it was personalized, not generic fallback
+            if (finalDataSource !== 'generic' && finalDataSource !== 'none') {
+                 saveRecommendationsToCache(fetchedRecs, userId, finalDataSource, finalReason);
+            }
+        } else {
+             console.log('No recommendations found, even after fallbacks.');
+             setRecommendations([]); // Clear if nothing found
+             setDataSource('none');
+             setRecommendationReason('');
+             // Maybe fetch generic one last time if everything else failed?
+             await fetchGenericRecommendations();
+        }
+
+    } catch (error) {
+        console.error('Error during fetchRecommendations process:', error);
+        // Fallback to generic on any major error in the personalized path
+        await fetchGenericRecommendations(); // Show something rather than nothing
+        setDataSource('generic'); // Ensure dataSource reflects the fallback
+        setRecommendationReason('Popular This Week');
+    } finally {
+        // Use setTimeout to ensure the "thinking" state persists for a minimum duration for UX
+        setTimeout(() => {
+            setIsThinking(false);
+            setIsLoading(false); // Turn off skeleton loader
+            setIsRefreshing(false);
+            isFetchingRef.current = false;
+            initialFetchCompletedRef.current = true; // Mark as complete
+            sessionStorage.setItem(SESSION_RECS_LOADED_FLAG, 'true'); // Ensure session flag is set
+            console.log('fetchRecommendations finished.');
+        }, isRefreshing ? 300 : 800); // Shorter delay if refreshing, longer otherwise
     }
   }, [
-    userPreferences,
-    favoriteGenres,
-    userFavorites,
-    isAuthenticated,
-    fetchGenericRecommendations,
-    propUserPreferences,
-    shownRecommendations,
-    currentUser,
-    hasCompletedQuestionnaire,
-    hasCheckedQuestionnaire,
-    getRecommendationsFromCache,
-    saveRecommendationsToCache
-  ]); 
+    currentUser, isAuthenticated, hasCompletedQuestionnaire, hasCheckedQuestionnaire, // Core dependencies
+    fetchLatestPreferences, fetchUserFavoritesAndGenres, fetchGenericRecommendations, fetchSupplementaryRecommendations, // Fetch helpers
+    saveRecommendationsToCache, // Cache helper
+    isRefreshing, hasLoadedThisSession // State influencing behavior
+    // Removed userPreferences, favoriteGenres, userFavorites - fetch functions get latest inside
+  ]);
 
-  // Only fetch recommendations once on initial mount - with enhanced early check
+
+  // --- Effect Hooks ---
+
+  // Main effect to trigger initial fetch if needed
   useEffect(() => {
-    // Only proceed if authenticated and questionnaire is completed
-    if (isAuthenticated && initialLoadComplete && hasCompletedQuestionnaire && !initialFetchCompletedRef.current && !isFetchingRef.current) {
-      
-      // Check if we have a valid cache first
-      if (currentUser?.attributes?.sub && isCacheValid(currentUser.attributes.sub)) {
-        // Load from cache immediately
-        const cachedRecommendations = getRecommendationsFromCache(currentUser.attributes.sub);
-        setRecommendations(cachedRecommendations);
+    console.log('Main fetch effect check:', {
+        isAuthenticated, initialLoadComplete, hasCompletedQuestionnaire, hasCheckedQuestionnaire,
+        initialFetchCompleted: initialFetchCompletedRef.current, isFetching: isFetchingRef.current
+    });
+    // Only run if authenticated, initial app load is complete, questionnaire status is known,
+    // and we haven't completed the first fetch/cache load yet.
+    if (isAuthenticated && initialLoadComplete && hasCheckedQuestionnaire && !initialFetchCompletedRef.current && !isFetchingRef.current) {
+        console.log('Triggering initial fetchRecommendations...');
+        fetchRecommendations(false);
+    } else if (isAuthenticated && initialLoadComplete && hasCheckedQuestionnaire && !hasCompletedQuestionnaire && !initialFetchCompletedRef.current) {
+        // Explicitly handle case where questionnaire isn't done after check
+        console.log('Questionnaire not complete, ensuring fetch is skipped and state is clean.');
         setIsLoading(false);
         setIsThinking(false);
-        initialFetchCompletedRef.current = true;
-        
-        // Set data source from localStorage if possible
-        const cachedDataSource = localStorage.getItem(`movieRec_dataSource_${currentUser.attributes.sub}`);
-        if (cachedDataSource) {
-          setDataSource(cachedDataSource);
-        } else {
-          setDataSource('cached'); // Default label for cached content
-        }
-        
-        // Set recommendation reason
-        setRecommendationReason('Based on your preferences');
-      } else {
-        // No valid cache, fetch fresh recommendations
-        fetchRecommendations(false);
-      }
-    } else if (isAuthenticated && hasCheckedQuestionnaire && !hasCompletedQuestionnaire) {
-      // If questionnaire is not completed, immediately set loading states to false
-      setIsLoading(false);
-      setIsThinking(false);
-      initialFetchCompletedRef.current = true;
+        setDataSource('none');
+        initialFetchCompletedRef.current = true; // Prevent future attempts until state changes
     }
-  }, [isAuthenticated, hasCompletedQuestionnaire, hasCheckedQuestionnaire, initialLoadComplete, currentUser?.attributes?.sub, isCacheValid, getRecommendationsFromCache, fetchRecommendations]); 
+  }, [isAuthenticated, initialLoadComplete, hasCompletedQuestionnaire, hasCheckedQuestionnaire, fetchRecommendations]); // Add fetchRecommendations
 
-  // Handle explicit preference updates
+
+  // Effect to handle preference updates from parent
   useEffect(() => {
-    if (preferencesUpdated > 0 && initialFetchCompletedRef.current) {
-      // Clear cache when preferences are updated
-      if (currentUser?.attributes?.sub) {
+    if (preferencesUpdated > 0 && isAuthenticated && currentUser?.attributes?.sub) {
+        console.log('Preferences updated, triggering cache clear and refresh.');
+        // Clear cache *before* refresh starts
         localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
-      }
-      // Force refresh to get new recommendations
-      handleRefresh();
+        sessionStorage.removeItem(SESSION_RECS_LOADED_FLAG);
+        // Mark that we need to fetch again
+        initialFetchCompletedRef.current = false;
+        // Trigger the refresh handler
+        handleRefresh();
     }
-  }, [preferencesUpdated, currentUser?.attributes?.sub]);
+    // Intentionally disable exhaustive-deps, handleRefresh has its own useCallback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferencesUpdated, isAuthenticated, currentUser?.attributes?.sub]); // Add handleRefresh dependency if needed
 
-  // Modified handleRefresh to include smooth scrolling to top
-  const handleRefresh = async () => {
-    // Skip if already refreshing
-    if (isRefreshing || isFetchingRef.current) return;
-    
+
+  // --- Event Handlers & Imperative Handle ---
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing || isFetchingRef.current) return; // Prevent multiple refreshes
+
+    console.log('handleRefresh called.');
     setIsRefreshing(true);
-    setIsThinking(true);
+    setIsThinking(true); // Show thinking immediately
     setRefreshCounter(prev => prev + 1);
-    
-    // Scroll to the top of recommendations with smooth behavior
-    if (recommendationsContainerRef.current) {
-      recommendationsContainerRef.current.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }
-    
-    // Create a nice visual delay to show the refresh animation
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Clear cache to force new fetch
-    if (currentUser?.attributes?.sub) {
-      localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
-    }
-    
-    // Try to get fresh preferences first
-    await fetchLatestPreferences();
-    
-    // Then get recommendations - force refresh from API
-    await fetchRecommendations(true);
-  };
 
-  // Expose methods to parent via ref
+    // Scroll to top smoothly
+    recommendationsContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Clear cache and session flag *again* just to be sure
+    if (currentUser?.attributes?.sub) {
+        localStorage.removeItem(RECOMMENDATIONS_CACHE_KEY);
+        sessionStorage.removeItem(SESSION_RECS_LOADED_FLAG);
+    }
+    // Mark that we absolutely need to fetch fresh data
+    initialFetchCompletedRef.current = false;
+
+    // Add a small delay *before* fetching for visual feedback
+    await new Promise(resolve => setTimeout(resolve, 500)); // Short delay for refresh spin
+
+    await fetchRecommendations(true); // Force fetch from API
+
+    // Note: The finally block in fetchRecommendations handles turning off isRefreshing/isThinking
+  }, [isRefreshing, currentUser?.attributes?.sub, fetchRecommendations]); // Add fetchRecommendations dependency
+
+
   useImperativeHandle(ref, () => ({
     refresh: handleRefresh
-  }));
+  }), [handleRefresh]); // Dependency: handleRefresh
 
-  // Listen for the refresh event from parent component
+
+  // Listen for external refresh events (e.g., from header)
   useEffect(() => {
-    const handleRefreshEvent = async () => {
-      console.log("Received refresh recommendations event");
-      await handleRefresh();
+    const handleRefreshEvent = () => {
+      console.log("Received external refresh-recommendations event");
+      handleRefresh();
     };
-    
     document.addEventListener('refresh-recommendations', handleRefreshEvent);
-    
     return () => {
       document.removeEventListener('refresh-recommendations', handleRefreshEvent);
     };
-  }, []);
+  }, [handleRefresh]); // Dependency: handleRefresh
 
-  // Save data source to localStorage when it changes
-  useEffect(() => {
-    if (dataSource && currentUser?.attributes?.sub) {
-      localStorage.setItem(`movieRec_dataSource_${currentUser.attributes.sub}`, dataSource);
-    }
-  }, [dataSource, currentUser?.attributes?.sub]);
 
-  // Don't render anything during initial load check to prevent layout shifts
-  if (!isAuthenticated) {
-    return null;
+  // --- Render Logic ---
+
+  // Don't render anything until authentication status and questionnaire check are resolved
+  if (!isAuthenticated || !hasCheckedQuestionnaire) {
+     console.log('Rendering null: Not authenticated or questionnaire check pending.');
+     return null;
   }
 
-  // Don't show the recommendations section at all if user hasn't completed the questionnaire
-  if (hasCheckedQuestionnaire && !hasCompletedQuestionnaire) {
-    return null;
+  // Special case: If questionnaire is definitively not completed, show *only* the prompt to complete it
+  if (!hasCompletedQuestionnaire) {
+      console.log('Rendering Questionnaire Prompt Only');
+      return (
+          <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-12 max-w-7xl mx-auto px-4"
+          >
+             <div className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 shadow-lg border border-indigo-800">
+                <div className="flex items-center">
+                    <motion.div initial={{ rotate: -10, scale: 0.9 }} animate={{ rotate: 0, scale: 1 }} transition={{ duration: 0.5, delay: 0.2 }} className="mr-5 flex-shrink-0">
+                        <SparklesIcon className="h-10 w-10 text-purple-300" />
+                    </motion.div>
+                    <div>
+                        <h3 className="text-xl font-semibold text-white mb-2">Unlock Personalized Recommendations</h3>
+                        <p className="text-purple-200 leading-relaxed mb-4">
+                        Complete your quick preference profile to discover movies and shows tailored just for you!
+                        </p>
+                        <button
+                          className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
+                          onClick={() => document.dispatchEvent(new CustomEvent('open-questionnaire'))}
+                        >
+                        Start Questionnaire
+                        </button>
+                    </div>
+                </div>
+             </div>
+          </motion.section>
+      );
   }
-  
-  // Show recommendations section even if empty, to display the prompt
+
+  // --- Main Render for Authenticated Users with Completed Questionnaire ---
+  console.log('Rendering main section:', { isLoading, isThinking, recsCount: recommendations.length, dataSource });
+
   return (
-    <motion.section 
+    <motion.section
       ref={recommendationsContainerRef}
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="mb-12 max-w-7xl mx-auto px-4 scroll-mt-24" // Added scroll-mt-24 for smooth scrolling offset
+      initial={{ opacity: 0 }} // Keep initial simple, let AnimatePresence handle entry
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="mb-12 max-w-7xl mx-auto px-4 scroll-mt-24" // Added scroll-mt-24
     >
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white">
-          <motion.span
-            key={`heading-${refreshCounter}`}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            {dataSource === 'both' ? 'Personalized Recommendations' :
-             dataSource === 'preferences' ? 'Based on Your Preferences' :
-             dataSource === 'favorites' ? 'Because You Liked' :
-             'Popular This Week'}
-          </motion.span>
-        </h2>
-        
-        {recommendations.length > 0 && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
-            disabled={isLoading || isRefreshing || isThinking}
-            className="flex items-center space-x-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full transition-colors"
-          >
-            <motion.div
-              animate={isRefreshing || isThinking ? { rotate: 360 } : {}}
-              transition={isRefreshing || isThinking ? { 
-                repeat: Infinity, 
-                duration: 1, 
-                ease: "linear"
-              } : {}}
-            >
-              <ArrowPathIcon className="h-4 w-4 mr-1" />
-            </motion.div>
-            <span>{isRefreshing || isThinking ? 'Refreshing...' : 'Refresh'}</span>
-          </motion.button>
-        )}
+      {/* Header: Title and Refresh Button */}
+      <div className="flex justify-between items-center mb-4">
+         <h2 className="text-2xl font-bold text-white flex items-center space-x-2">
+             <AnimatePresence mode="wait">
+                 <motion.span
+                     key={`heading-${dataSource || 'loading'}-${refreshCounter}`} // Key ensures animation on change
+                     initial={{ opacity: 0, y: -15 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     exit={{ opacity: 0, y: 15 }}
+                     transition={{ duration: 0.3, ease: 'easeInOut' }}
+                 >
+                     {isThinking ? "Finding Recommendations..." :
+                      dataSource === 'both' ? 'For You (Prefs & Favs)' :
+                      dataSource === 'preferences' ? 'Based on Your Preferences' :
+                      dataSource === 'favorites' ? 'Because You Liked' :
+                      dataSource === 'generic' ? 'Popular This Week' :
+                      'Recommendations'}
+                 </motion.span>
+             </AnimatePresence>
+         </h2>
+         {/* Show refresh button only if not initially loading/thinking or if there are recs */}
+         {(!isLoading || recommendations.length > 0) && (
+             <motion.button
+                 whileHover={{ scale: 1.05 }}
+                 whileTap={{ scale: 0.95 }}
+                 onClick={handleRefresh}
+                 disabled={isRefreshing || isThinking} // Disable while processing
+                 className={`flex items-center space-x-1 text-sm ${isRefreshing || isThinking ? 'bg-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white px-3 py-1 rounded-full transition-colors duration-200`}
+             >
+                 <motion.div
+                    animate={isRefreshing || isThinking ? { rotate: 360 } : { rotate: 0 }}
+                    transition={isRefreshing || isThinking ? { repeat: Infinity, duration: 1, ease: "linear" } : { duration: 0.3 }}
+                 >
+                    <ArrowPathIcon className="h-4 w-4" />
+                 </motion.div>
+                 <span>{isRefreshing || isThinking ? 'Refreshing...' : 'Refresh'}</span>
+             </motion.button>
+         )}
       </div>
 
-      {/* Show recommendation reason if available */}
-      {recommendationReason && !isThinking && !isLoading && recommendations.length > 0 && (
+      {/* Recommendation Reason */}
+      {!isThinking && !isLoading && recommendationReason && recommendations.length > 0 && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center bg-gray-800/50 rounded-lg p-2 mb-4 text-sm text-gray-300"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center bg-gray-800/60 rounded-lg p-2 mb-4 text-sm text-gray-300 overflow-hidden"
         >
-          <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2" />
+          <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2 flex-shrink-0" />
           <span>{recommendationReason}</span>
         </motion.div>
       )}
-      
-      <AnimatePresence mode="wait">
-        {!hasCompletedQuestionnaire && (
-          <motion.div 
-            key="questionnaire-prompt"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl p-6 mb-6 shadow-lg border border-indigo-800"
-          >
-            <div className="flex items-center">
-              <motion.div
-                initial={{ rotate: -10, scale: 0.9 }}
-                animate={{ rotate: 0, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="mr-5"
-              >
-                <SparklesIcon className="h-10 w-10 text-purple-300" />
-              </motion.div>
-              <div>
-                <h3 className="text-xl font-semibold text-white mb-2">Complete Your Preference Profile</h3>
-                <p className="text-purple-200 leading-relaxed mb-4">
-                  Take our quick questionnaire to get personalized movie and TV show recommendations
-                  that match your unique taste!
-                </p>
-                <button
-                  className="px-4 py-2 bg-white text-purple-900 rounded-lg font-medium hover:bg-purple-100 transition-colors"
-                  onClick={() => document.dispatchEvent(new CustomEvent('open-questionnaire'))}
-                >
-                  Get Started
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
-        {dataSource === 'none' && recommendations.length === 0 && !isLoading && !isThinking && !isRefreshing && hasCompletedQuestionnaire && (
-          <motion.div 
-            key="prompt"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="bg-gradient-to-r from-indigo-900 to-purple-900 bg-opacity-50 rounded-xl p-6 mb-6 flex items-center shadow-lg border border-indigo-800"
-          >
-            <motion.div
-              initial={{ rotate: -10, scale: 0.9 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <SparklesIcon className="h-10 w-10 text-indigo-300 mr-5" />
-            </motion.div>
-            <div>
-              <h3 className="text-xl font-semibold text-white mb-2">Get Personalized Recommendations</h3>
-              <p className="text-indigo-200 leading-relaxed">
-                Complete your preference questionnaire using the sparkles icon in the top left 
-                to get recommendations tailored just for you!
-              </p>
-            </div>
-          </motion.div>
-        )}
-      
-        {/* Enhanced thinking animation */}
-        {isThinking && (
-          <motion.div 
+      {/* Content Area: Thinking, Loading, Recommendations, or Empty State */}
+      <AnimatePresence mode="wait">
+        {isThinking ? (
+          // Thinking Animation (Prioritized over Loading Skeleton)
+          <motion.div
             key={`thinking-${refreshCounter}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-6 mb-6"
+            transition={{ duration: 0.3 }}
+            className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-6 mb-6 shadow-lg"
           >
-            <div className="flex items-center justify-center space-x-4 mb-6">
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.2, 1],
-                  rotate: [0, 10, -10, 0]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="text-4xl"
-              >
-                🧠
-              </motion.div>
-              <div>
-                <h3 className="text-xl font-semibold text-white">Finding perfect recommendations for you...</h3>
-                <p className="text-gray-400">Analyzing your preferences and favorites</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="h-2 bg-gray-700 rounded overflow-hidden">
-                <motion.div 
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => (
+            {/* Simplified Thinking Animation */}
+            <div className="flex flex-col items-center justify-center space-y-4 min-h-[200px]">
+               <motion.div
+                 animate={{ scale: [1, 1.1, 1], opacity: [0.7, 1, 0.7] }}
+                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                 className="text-5xl"
+               >
+                 🧠
+               </motion.div>
+               <p className="text-lg font-semibold text-indigo-300">Thinking...</p>
+               <div className="w-3/4 h-2 bg-gray-700 rounded-full overflow-hidden">
                   <motion.div
-                    key={i}
-                    initial={{ opacity: 0.3 }}
-                    animate={{ 
-                      opacity: [0.3, 0.7, 0.3],
-                      y: [0, -5, 0]
-                    }}
-                    transition={{ 
-                      duration: 1.5,
-                      delay: i * 0.2,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                    className="bg-gray-700 rounded-lg h-[280px] relative overflow-hidden"
-                  >
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/10 to-transparent"
-                      animate={{
-                        y: ["-100%", "100%"]
-                      }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 2,
-                        ease: "linear",
-                        delay: i * 0.3
-                      }}
-                    />
-                  </motion.div>
-                ))}
-              </div>
+                     className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                     initial={{ x: "-100%" }}
+                     animate={{ x: "100%" }}
+                     transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  />
+               </div>
             </div>
           </motion.div>
-        )}
-      
-        {isLoading && !isThinking && (
-          <motion.div 
+
+        ) : isLoading ? (
+          // Loading Skeleton (Only shown if not Thinking)
+          <motion.div
             key={`loading-${refreshCounter}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            transition={{ duration: 0.3 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {[...Array(6)].map((_, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ 
-                  opacity: 1, 
-                  y: 0,
-                  transition: { delay: i * 0.1 }
-                }}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl h-[350px] shadow-md overflow-hidden"
-              >
-                <div className="h-3/5 bg-gray-700 relative">
-                  <motion.div 
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
-                    animate={{ 
-                      x: ['-100%', '100%']
-                    }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 1.5,
-                      ease: "linear"
-                    }}
-                  />
-                </div>
+              <div key={i} className="bg-gray-800 rounded-xl h-[350px] shadow-md overflow-hidden animate-pulse">
+                <div className="h-3/5 bg-gray-700"></div>
                 <div className="p-4 space-y-3">
-                  <div className="h-6 bg-gray-700 rounded w-3/4 relative overflow-hidden">
-                    <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
-                      animate={{ 
-                        x: ['-100%', '100%']
-                      }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 1.5,
-                        ease: "linear",
-                        delay: 0.2
-                      }}
-                    />
-                  </div>
-                  <div className="h-4 bg-gray-700 rounded w-1/2 relative overflow-hidden">
-                    <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
-                      animate={{ 
-                        x: ['-100%', '100%']
-                      }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 1.5,
-                        ease: "linear",
-                        delay: 0.4
-                      }}
-                    />
-                  </div>
-                  <div className="h-4 bg-gray-700 rounded w-full relative overflow-hidden">
-                    <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-600/20 to-transparent"
-                      animate={{ 
-                        x: ['-100%', '100%']
-                      }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 1.5,
-                        ease: "linear",
-                        delay: 0.6
-                      }}
-                    />
-                  </div>
+                  <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-700 rounded w-full"></div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </motion.div>
-        )}
-        
-        {!isLoading && !isThinking && recommendations.length > 0 ? (
-          <motion.div 
-            key={`recommendations-${refreshCounter}`}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 custom-scrollbar"
+
+        ) : recommendations.length > 0 ? (
+          // Recommendations Grid
+          <motion.div
+            key={`recommendations-${refreshCounter}`} // Key changes on refresh for exit/enter animation
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
             initial="hidden"
             animate="visible"
-            exit="exit"
+            exit="exit" // Animate exit on refresh
             variants={{
               hidden: { opacity: 0 },
-              visible: { 
-                opacity: 1,
-                transition: { 
-                  staggerChildren: 0.1
-                } 
-              },
-              exit: {
-                opacity: 0,
-                transition: {
-                  staggerChildren: 0.05
-                }
-              }
+              visible: { opacity: 1, transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+              exit: { opacity: 0, transition: { staggerChildren: 0.05, staggerDirection: -1 } }
             }}
           >
-            {recommendations.map((item, index) => (
+            {recommendations.map((item) => (
               <motion.div
-                key={item.id}
+                key={item.id} // Use item id as key
+                layout // Enable layout animation for smoother reshuffles (optional)
                 variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { 
-                    opacity: 1, 
-                    y: 0,
-                    transition: {
-                      duration: 0.5,
-                      ease: "easeOut"
-                    }
-                  },
-                  exit: {
-                    opacity: 0,
-                    scale: 0.95,
-                    transition: {
-                      duration: 0.3,
-                      ease: "easeIn"
-                    }
-                  }
+                  hidden: { opacity: 0, y: 20, scale: 0.95 },
+                  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
+                  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2, ease: "easeIn" } }
                 }}
               >
                 <MediaCard
                   result={item}
                   currentUser={currentUser}
-                  onClick={() => {}}
-                  promptLogin={() => {}}
+                  // Pass necessary props to MediaCard
                 />
               </motion.div>
             ))}
           </motion.div>
+
         ) : (
-          !isLoading && !isThinking && (
-            <motion.div 
-              key="empty"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-10 bg-gray-800/30 rounded-xl p-8"
-            >
-              <motion.div
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="mb-4 text-5xl opacity-50"
-              >
-                🎬
-              </motion.div>
-              <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Yet</h3>
-              <p className="text-gray-400 max-w-md mx-auto mb-6">
-                Try adding some favorites or updating your preferences to get personalized recommendations!
-              </p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleRefresh}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full transition-colors"
-              >
-                Discover Popular Movies & Shows
-              </motion.button>
-            </motion.div>
-          )
+           // Empty State (No recommendations found after loading/thinking)
+           <motion.div
+             key="empty-state"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0 }}
+             transition={{ duration: 0.4 }}
+             className="text-center py-12 bg-gray-800/50 rounded-xl p-8 border border-gray-700"
+           >
+             <motion.div
+               initial={{ scale: 0.8, opacity: 0.5 }}
+               animate={{ scale: 1, opacity: 1 }}
+               transition={{ duration: 0.5, delay: 0.1 }}
+               className="mb-4 text-5xl text-indigo-400"
+             >
+               🤷‍♂️
+             </motion.div>
+             <h3 className="text-xl font-semibold text-white mb-3">Couldn't find recommendations right now.</h3>
+             <p className="text-gray-400 max-w-md mx-auto mb-6">
+                This might happen if your preferences are very specific or if there was trouble fetching data. Try refreshing, adding more favorites, or adjusting your preferences.
+             </p>
+             <motion.button
+               whileHover={{ scale: 1.05 }}
+               whileTap={{ scale: 0.95 }}
+               onClick={handleRefresh}
+               className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full transition-colors"
+               disabled={isRefreshing || isThinking}
+             >
+                {isRefreshing || isThinking ? 'Trying again...' : 'Try Refreshing'}
+             </motion.button>
+           </motion.div>
         )}
       </AnimatePresence>
     </motion.section>
   );
 });
 
-// Set display name for debugging purposes
 PersonalizedRecommendations.displayName = 'PersonalizedRecommendations';
 
 export default PersonalizedRecommendations;
