@@ -95,7 +95,8 @@ const OnboardingQuestionnaire = ({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-
+  const [authError, setAuthError] = useState(false);
+  
   // Load existing preferences if available
   useEffect(() => {
     if (existingPreferences) {
@@ -132,8 +133,21 @@ const OnboardingQuestionnaire = ({
   };
 
   const savePreferences = async () => {
+    setError(null);
+    setAuthError(false);
+    
+    // Enhanced authentication check
+    if (!currentUser) {
+      console.error('User not authenticated');
+      setAuthError(true);
+      setError('You need to be logged in to save preferences.');
+      return;
+    }
+    
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
       console.error('No authentication token available');
+      setAuthError(true);
+      setError('Authentication token not available. Please try logging in again.');
       return;
     }
     
@@ -336,6 +350,20 @@ const OnboardingQuestionnaire = ({
             style={{ width: `${(step / totalSteps) * 100}%` }}
           ></div>
         </div>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-900/50 border border-red-700 text-red-200 rounded-md">
+            <p>{error}</p>
+            {authError && (
+              <button 
+                onClick={() => navigate('/login')} 
+                className="mt-2 px-4 py-1 bg-red-700 hover:bg-red-600 text-white rounded-md text-sm"
+              >
+                Go to Login
+              </button>
+            )}
+          </div>
+        )}
         
         <AnimatePresence mode="wait">
           <motion.div
