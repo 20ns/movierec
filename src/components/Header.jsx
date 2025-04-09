@@ -9,111 +9,69 @@ import {
 import FavoritesSection from './FavoritesSection';
 
 const Header = ({ 
+  isAuthenticated, 
   currentUser, 
-  setShowSearch, 
+  onSignout, 
+  onSigninClick, 
+  onAccountClick, 
+  onSearchClick, 
+  onFavoritesClick,
   showSearch,
-  setShowQuestionnaire,
-  showFavorites,
-  setShowFavorites,
-  onSignout
+  showFavorites
 }) => {
-  const [isHovering, setIsHovering] = useState(null);
-  
-  const navItems = [
-    {
-      id: 'search',
-      label: 'Search',
-      icon: <MagnifyingGlassIcon className="w-5 h-5" />,
-      onClick: () => setShowSearch(!showSearch),
-      isActive: showSearch
-    },
-    {
-      id: 'preferences',
-      label: 'Preferences',
-      icon: <SparklesIcon className="w-5 h-5" />,
-      onClick: () => setShowQuestionnaire(true),
-    },
-    {
-      id: 'favorites',
-      label: 'Favorites',
-      icon: <HeartIcon className="w-5 h-5" />,
-      onClick: () => setShowFavorites(!showFavorites),
-      isActive: showFavorites
-    }
-  ];
-  
+  // Add console logging to debug auth state
+  console.log('Header rendering with auth state:', { isAuthenticated, hasUser: !!currentUser });
+
+  // Ensure we're actually checking isAuthenticated prop
   return (
     <motion.header 
-      initial={{ opacity: 0, y: -20 }}
+      className="bg-black bg-opacity-80 backdrop-blur-lg fixed top-0 left-0 right-0 z-50 shadow-lg"
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 backdrop-blur-lg border-b border-gray-800/50 py-4 sticky top-0 z-50 shadow-xl"
+      transition={{ duration: 0.3 }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row justify-between items-center">
-          {/* Logo and Title */}
-          <motion.div 
-            className="flex items-center mb-4 sm:mb-0"
-            whileHover={{ scale: 1.02 }}
-          >
-            <motion.div 
-              className="mr-3 text-3xl"
-              animate={{ rotate: [0, 10, 0], opacity: [0.8, 1, 0.8] }}
-              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-            >
-              🎬
-            </motion.div>
-            <div>
-              <h1 className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 text-2xl sm:text-3xl">
-                Movie Recommendations
-              </h1>
-              <motion.p 
-                className="text-gray-400 text-sm hidden sm:block"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                Discover your next favorite movie or TV show
-              </motion.p>
-            </div>
-          </motion.div>
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between py-3">
+          <Logo />
           
-          {/* Navigation and User Info */}
-          <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0">
-            {/* Navigation Pills */}
-            <nav className="flex space-x-1 sm:mr-6">
-              {navItems.map((item) => (
-                <motion.button
-                  key={item.id}
-                  onClick={item.onClick}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onHoverStart={() => setIsHovering(item.id)}
-                  onHoverEnd={() => setIsHovering(null)}
-                  className={`px-3 py-1.5 rounded-full flex items-center transition-all duration-300 ${
-                    item.isActive 
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
-                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                  }`}
-                >
-                  {item.icon}
-                  <AnimatedText 
-                    isVisible={isHovering === item.id || item.isActive} 
-                    text={item.label} 
-                  />
-                </motion.button>
-              ))}
-            </nav>
+          <div className="flex items-center space-x-3 sm:space-x-6">
+            {/* Search Button - Available to everyone */}
+            <motion.button
+              onClick={onSearchClick}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`px-3 py-1.5 rounded-full flex items-center transition-all duration-300 ${
+                showSearch 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+              }`}
+            >
+              <MagnifyingGlassIcon className="w-5 h-5" />
+              <AnimatedText 
+                isVisible={showSearch} 
+                text="Search" 
+              />
+            </motion.button>
             
-            {/* User Profile */}
-            {currentUser && (
-              <motion.div 
-                className="flex items-center bg-gray-800 rounded-full px-3 py-1.5 text-sm text-gray-200"
+            {/* Show either sign in or user menu based on auth state */}
+            {!isAuthenticated ? (
+              <motion.button
+                className="flex items-center bg-indigo-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
+                onClick={onSigninClick}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <UserCircleIcon className="w-5 h-5 mr-2" />
+                Sign In
+              </motion.button>
+            ) : (
+              <motion.div
+                className="flex items-center bg-gray-800 px-3 py-1.5 rounded-full text-sm text-white"
                 whileHover={{ scale: 1.05 }}
               >
                 <UserCircleIcon className="w-5 h-5 mr-2 text-indigo-400" />
                 <span className="mr-2">
-                  {currentUser.attributes?.email?.split('@')[0] || 'User'}
+                  {currentUser?.attributes?.email?.split('@')[0] || 'User'}
                 </span>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -125,16 +83,34 @@ const Header = ({
                 </motion.button>
               </motion.div>
             )}
+            
+            {/* Additional user actions for authenticated users */}
+            <motion.button
+              onClick={onFavoritesClick}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`px-3 py-1.5 rounded-full flex items-center transition-all duration-300 ${
+                showFavorites 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+              }`}
+            >
+              <HeartIcon className="w-5 h-5" />
+              <AnimatedText 
+                isVisible={showFavorites} 
+                text="Favorites" 
+              />
+            </motion.button>
           </div>
         </div>
       </div>
       
       {/* Favorites Panel */}
-      {showFavorites && currentUser && (
+      {showFavorites && isAuthenticated && (
         <div className="absolute right-0 mt-2 w-96 max-w-full">
           <FavoritesSection 
             currentUser={currentUser} 
-            isAuthenticated={true}
+            isAuthenticated={isAuthenticated}
             inHeader={true}
           />
         </div>
