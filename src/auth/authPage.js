@@ -63,10 +63,14 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
     setError('');
     
     try {
-      await Auth.signIn(email, password);
-      onSigninSuccess();
+      const user = await Auth.signIn(email, password);
+      console.log('[AuthPage] Sign-in successful, calling onSigninSuccess with user', { 
+        userId: user?.attributes?.sub || user?.username,
+      });
+      onSigninSuccess(user);
       navigate('/');
     } catch (err) {
+      console.error('[AuthPage] Sign-in error:', err);
       setError(err.message || 'Error signing in');
     } finally {
       setLoading(false);

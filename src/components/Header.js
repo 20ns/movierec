@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -13,13 +13,13 @@ import {
 function Header({ 
   currentUser, 
   isAuthenticated, 
-  setShowSearch, 
+  onSearchClick,  // Changed from setShowSearch
   showSearch, 
-  setShowQuestionnaire,
-  setShowFavorites,
+  onPreferencesClick, // Changed from setShowQuestionnaire
+  onFavoritesClick,   // Changed from setShowFavorites
   showFavorites,
   onSignout,
-  setShowAccountDetails
+  onAccountClick      // Changed from setShowAccountDetails
 }) {
   const [hoveredButton, setHoveredButton] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -50,6 +50,17 @@ function Header({
       transition: { duration: 0.2 } 
     }
   };
+
+  // Listen for the custom event to close dropdown when a modal opens
+  useEffect(() => {
+    const handleModalOpen = () => {
+      setShowUserDropdown(false);
+      setShowMobileMenu(false);
+    };
+    
+    document.addEventListener('modal-opened', handleModalOpen);
+    return () => document.removeEventListener('modal-opened', handleModalOpen);
+  }, []);
 
   return (
     <motion.header 
@@ -93,7 +104,9 @@ function Header({
             initial="initial"
             whileHover="hover"
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowSearch(!showSearch)}
+            onClick={() => {
+              if (onSearchClick) onSearchClick(!showSearch);
+            }}
             onMouseEnter={() => setHoveredButton('search')}
             onMouseLeave={() => setHoveredButton(null)} 
             className={`relative p-2.5 rounded-full transition-colors duration-200 ${
@@ -122,7 +135,9 @@ function Header({
                 initial="initial"
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowQuestionnaire(true)}
+                onClick={() => {
+                  if (onPreferencesClick) onPreferencesClick();
+                }}
                 onMouseEnter={() => setHoveredButton('preferences')}
                 onMouseLeave={() => setHoveredButton(null)}
                 className="relative p-2.5 text-gray-300 hover:bg-gray-800/70 hover:text-white rounded-full transition-colors duration-200"
@@ -146,7 +161,9 @@ function Header({
                 initial="initial"
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowFavorites(!showFavorites)}
+                onClick={() => {
+                  if (onFavoritesClick) onFavoritesClick(!showFavorites);
+                }}
                 onMouseEnter={() => setHoveredButton('favorites')}
                 onMouseLeave={() => setHoveredButton(null)}
                 className={`relative p-2.5 rounded-full transition-colors duration-200 ${
@@ -195,8 +212,10 @@ function Header({
                   >
                     <div 
                       onClick={() => {
-                        setShowAccountDetails(true);
-                        setShowUserDropdown(false);
+                        if (onAccountClick) {
+                          onAccountClick();
+                          setShowUserDropdown(false);
+                        }
                       }}
                       className="px-4 py-3 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-colors duration-150"
                     >
@@ -208,8 +227,10 @@ function Header({
                     
                     <button
                       onClick={() => {
-                        onSignout();
-                        setShowUserDropdown(false);
+                        if (onSignout) {
+                          onSignout();
+                          setShowUserDropdown(false);
+                        }
                       }}
                       className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700/50 transition-colors duration-150 flex items-center"
                     >
@@ -248,7 +269,7 @@ function Header({
             <div className="px-4 py-3 space-y-3">
               <button 
                 onClick={() => {
-                  setShowSearch(!showSearch);
+                  if (onSearchClick) onSearchClick(!showSearch);
                   setShowMobileMenu(false);
                 }}
                 className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
@@ -261,7 +282,7 @@ function Header({
                 <>
                   <button 
                     onClick={() => {
-                      setShowQuestionnaire(true);
+                      if (onPreferencesClick) onPreferencesClick();
                       setShowMobileMenu(false);
                     }}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
@@ -272,7 +293,7 @@ function Header({
                   
                   <button 
                     onClick={() => {
-                      setShowFavorites(!showFavorites);
+                      if (onFavoritesClick) onFavoritesClick(!showFavorites);
                       setShowMobileMenu(false);
                     }}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
@@ -283,7 +304,7 @@ function Header({
                   
                   <button 
                     onClick={() => {
-                      setShowAccountDetails(true);
+                      if (onAccountClick) onAccountClick();
                       setShowMobileMenu(false);
                     }}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
@@ -294,7 +315,7 @@ function Header({
                   
                   <button 
                     onClick={() => {
-                      onSignout();
+                      if (onSignout) onSignout();
                       setShowMobileMenu(false);
                     }}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"

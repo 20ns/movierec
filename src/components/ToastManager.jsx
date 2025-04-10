@@ -22,13 +22,36 @@ export const ToastProvider = ({ children }) => {
   // Log when toast provider is mounted
   console.log('Toast provider mounted');
 
-  const showToast = (message, type = 'success') => {
-    console.log('showToast called with:', message, type);
-    setToast({
-      message,
-      visible: true,
-      type
-    });
+  // This function now handles both string messages and object-style toasts
+  const showToast = (messageOrOptions, type = 'success') => {
+    console.log('showToast called with:', messageOrOptions, type);
+    
+    if (typeof messageOrOptions === 'string') {
+      // Handle simple string messages with type as second parameter
+      setToast({
+        message: messageOrOptions,
+        visible: true,
+        type
+      });
+    } else if (typeof messageOrOptions === 'object' && messageOrOptions !== null) {
+      // Handle object-style calls with title, message, type, etc.
+      const message = messageOrOptions.title 
+        ? `${messageOrOptions.title}: ${messageOrOptions.message}`
+        : messageOrOptions.message;
+      
+      setToast({
+        message,
+        visible: true,
+        type: messageOrOptions.type || 'success'
+      });
+      
+      // If duration is provided, set custom timeout
+      if (messageOrOptions.duration && messageOrOptions.duration > 0) {
+        setTimeout(() => {
+          setToast(prev => ({ ...prev, visible: false }));
+        }, messageOrOptions.duration);
+      }
+    }
   };
 
   const hideToast = () => {

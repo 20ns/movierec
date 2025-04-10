@@ -27,6 +27,11 @@ const useAuth = () => {
 
   
   const handleSigninSuccess = useCallback((user, isNew = false) => {
+    console.log('[Auth] Sign-in success, setting authenticated state', { 
+      userId: user?.attributes?.sub,
+      isAuthenticated: true,
+      isNew
+    });
     setCurrentUser(user);
     setIsAuthenticated(true);
     setIsNewUser(isNew);
