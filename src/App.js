@@ -346,8 +346,7 @@ function AppContent() {
     }
 
     if (showPageLoading) {
-      logApp('Render: Page Loading Skeleton');
-      return (
+      logApp('Render: Page Loading Skeleton');      return (
         <div className="space-y-12 animate-pulse">
           <div className="mb-12 max-w-7xl mx-auto px-4">
             <div className="flex justify-between items-center mb-4 h-8">
@@ -355,8 +354,19 @@ function AppContent() {
               <div className="bg-gray-700 rounded-full w-24"></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-gray-800 rounded-xl h-[350px]"></div>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden shadow-lg h-full">
+                  <div className="h-[160px] sm:h-[180px] md:h-[200px] bg-gray-700"></div>
+                  <div className="p-3 space-y-2">
+                    <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-700 rounded w-full"></div>
+                    <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                    <div className="flex justify-between pt-2">
+                      <div className="h-4 bg-gray-700 rounded w-16"></div>
+                      <div className="h-4 bg-gray-700 rounded w-12"></div>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -364,7 +374,13 @@ function AppContent() {
             <div className="h-8 bg-gray-700 rounded w-1/4 mb-4"></div>
             <div className="flex space-x-4 overflow-hidden">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-gray-800 rounded-xl h-[250px] w-1/5 flex-shrink-0"></div>
+                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden w-64 flex-shrink-0">
+                  <div className="h-[160px] sm:h-[180px] bg-gray-700"></div>
+                  <div className="p-2 space-y-2">
+                    <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
