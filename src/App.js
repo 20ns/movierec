@@ -473,24 +473,14 @@ function AppContent() {
         {showAccountDetails && isAuthenticated && (
           <AccountDetailsModal currentUser={currentUser} onClose={() => setShowAccountDetails(false)} />
         )}
-      </AnimatePresence>
-
-      <AnimatePresence>
+      </AnimatePresence>      <AnimatePresence>
         {showFavorites && isAuthenticated && (
-          <motion.div
-            key="favorites-sidebar"
-            initial={{ opacity: 0, x: '100%' }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: '100%' }}
-            transition={{ type: 'tween', duration: 0.3, ease: 'easeInOut' }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-md z-40 pt-16 shadow-lg bg-gray-900/90 backdrop-blur-md"
-          >
-            <FavoritesSection
-              currentUser={currentUser}
-              isAuthenticated={isAuthenticated}
-              onClose={() => setShowFavorites(false)}
-            />
-          </motion.div>
+          <FavoritesSection
+            currentUser={currentUser}
+            isAuthenticated={isAuthenticated}
+            onClose={() => setShowFavorites(false)}
+            inHeader={true}
+          />
         )}
       </AnimatePresence>
 
