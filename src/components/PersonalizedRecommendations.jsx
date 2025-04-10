@@ -615,11 +615,10 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         </div>
       </motion.div>
     );
-  } else if (showRecs) {
-    content = (
+  } else if (showRecs) {    content = (
       <motion.div
         key={`recommendations-${refreshCounter}-${dataSource}`}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
         initial="hidden"
         animate="visible"
         variants={{
@@ -703,49 +702,47 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="mb-12 max-w-7xl mx-auto px-4"
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-white">{title}</h2>
-        <div className="flex space-x-2">
+    >      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
+        <div className="flex flex-wrap gap-2">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => safeSetState({ contentTypeFilter: 'both' })}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${contentTypeFilter === 'both' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300'}`}
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'both' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300'}`}
           >
-            <VideoCameraIcon className="h-4 w-4" />
+            <VideoCameraIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Both</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => safeSetState({ contentTypeFilter: 'movies' })}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${contentTypeFilter === 'movies' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300'}`}
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'movies' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300'}`}
           >
-            <FilmIcon className="h-4 w-4" />
+            <FilmIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Movies</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => safeSetState({ contentTypeFilter: 'tv' })}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${contentTypeFilter === 'tv' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300'}`}
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'tv' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300'}`}
           >
-            <TvIcon className="h-4 w-4" />
+            <TvIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>TV Shows</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
+            whileTap={{ scale: 0.95 }}            onClick={handleRefresh}
             disabled={isThinking || isLoading}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${isThinking || isLoading ? 'bg-gray-600 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${isThinking || isLoading ? 'bg-gray-600 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
           >
             <motion.div
               animate={isThinking || isLoading ? { rotate: 360 } : { rotate: 0 }}
               transition={isThinking || isLoading ? { repeat: Infinity, duration: 1 } : { duration: 0.3 }}
             >
-              <ArrowPathIcon className="h-4 w-4" />
+              <ArrowPathIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             </motion.div>
             <span>{isThinking || isLoading ? 'Loading...' : 'Refresh'}</span>
           </motion.button>

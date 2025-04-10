@@ -358,13 +358,12 @@ export const MediaCard = ({
     }
 
     // Regular view with more details
-    return (
-      <div className="p-2 sm:p-3 flex flex-col flex-grow bg-white rounded-b-xl">
-        <h2 className="text-sm sm:text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300" title={displayTitle}>
+    return (      <div className="p-2 sm:p-3 flex flex-col flex-grow bg-white rounded-b-xl">
+        <h2 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300" title={displayTitle}>
           {displayTitle}
         </h2>
         {overview && (
-          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-2 leading-relaxed flex-grow">
+          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-1 sm:mb-2 leading-relaxed flex-grow">
             {overview}
           </p>
         )}
@@ -421,8 +420,7 @@ export const MediaCard = ({
         } transition-all duration-300 h-full`}
         onClick={handleCardClick}
       >
-        {/* Image Section */}
-        <div className="relative overflow-hidden h-[160px] sm:h-[180px] md:h-[200px] flex-shrink-0">
+        {/* Image Section */}        <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
           <motion.img
             src={posterUrl}
