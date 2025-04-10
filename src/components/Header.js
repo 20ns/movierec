@@ -324,8 +324,7 @@ function Header({
                   </button>
                 </>
               )}
-              
-              {!isAuthenticated && (
+                {!isAuthenticated && (
                 <Link 
                   to="/auth"
                   onClick={() => setShowMobileMenu(false)}
@@ -337,19 +336,8 @@ function Header({
             </div>
           </motion.div>
         )}
-      </AnimatePresence>      {/* Favorites Dropdown Panel */}
-      <AnimatePresence>
-        {showFavorites && isAuthenticated && (
-          <div className="absolute right-4 sm:right-8 top-full mt-1 w-80 md:w-96 max-w-[95vw] z-50">
-            <FavoritesSection 
-              currentUser={currentUser} 
-              isAuthenticated={isAuthenticated}
-              inHeader={true}
-              onClose={() => onFavoritesClick(false)}
-            />
-          </div>
-        )}
       </AnimatePresence>
+      {/* Favorites panel is now rendered from App.js */}
     </motion.header>
   );
 }

@@ -467,20 +467,27 @@ function AppContent() {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
-
-      <AnimatePresence>
+      </AnimatePresence>      <AnimatePresence>
         {showAccountDetails && isAuthenticated && (
           <AccountDetailsModal currentUser={currentUser} onClose={() => setShowAccountDetails(false)} />
         )}
-      </AnimatePresence>      <AnimatePresence>
+      </AnimatePresence>
+      
+      <AnimatePresence>
         {showFavorites && isAuthenticated && (
-          <FavoritesSection
-            currentUser={currentUser}
-            isAuthenticated={isAuthenticated}
-            onClose={() => setShowFavorites(false)}
-            inHeader={true}
-          />
+          <motion.div
+            className="fixed top-16 right-4 sm:right-10 z-50"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <FavoritesSection
+              currentUser={currentUser}
+              isAuthenticated={isAuthenticated}
+              onClose={() => setShowFavorites(false)}
+              inHeader={true}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 

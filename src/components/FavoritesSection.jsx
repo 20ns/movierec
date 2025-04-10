@@ -4,6 +4,61 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import { MediaCard } from './MediaCard';
 
+// Cache utilities for favorites
+const FAVORITES_CACHE_KEY = 'user_favorites_cache';
+const CACHE_EXPIRY_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+const getFavoritesFromCache = (userId) => {
+  try {
+    const cacheData = localStorage.getItem(`${FAVORITES_CACHE_KEY}_${userId}`);
+    if (!cacheData) return null;
+    
+    const { data, timestamp } = JSON.parse(cacheData);
+    
+    // Check if cache is still valid (not expired)
+    if (Date.now() - timestamp < CACHE_EXPIRY_TIME) {
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error retrieving from favorites cache:', error);
+    return null;
+  }
+};
+
+const cacheFavorites = (userId, favorites) => {
+  try {
+    const cacheData = {
+      data: favorites,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(`${FAVORITES_CACHE_KEY}_${userId}`, JSON.stringify(cacheData));
+  } catch (error) {
+    console.error('Error saving to favorites cache:', error);
+  }
+};
+
+// Loading skeleton for media cards
+const MediaCardSkeleton = () => (
+  <motion.div 
+    className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-md"
+    initial={{ opacity: 0.6 }}
+    animate={{ 
+      opacity: [0.6, 0.8, 0.6],
+      transition: { 
+        repeat: Infinity, 
+        duration: 1.5 
+      }
+    }}
+  >
+    <div className="aspect-w-2 aspect-h-3 bg-gray-700" />
+    <div className="p-3">
+      <div className="w-3/4 h-5 bg-gray-700 rounded mb-2" />
+      <div className="w-1/2 h-4 bg-gray-700 rounded" />
+    </div>
+  </motion.div>
+);
+
 const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = false }) => {
   const [isOpen, setIsOpen] = useState(inHeader ? true : false);
   const [userFavorites, setUserFavorites] = useState([]);
@@ -43,6 +98,17 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     setIsLoading(true);
     
     try {
+      // First check if we have valid cached data
+      const userId = currentUser.username || currentUser.attributes?.sub;
+      const cachedFavorites = getFavoritesFromCache(userId);
+      
+      if (cachedFavorites) {
+        console.log('Using cached favorites data');
+        setUserFavorites(cachedFavorites);
+        setIsLoading(false);
+        return;
+      }
+      
       console.log('Fetching favorites from API...');
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
@@ -65,12 +131,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       console.log('Favorites data received:', data);
       
       // Check if the data has the expected structure
-      if (data && data.items) {
-        setUserFavorites(data.items);
-      } else {
-        console.warn('Unexpected response format:', data);
-        setUserFavorites(Array.isArray(data) ? data : []);
-      }
+      const favorites = data && data.items ? data.items : (Array.isArray(data) ? data : []);
+      
+      // Cache the favorites data
+      cacheFavorites(userId, favorites);
+      
+      // Update state
+      setUserFavorites(favorites);
     } catch (err) {
       console.error('Error fetching favorites:', err);
       setError('Failed to load favorites. Please try again later.');
@@ -116,24 +183,50 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   if (!isAuthenticated) {
     return null;
   }
-
   // Make sure to use the onClose prop if it's provided (for the header version)
   const handleClose = () => {
     if (onClose) {
       onClose();
-    } else {
-      setIsOpen(false);
     }
+    setIsOpen(false);
   };
 
   // Handle favorite toggle callback from MediaCard
-  const handleFavoriteToggle = (mediaId, isFavorite) => {
+  const handleFavoriteToggle = async (mediaId, isFavorite) => {
+    if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      console.error('No access token available');
+      return;
+    }
+    
+    const userId = currentUser.username || currentUser.attributes?.sub;
+    
     if (!isFavorite) {
       // If removed from favorites, update the UI immediately with a smoother animation
-      setUserFavorites(prev => prev.filter(fav => fav.mediaId !== mediaId));
+      const updatedFavorites = userFavorites.filter(fav => fav.mediaId !== mediaId);
+      setUserFavorites(updatedFavorites);
+      
+      // Update the cache
+      cacheFavorites(userId, updatedFavorites);
+      
+      // Also send the removal request to backend
+      try {
+        await fetch(
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite/${mediaId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          }
+        );
+      } catch (error) {
+        console.error('Error removing from favorites:', error);
+        // Consider showing a toast notification for errors
+      }
     } else {
-      // If added to favorites and we're showing the favorites section,
-      // we might want to refresh the list
+      // Fetch the latest data to keep everything in sync
       fetchFavorites();
     }
   };
@@ -170,6 +263,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
+              aria-label="Close favorites"
             >
               <span className="sr-only">Close</span>
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -179,9 +273,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
           </div>
 
           {isLoading && (
-            <div className="text-center py-6">
-              <div className="animate-spin w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-              <p className="text-gray-300 text-sm">Loading your favorites...</p>
+            <div className="grid grid-cols-1 gap-3 max-h-[50vh] pr-2">
+              {[1, 2, 3].map(i => (
+                <MediaCardSkeleton key={i} />
+              ))}
             </div>
           )}
 
@@ -193,7 +288,15 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
           {!isLoading && userFavorites.length === 0 && (
             <div className="text-center py-6 px-4">
-              <div className="text-4xl mb-3">❤️</div>
+              <motion.div 
+                className="text-4xl mb-3"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  transition: { duration: 1.5, repeat: Infinity }
+                }}
+              >
+                ❤️
+              </motion.div>
               <p className="text-white font-medium mb-2">Your favorites list is empty</p>
               <p className="text-gray-300 text-sm mb-3">
                 Browse movies and shows and click the heart icon to add them to your favorites
@@ -297,7 +400,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         ) : (
           'Loading auth...'
         )}
-      </motion.button>      <AnimatePresence>
+      </motion.button>
+      
+      <AnimatePresence>
         {isOpen && (
           <>
             <motion.div
@@ -327,7 +432,6 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 marginTop: '0.5rem'
               }}
             >
-              {/* Same content as in header mode, but with different styling */}
               <div className="p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-white">
@@ -336,6 +440,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   <button
                     onClick={handleClose}
                     className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
+                    aria-label="Close favorites"
                   >
                     <span className="sr-only">Close</span>
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -344,71 +449,106 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   </button>
                 </div>
 
-                {/* Rest of the content is the same as the header mode */}
-                {/* ... */}
-                {/* Same loading, error, and empty states as above */}
-                {/* ... */}
+                {isLoading && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh]">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <MediaCardSkeleton key={i} />
+                    ))}
+                  </div>
+                )}
+
+                {error && (
+                  <div className="bg-red-900/30 border border-red-500 text-red-200 p-3 rounded-lg mb-3 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                {!isLoading && userFavorites.length === 0 && (
+                  <div className="text-center py-6 px-4">
+                    <motion.div 
+                      className="text-4xl mb-3"
+                      animate={{ 
+                        scale: [1, 1.2, 1],
+                        transition: { duration: 1.5, repeat: Infinity }
+                      }}
+                    >
+                      ❤️
+                    </motion.div>
+                    <p className="text-white font-medium mb-2">Your favorites list is empty</p>
+                    <p className="text-gray-300 text-sm mb-3">
+                      Browse movies and shows and click the heart icon to add them to your favorites
+                    </p>
+                    <button 
+                      onClick={handleClose}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 px-4 rounded-full transition-colors"
+                    >
+                      Browse content
+                    </button>
+                  </div>
+                )}
                 
-                <div 
-                  ref={favoritesScrollRef}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
-                >
-                  <AnimatePresence mode="popLayout">
-                    {userFavorites.map((fav) => {
-                      // Fix the data issues while maintaining the existing visual style
-                      const result = {
-                        id: fav.mediaId,
-                        title: fav.title,
-                        poster_path: fav.posterPath,
-                        media_type: fav.mediaType,
-                        overview: fav.overview || "No description available",
-                        // Add these fields to fix NaN issues
-                        release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
-                        first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
-                        vote_average: fav.voteAverage || fav.rating || 7.0,
-                        popularity: fav.popularity || 50
-                      };
-                      return (
-                        <motion.div
-                          key={fav.mediaId}
-                          layout
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ 
-                            opacity: 1, 
-                            scale: 1,
-                            transition: {
-                              type: "spring",
-                              stiffness: 500,
-                              damping: 30,
-                              mass: 1
-                            }
-                          }}
-                          exit={{ 
-                            opacity: 0, 
-                            scale: 0.9,
-                            transition: {
-                              duration: 0.2,
-                              ease: "easeOut"
-                            }
-                          }}
-                          className="mb-2"
-                        >
-                          <MediaCard
-                            result={result}
-                            currentUser={{
-                              ...currentUser,
-                              token: currentUser.signInUserSession.accessToken.jwtToken
+                {!isLoading && userFavorites.length > 0 && (
+                  <div 
+                    ref={favoritesScrollRef}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {userFavorites.map((fav) => {
+                        // Fix the data issues while maintaining the existing visual style
+                        const result = {
+                          id: fav.mediaId,
+                          title: fav.title,
+                          poster_path: fav.posterPath,
+                          media_type: fav.mediaType,
+                          overview: fav.overview || "No description available",
+                          // Add these fields to fix NaN issues
+                          release_date: fav.releaseDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
+                          first_air_date: fav.firstAirDate || (fav.year ? `${fav.year}-01-01` : '2023-01-01'),
+                          vote_average: fav.voteAverage || fav.rating || 7.0,
+                          popularity: fav.popularity || 50
+                        };
+                        return (
+                          <motion.div
+                            key={fav.mediaId}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ 
+                              opacity: 1, 
+                              scale: 1,
+                              transition: {
+                                type: "spring",
+                                stiffness: 500,
+                                damping: 30,
+                                mass: 1
+                              }
                             }}
-                            promptLogin={() => {}}
-                            onClick={() => {}}
-                            simplifiedView={true}
-                            onFavoriteToggle={handleFavoriteToggle}
-                          />
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                </div>
+                            exit={{ 
+                              opacity: 0, 
+                              scale: 0.9,
+                              transition: {
+                                duration: 0.2,
+                                ease: "easeOut"
+                              }
+                            }}
+                            className="mb-2"
+                          >
+                            <MediaCard
+                              result={result}
+                              currentUser={{
+                                ...currentUser,
+                                token: currentUser.signInUserSession.accessToken.jwtToken
+                              }}
+                              promptLogin={() => {}}
+                              onClick={() => {}}
+                              simplifiedView={true}
+                              onFavoriteToggle={handleFavoriteToggle}
+                            />
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>
