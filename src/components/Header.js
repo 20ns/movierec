@@ -9,6 +9,7 @@ import {
   Bars3Icon,
   XMarkIcon 
 } from '@heroicons/react/24/outline';
+import FavoritesSection from './FavoritesSection';
 
 function Header({ 
   currentUser, 
@@ -61,13 +62,12 @@ function Header({
     document.addEventListener('modal-opened', handleModalOpen);
     return () => document.removeEventListener('modal-opened', handleModalOpen);
   }, []);
-
   return (
     <motion.header 
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="fixed top-0 left-0 right-0 z-40 px-4 sm:px-6 py-4 bg-gray-900/90 backdrop-blur-lg border-b border-gray-800/50 shadow-md"
+      className="fixed top-0 left-0 right-0 z-40 px-4 sm:px-6 py-4 bg-gray-900 border-b border-gray-800/50 shadow-md"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo area */}
@@ -336,6 +336,18 @@ function Header({
               )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>      {/* Favorites Dropdown Panel */}
+      <AnimatePresence>
+        {showFavorites && isAuthenticated && (
+          <div className="absolute right-4 sm:right-8 top-full mt-1 w-80 md:w-96 max-w-[95vw] z-50">
+            <FavoritesSection 
+              currentUser={currentUser} 
+              isAuthenticated={isAuthenticated}
+              inHeader={true}
+              onClose={() => onFavoritesClick(false)}
+            />
+          </div>
         )}
       </AnimatePresence>
     </motion.header>
