@@ -307,12 +307,10 @@ export const SearchBar = ({ currentUser }) => {
         <div className="search-results-container w-full">
           {/* Exact Match Section */}
           {exactMatches.length > 0 && hasSearched && (
-            <div className="w-full max-w-7xl mb-8">
-              <div className="py-2 px-3 bg-indigo-900/20 rounded-lg border border-indigo-800 mb-3 flex items-center">
-                <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2" />
-                <h3 className="text-sm font-medium text-indigo-300">Exact Match Found</h3>
-              </div>
-              <div className="grid grid-cols-1 gap-4">
+            <div className="w-full max-w-7xl mb-8">              <div className="py-1.5 sm:py-2 px-2 sm:px-3 bg-indigo-900/20 rounded-lg border border-indigo-800 mb-2 sm:mb-3 flex items-center">
+                <LightBulbIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-400 mr-1.5 sm:mr-2" />
+                <h3 className="text-xs sm:text-sm font-medium text-indigo-300">Exact Match Found</h3>
+              </div>              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {exactMatches.map(item => (
                   <MediaCard
                     key={`exact-${item.id}-${item.media_type}`}
@@ -333,8 +331,7 @@ export const SearchBar = ({ currentUser }) => {
               <div className="py-2 px-3 bg-blue-900/20 rounded-lg border border-blue-800 mb-3 flex items-center">
                 <DocumentDuplicateIcon className="h-4 w-4 text-blue-400 mr-2" />
                 <h3 className="text-sm font-medium text-blue-300">Title Search Results</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              </div>              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {currentResults.map(item => (
                   <MediaCard
                     key={`direct-${item.id}-${item.media_type}`}
@@ -427,10 +424,9 @@ export const SearchBar = ({ currentUser }) => {
     }
   };
 
-  return (
-    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 relative flex flex-col items-center justify-start pt-16 md:pt-24 pb-20">
+  return (    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 relative flex flex-col items-center justify-start pt-12 sm:pt-16 md:pt-24 pb-16 sm:pb-20">
       {/* Search Input - Moved to top */}
-      <div className="w-full max-w-2xl mb-4">
+      <div className="w-full max-w-2xl mb-3 sm:mb-4">
         <SearchInput
           query={query}
           setQuery={setQuery}
@@ -443,16 +439,14 @@ export const SearchBar = ({ currentUser }) => {
           handleSuggestionHover={handleSuggestionHover}
           searchMode={activeFilters.searchMode} // Pass search mode
         />
-      </div>
-
-      {/* Direct Search Indicator */}
+      </div>      {/* Direct Search Indicator */}
       {isDirectSearch && hasSearched && !isLoading && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-4 p-2 sm:p-3 rounded-lg bg-blue-900/30 border border-blue-800 text-blue-200 flex items-center"
+          className="w-full max-w-4xl mb-3 sm:mb-4 p-2 rounded-lg bg-blue-900/30 border border-blue-800 text-blue-200 flex items-center"
         >
-          <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-400 flex-shrink-0" />
+          <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-blue-400 flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium truncate">
             Direct Title Search: {query}
             {filteredResults.length > 0 && ` (${filteredResults.length} results found)`}
@@ -465,19 +459,17 @@ export const SearchBar = ({ currentUser }) => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-4 p-2 sm:p-3 rounded-lg bg-indigo-900/30 border border-indigo-800 text-indigo-200 flex items-center"
+          className="w-full max-w-4xl mb-3 sm:mb-4 p-2 rounded-lg bg-indigo-900/30 border border-indigo-800 text-indigo-200 flex items-center"
         >
-          <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-indigo-400 flex-shrink-0" />
+          <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-indigo-400 flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium truncate">{intentSummary}</p>
         </motion.div>
-      )}
-
-      {/* Filters Toggle and Section */}
+      )}      {/* Filters Toggle and Section */}
       {(hasSearched || isDirectSearch) && (
-        <div className="w-full max-w-4xl mb-4 space-y-2">
+        <div className="w-full max-w-4xl mb-3 sm:mb-4 space-y-2">
           <motion.button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all ${
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1 sm:py-2 rounded-full transition-all ${
               showFilters 
                 ? 'bg-indigo-500 text-white shadow-lg'
                 : 'bg-white/90 text-indigo-500 hover:bg-indigo-50 backdrop-blur-sm'
@@ -486,9 +478,9 @@ export const SearchBar = ({ currentUser }) => {
             whileTap={{ scale: 0.95 }}
           >
             {showFilters ? (
-              <FunnelSolidIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <FunnelSolidIcon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
             ) : (
-              <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <FunnelIcon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
             )}
             <span className="font-semibold text-xs sm:text-sm">
               {showFilters ? 'Hide Filters' : 'Show Filters'}

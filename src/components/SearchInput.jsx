@@ -57,16 +57,15 @@ export const SearchInput = React.memo(({
   // --- End Dark Mode Styles ---
 
   return (
-    <div className={`relative w-full flex justify-center`} style={{ zIndex: 50 }} ref={containerRef}> {/* Removed bg-gray-800 */}
-      <motion.form
+    <div className={`relative w-full flex justify-center`} style={{ zIndex: 50 }} ref={containerRef}> {/* Removed bg-gray-800 */}      <motion.form
         onSubmit={(e) => {
           e.preventDefault();
           handleSearch();
         }}
-        className="relative w-full max-w-2xl"
+        className="relative w-full max-w-2xl px-3 sm:px-0"
         style={{ zIndex: 50 }}
         animate={{
-          scale: isFocused ? 1.02 : 1,
+          scale: isFocused ? 1.01 : 1,
           boxShadow: isFocused
             ? '0 8px 30px rgba(98, 102, 241, 0.2)' // Keep focus shadow
             : '0 4px 6px rgba(0, 0, 0, 0.1)'  // Regular shadow
@@ -219,12 +218,11 @@ const SuggestionsDropdown = React.memo(({ suggestions, isFocused, handleSuggesti
 
   return (
     <AnimatePresence>
-      {suggestions.length > 0 && isFocused && (
-        <motion.div
+      {suggestions.length > 0 && isFocused && (        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="absolute left-0 right-0 mt-2"
+          className="absolute left-0 right-0 mt-2 mx-3 sm:mx-0"
           style={{ zIndex: 100 }}
           ref={dropdownRef}
         >
@@ -274,15 +272,14 @@ const SuggestionItem = React.memo(({ suggestion, index, onClick, onHover, sugges
       onClick={handleClick}
       onMouseEnter={handleHover}
       onFocus={handleHover}
-    >
-      <div className="px-3 py-2 sm:px-4 sm:py-2 transition-colors duration-200 flex items-center justify-between">
+    >      <div className="px-3 py-2 sm:px-4 sm:py-2 transition-colors duration-200 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <MagnifyingGlassIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`} />
-          <span className={`text-sm sm:text-base font-medium truncate max-w-[180px] sm:max-w-full ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`}>
+          <span className={`text-sm sm:text-base font-medium truncate max-w-[140px] sm:max-w-[240px] md:max-w-full ${suggestionItemTextClasses} ${isExactMatch ? 'text-indigo-400' : ''}`}>
             {suggestion.title}
           </span>
         </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full transition-colors duration-200 ${suggestionItemTypeTextClasses}`}>
+        <span className={`text-[10px] sm:text-xs ml-1 px-1.5 sm:px-2 py-0.5 rounded-full transition-colors duration-200 ${suggestionItemTypeTextClasses}`}>
           {suggestion.type}
         </span>
       </div>

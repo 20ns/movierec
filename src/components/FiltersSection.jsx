@@ -18,9 +18,8 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
   
   const renderFilterButton = (filterKey, label, icon) => {
     return (
-      <div className="relative">
-        <button
-          className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm transition-colors ${
+      <div className="relative">        <button
+          className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm transition-colors ${
             openFilter === filterKey 
               ? 'bg-purple-600 text-white' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
@@ -107,19 +106,18 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
         break;
     }
     
-    return (
-      <motion.div
+    return (      <motion.div
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 5 }}
-        className="absolute mt-2 z-50 min-w-[160px]"
+        className="absolute mt-2 z-50 min-w-[160px] right-0 sm:right-auto"
       >
-        <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-2">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-1 sm:p-2">
           {options.map((option) => (
             <button
               key={option.value}
               onClick={() => setActiveFilters(prev => ({ ...prev, [filterKey]: option.value }))}
-              className={`w-full flex items-center px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/50 rounded-md ${
+              className={`w-full flex items-center px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-300 hover:bg-gray-700/50 rounded-md ${
                 activeFilters[filterKey] === option.value 
                 ? 'bg-gray-700 text-white font-medium' 
                 : ''
@@ -142,17 +140,16 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
     }));
   };
 
-  return (
-    <motion.div 
-      className="w-full rounded-xl bg-gray-800/95 backdrop-blur-sm p-3 sm:p-4"
+  return (    <motion.div 
+      className="w-full rounded-xl bg-gray-800/95 backdrop-blur-sm p-2 sm:p-4"
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
         {/* Search Mode Filter - NEW */}
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-300 mb-1 sm:mb-2">Search Mode</label>
+          <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Search Mode</label>
           <div className="flex bg-gray-700 p-1 rounded-lg">
             <button
               onClick={() => handleFilterChange('searchMode', 'smart')}
@@ -175,20 +172,18 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
               Direct Title Search
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-1">
             {activeFilters.searchMode === 'direct' 
               ? "Find exact titles to add to favorites" 
               : "Intelligent search with recommendations"}
           </p>
-        </div>
-
-        {/* Media Type */}
+        </div>        {/* Media Type */}
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Media Type</label>
+          <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">Media Type</label>
           <div className="flex bg-gray-700 p-1 rounded-lg">
             <button
               onClick={() => handleFilterChange('type', 'all')}
-              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+              className={`px-2 py-1 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium flex-1 transition-colors ${
                 activeFilters.type === 'all'
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-300 hover:bg-gray-600'
@@ -198,7 +193,7 @@ export const FiltersSection = ({ activeFilters, setActiveFilters }) => {
             </button>
             <button
               onClick={() => handleFilterChange('type', 'movie')}
-              className={`px-3 py-2 rounded-md text-sm font-medium flex-1 transition-colors ${
+              className={`px-2 py-1 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium flex-1 transition-colors ${
                 activeFilters.type === 'movie'
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-300 hover:bg-gray-600'
