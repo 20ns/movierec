@@ -380,11 +380,10 @@ const SuggestionItem = React.memo(({ suggestion, handleClick, handleHover, searc
       onMouseEnter={handleHover}
       whileHover={{ backgroundColor: 'rgba(79, 70, 229, 0.2)' }}
       tabIndex={0}
-    >
-      <div className="flex items-center">
+    >      <div className="flex items-center">
         <MagnifyingGlassIcon className="w-4 h-4 mr-2 text-gray-400 group-hover:text-gray-200" />
         <span className="text-gray-200 group-hover:text-white font-medium">
-          {suggestion.text}
+          {suggestion.title || suggestion.text}
         </span>
       </div>
       
