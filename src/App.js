@@ -528,22 +528,45 @@ function AppContent() {
           showFavorites={showFavorites}
           showSearch={showSearch}
         />
-      )}
-
-      <AnimatePresence>
-        {showSearch && isAuthenticated && (
-          <motion.div
-            key="search-overlay"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-x-0 top-0 z-30 pt-16 bg-black/70 backdrop-blur-sm"
-          >
-            <div className="max-w-3xl mx-auto p-4">
-              <SearchBar currentUser={currentUser} onResultClick={() => setShowSearch(false)} />
-            </div>
-          </motion.div>
+      )}      <AnimatePresence>
+        {showSearch && (
+          <>
+            {/* Backdrop overlay with click-away functionality */}
+            <motion.div
+              key="search-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-30 bg-gradient-to-b from-gray-900/95 to-black/90 backdrop-blur-md"
+              onClick={() => setShowSearch(false)}
+            />
+            
+            {/* Search container with improved animation */}
+            <motion.div
+              key="search-container"
+              initial={{ opacity: 0, y: -20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.98 }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 350, 
+                damping: 30,
+                delay: 0.05
+              }}              className="fixed inset-x-0 top-0 z-40 pt-24 px-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.div 
+                className="max-w-3xl mx-auto"
+                transition={{ delay: 0.2, duration: 0.5 }}
+              >
+                <SearchBar 
+                  currentUser={currentUser} 
+                  onResultClick={() => setShowSearch(false)} 
+                />
+              </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

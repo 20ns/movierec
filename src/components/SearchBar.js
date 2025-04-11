@@ -352,8 +352,7 @@ export const SearchBar = ({ currentUser }) => {
       if (error) {
         return <ErrorFallback />;
       }
-      
-      // If no search performed yet, show empty state
+        // If no search performed yet, show empty state
       if (!hasSearched && !isLoading) {
         return (
           <motion.div
@@ -551,23 +550,20 @@ export const SearchBar = ({ currentUser }) => {
       return <ErrorFallback />;
     }
   };
-
   // Main floating search bar design
   return (
     <div 
       ref={searchContainerRef}
-      className={`w-full max-w-screen-2xl mx-auto px-3 sm:px-6 relative flex flex-col items-center justify-start 
-        ${isExpanded ? 'pt-8 sm:pt-12 pb-20' : 'pt-12 sm:pt-16 md:pt-24 pb-16'}`}
+      className="w-full max-w-screen-2xl mx-auto px-3 sm:px-6 relative flex flex-col items-center justify-start"
     >
       {/* Floating Search Bar */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`relative w-full max-w-2xl ${isExpanded ? 'mb-6' : 'mb-4'} z-10`}
+        className="relative w-full max-w-2xl z-10"
       >
-        <div className={`relative bg-gray-900/50 backdrop-blur-lg rounded-2xl ${isExpanded ? 'p-3 sm:p-4' : 'p-1.5 sm:p-2.5'} 
-          border border-gray-700/50 shadow-xl transition-all duration-300`}>
+        <div className="relative backdrop-blur-lg transition-all duration-300">
           
           <AnimatePresence>
             {isExpanded && (
