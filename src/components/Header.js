@@ -20,7 +20,8 @@ function Header({
   onFavoritesClick,   // Changed from setShowFavorites
   showFavorites,
   onSignout,
-  onAccountClick      // Changed from setShowAccountDetails
+  onAccountClick,     // Changed from setShowAccountDetails
+  hasBasicPreferencesOnly = false // New prop to indicate if user has only completed basic questions
 }) {
   const [hoveredButton, setHoveredButton] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -128,8 +129,7 @@ function Header({
           
           {/* Only show these buttons when the user is authenticated */}
           {isAuthenticated && (
-            <>
-              {/* Preferences button */}
+            <>              {/* Preferences button */}
               <motion.button 
                 variants={iconButtonVariants}
                 initial="initial"
@@ -140,8 +140,12 @@ function Header({
                 }}
                 onMouseEnter={() => setHoveredButton('preferences')}
                 onMouseLeave={() => setHoveredButton(null)}
-                className="relative p-2.5 text-gray-300 hover:bg-gray-800/70 hover:text-white rounded-full transition-colors duration-200"
-                title="Set movie preferences"
+                className={`relative p-2.5 rounded-full transition-colors duration-200 ${
+                  hasBasicPreferencesOnly 
+                    ? 'text-white bg-gradient-to-r from-purple-600/80 to-indigo-600/80 shadow-lg shadow-purple-500/30 animate-pulse-subtle' 
+                    : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
+                }`}
+                title={hasBasicPreferencesOnly ? "Continue with more preference questions" : "Set movie preferences"}
               >
                 <AdjustmentsHorizontalIcon className="w-5 h-5" />
                 {hoveredButton === 'preferences' && (
@@ -150,7 +154,7 @@ function Header({
                     animate={{ opacity: 1, y: 0 }}
                     className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap px-2 py-1 bg-gray-800 text-xs text-gray-200 rounded shadow-lg pointer-events-none"
                   >
-                    Preferences
+                    {hasBasicPreferencesOnly ? "Continue with more questions" : "Preferences"}
                   </motion.div>
                 )}
               </motion.button>

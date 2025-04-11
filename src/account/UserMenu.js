@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AccountDetailsModal from './AccountDetailsModal';
 
-const UserMenu = ({ userEmail, onSignout }) => {
+const UserMenu = ({ userEmail, onSignout, currentUser }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const dropdownRef = useRef(null);
@@ -93,6 +93,7 @@ const UserMenu = ({ userEmail, onSignout }) => {
         isOpen={showAccountDetails}
         onClose={() => setShowAccountDetails(false)}
         email={userEmail}
+        currentUser={currentUser}
       />
     </div>
   );

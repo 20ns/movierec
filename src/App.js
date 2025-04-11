@@ -481,18 +481,19 @@ function AppContent() {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="w-full max-w-2xl bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
+              onMouseDown={(e) => e.stopPropagation()}            >
               <OnboardingQuestionnaire
                 currentUser={currentUser}
                 onComplete={handleQuestionnaireComplete}
-                inModal={true}
+                onSkip={() => setShowQuestionnaireModal(false)}
+                isModal={true}
                 onClose={() => setShowQuestionnaireModal(false)}
+                existingPreferences={userPreferences}
               />
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>      <AnimatePresence>
+      </AnimatePresence><AnimatePresence>
         {showAccountDetails && isAuthenticated && (
           <AccountDetailsModal currentUser={currentUser} onClose={() => setShowAccountDetails(false)} />
         )}
@@ -516,8 +517,7 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (
-        <Header
+      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
           isAuthenticated={isAuthenticated}
           currentUser={currentUser}
           onSignout={handleSignout}
@@ -527,6 +527,7 @@ function AppContent() {
           onAccountClick={() => setShowAccountDetails(true)}
           showFavorites={showFavorites}
           showSearch={showSearch}
+          hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
         />
       )}      <AnimatePresence>
         {showSearch && (
