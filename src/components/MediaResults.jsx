@@ -52,15 +52,10 @@ export const MediaResults = ({
       ) : displayedResults.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
           No results found. Try a different search.
-        </div>
-      ) : (
-        <ScrollContainer 
-          maxHeight="80vh" 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4"
-          showShadows={true}
-        >
+        </div>      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
           {renderSafeResults()}
-        </ScrollContainer>
+        </div>
       )}
     </div>
   );
