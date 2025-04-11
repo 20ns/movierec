@@ -5,7 +5,7 @@ import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from
 import useAuth from './auth/auth';
 import Header from './components/Header';
 import Bg from './components/Bg';
-import AuthPage from './auth/authPage';
+import AuthPage from './auth/authPage.jsx';
 import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import TrendingSection from './components/TrendingSection';
 import PersonalizedRecommendations from './components/PersonalizedRecommendations';
