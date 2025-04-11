@@ -387,10 +387,9 @@ export const SearchBar = ({ currentUser }) => {
           </motion.div>
         );
       }
-      
-      // Rest of your render code with all the sections
+        // Rest of your render code with all the sections
       return (
-        <div className="search-results-container w-full max-h-[80vh] overflow-y-scroll">
+        <div className="search-results-container w-full max-h-[80vh] overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'thin' }}>
           {/* Exact Match Section */}
           {exactMatches.length > 0 && hasSearched && (
             <motion.div
