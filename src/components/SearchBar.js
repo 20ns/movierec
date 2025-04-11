@@ -1,19 +1,32 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiltersSection } from './FiltersSection';
 import { SearchInput } from './SearchInput';
 import { MediaResults } from './MediaResults';
 import { ErrorMessage } from './ErrorMessage';
-import { LoadMoreButton } from './LoadMoreButton';
 import { useSearch } from './useSearch';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
-import { LightBulbIcon, SparklesIcon, DocumentDuplicateIcon } from '@heroicons/react/24/solid';
+import { 
+  LightBulbIcon, 
+  SparklesIcon, 
+  DocumentDuplicateIcon,
+  ArrowUpIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  ChevronDownIcon
+} from '@heroicons/react/24/solid';
 import { formatQueryIntentSummary } from './SearchBarUtils';
-import { MediaCard } from './MediaCard'; // Ensure this is properly imported
+import { MediaCard } from './MediaCard';
 
 export const SearchBar = ({ currentUser }) => {
-  const [showFilters, setShowFilters] = useState(true);
+  // State management
+  const [showFilters, setShowFilters] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const searchContainerRef = useRef(null);
+  
+  // Search functionality from custom hook
   const {
     query,
     setQuery,
@@ -43,6 +56,10 @@ export const SearchBar = ({ currentUser }) => {
   // Function to handle search with URL update
   const handleSearchWithUrlUpdate = (e) => {
     e?.preventDefault();
+    
+    // Auto-expand search interface when search is performed
+    setIsExpanded(true);
+    
     handleSearch(e);
     
     // Update URL after search but not for initial URL-triggered search
@@ -80,6 +97,7 @@ export const SearchBar = ({ currentUser }) => {
     
     if (urlQuery) {
       isInitialUrlSearch.current = true;
+      setIsExpanded(true); // Expand search interface if URL has query
       
       // Set query from URL
       setQuery(urlQuery);
@@ -135,6 +153,28 @@ export const SearchBar = ({ currentUser }) => {
     document.querySelector('.search-results-container')?.scrollIntoView({
       behavior: 'smooth',
       block: 'start'
+    });
+  };
+
+  // Scroll tracking for showing the back-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 500) {
+        setShowBackToTop(true);
+      } else {
+        setShowBackToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
     });
   };
 
@@ -199,69 +239,74 @@ export const SearchBar = ({ currentUser }) => {
     return { main: otherResults };
   }, [displayedResults, queryIntent, exactMatches, isDirectSearch]);
 
-  // Updated pagination controls for mobile
+  // Updated pagination controls with improved design
   const PaginationControls = () => {
     if (totalPages <= 1) return null;
     
     return (
       <div className="flex justify-center my-4 sm:my-6">
-        <nav className="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+        <nav className="inline-flex rounded-md shadow-lg -space-x-px" aria-label="Pagination">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`relative inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-l-md border 
+            className={`relative inline-flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-l-md border 
               ${currentPage === 1 
-                ? 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed' 
-                : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'border-gray-700 bg-gray-800/70 text-gray-500 cursor-not-allowed' 
+                : 'border-gray-600 bg-gray-700/80 text-gray-300 hover:bg-indigo-600/70 hover:text-white transition-all'
               }`}
           >
             <span className="sr-only sm:not-sr-only">Previous</span>
             <span className="sm:hidden">&laquo;</span>
           </button>
           
-          {/* Page numbers - simplified for mobile */}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
-            // On mobile, only show current page, first, last, and adjacent pages
-            const isMobile = window.innerWidth < 640;
-            const showOnMobile = 
-              pageNum === 1 || 
-              pageNum === totalPages || 
-              Math.abs(pageNum - currentPage) <= 1;
-            
-            if (isMobile && !showOnMobile) {
-              // Show ellipsis for skipped pages on mobile
-              if (pageNum === 2 || pageNum === totalPages - 1) {
-                return (
-                  <span key={`ellipsis-${pageNum}`} className="relative inline-flex items-center px-3 py-2 border border-gray-600 bg-gray-700 text-gray-400">
-                    ...
-                  </span>
-                );
+          {/* Page numbers with animation */}
+          <div className="flex overflow-hidden">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+              // On narrow screens, only show current page, first, last, and adjacent pages
+              const isNarrowScreen = window.innerWidth < 480;
+              const showOnNarrow = 
+                pageNum === 1 || 
+                pageNum === totalPages || 
+                Math.abs(pageNum - currentPage) <= 1;
+              
+              if (isNarrowScreen && !showOnNarrow) {
+                // Show ellipsis for skipped pages on narrow screens
+                if (pageNum === 2 || pageNum === totalPages - 1) {
+                  return (
+                    <span key={`ellipsis-${pageNum}`} className="relative inline-flex items-center px-3 py-2 border border-gray-600 bg-gray-700/80 text-gray-400">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
               }
-              return null;
-            }
-            
-            return (
-              <button
-                key={pageNum}
-                onClick={() => handlePageChange(pageNum)}
-                className={`relative inline-flex items-center px-3 py-1 sm:py-2 border
-                  ${pageNum === currentPage
-                    ? 'bg-indigo-600 text-white border-indigo-500'
-                    : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
-                }`}
-              >
-                {pageNum}
-              </button>
-            );
-          })}
+              
+              return (
+                <motion.button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  className={`relative inline-flex items-center px-3 py-1.5 sm:py-2.5 border
+                    ${pageNum === currentPage
+                      ? 'bg-indigo-600/90 text-white border-indigo-500 shadow-md shadow-indigo-500/30'
+                      : 'bg-gray-700/80 text-gray-300 border-gray-600 hover:bg-indigo-500/70 hover:text-white transition-all'
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {pageNum}
+                </motion.button>
+              );
+            })}
+          </div>
           
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`relative inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-r-md border 
+            className={`relative inline-flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-r-md border 
               ${currentPage === totalPages
-                ? 'border-gray-700 bg-gray-800 text-gray-500 cursor-not-allowed'
-                : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'border-gray-700 bg-gray-800/70 text-gray-500 cursor-not-allowed'
+                : 'border-gray-600 bg-gray-700/80 text-gray-300 hover:bg-indigo-600/70 hover:text-white transition-all'
               }`}
           >
             <span className="sr-only sm:not-sr-only">Next</span>
@@ -283,16 +328,22 @@ export const SearchBar = ({ currentUser }) => {
 
   // Create error boundary component
   const ErrorFallback = () => (
-    <div className="w-full p-4 bg-red-100 border border-red-300 rounded-lg my-4 text-center">
-      <h3 className="text-red-700 font-medium">Something went wrong with the search results</h3>
-      <p className="text-red-600 mt-2">Please try refreshing the page or try another search term.</p>
-      <button
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full p-4 bg-red-900/30 border border-red-700/50 backdrop-blur-md rounded-xl my-4 text-center"
+    >
+      <h3 className="text-red-300 font-medium">Something went wrong with the search results</h3>
+      <p className="text-red-200/80 mt-2">Please try refreshing the page or try another search term.</p>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => window.location.reload()}
-        className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        className="mt-3 px-4 py-2 bg-red-600/80 hover:bg-red-500 text-white rounded-lg shadow-lg transition-all"
       >
         Refresh Page
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 
   // Render section with error protection
@@ -302,56 +353,119 @@ export const SearchBar = ({ currentUser }) => {
         return <ErrorFallback />;
       }
       
+      // If no search performed yet, show empty state
+      if (!hasSearched && !isLoading) {
+        return (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-2xl mx-auto text-center p-8 mt-4"
+          >
+            <MagnifyingGlassIcon className="w-16 h-16 mx-auto text-indigo-400/50" />
+            <h3 className="mt-4 text-xl font-medium text-gray-300">Search for movies and shows</h3>
+            <p className="mt-2 text-gray-400">
+              Try searching for a title, a mood, or even "movies like [title]"
+            </p>
+          </motion.div>
+        );
+      }
+      
+      // Display loader when loading
+      if (isLoading) {
+        return (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full max-w-7xl mb-8 p-6"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-gray-800/40 backdrop-blur-sm rounded-xl h-72 animate-pulse"></div>
+              ))}
+            </div>
+          </motion.div>
+        );
+      }
+      
       // Rest of your render code with all the sections
       return (
-        <div className="search-results-container w-full">
+        <div className="search-results-container w-full max-h-[80vh] overflow-y-scroll">
           {/* Exact Match Section */}
           {exactMatches.length > 0 && hasSearched && (
-            <div className="w-full max-w-7xl mb-8">              <div className="py-1.5 sm:py-2 px-2 sm:px-3 bg-indigo-900/20 rounded-lg border border-indigo-800 mb-2 sm:mb-3 flex items-center">
-                <LightBulbIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-400 mr-1.5 sm:mr-2" />
-                <h3 className="text-xs sm:text-sm font-medium text-indigo-300">Exact Match Found</h3>
-              </div>              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-7xl mb-8"
+            >
+              <div className="py-2 px-3 bg-indigo-900/30 backdrop-blur-sm rounded-xl border border-indigo-700/50 mb-3 flex items-center">
+                <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-2" />
+                <h3 className="text-sm font-medium text-indigo-300">Exact Match Found</h3>
+              </div>
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {exactMatches.map(item => (
-                  <MediaCard
+                  <motion.div
                     key={`exact-${item.id}-${item.media_type}`}
-                    result={item}
-                    currentUser={currentUser}
-                    onClick={() => handleResultClickWithRedirect(item)}
-                    promptLogin={() => {}}
-                    highlightMatch={true}
-                  />
+                    whileHover={{ scale: 1.03 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    <MediaCard
+                      result={item}
+                      currentUser={currentUser}
+                      onClick={() => handleResultClickWithRedirect(item)}
+                      promptLogin={() => {}}
+                      highlightMatch={true}
+                    />
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
           
           {/* Direct Search Results */}
           {isDirectSearch && filteredResults.length > 0 && (
-            <div className="w-full max-w-7xl mb-8">
-              <div className="py-2 px-3 bg-blue-900/20 rounded-lg border border-blue-800 mb-3 flex items-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="w-full max-w-7xl mb-8"
+            >
+              <div className="py-2 px-3 bg-blue-900/30 backdrop-blur-sm rounded-xl border border-blue-700/50 mb-3 flex items-center">
                 <DocumentDuplicateIcon className="h-4 w-4 text-blue-400 mr-2" />
                 <h3 className="text-sm font-medium text-blue-300">Title Search Results</h3>
-              </div>              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {currentResults.map(item => (
-                  <MediaCard
+                  <motion.div
                     key={`direct-${item.id}-${item.media_type}`}
-                    result={item}
-                    currentUser={currentUser}
-                    onClick={() => handleResultClickWithRedirect(item)}
-                    promptLogin={() => {}}
-                  />
+                    whileHover={{ scale: 1.03 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    <MediaCard
+                      result={item}
+                      currentUser={currentUser}
+                      onClick={() => handleResultClickWithRedirect(item)}
+                      promptLogin={() => {}}
+                    />
+                  </motion.div>
                 ))}
               </div>
               <PaginationControls />
-            </div>
+            </motion.div>
           )}
 
           {!isDirectSearch && (
             <>
               {/* Similar To Section - ENHANCED */}
               {queryIntent?.referenceName && hasSearched && (
-                <div className="w-full max-w-7xl mb-8">
-                  <div className="py-2 px-3 bg-purple-900/20 rounded-lg border border-purple-800 mb-3 flex items-center">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="w-full max-w-7xl mb-8"
+                >
+                  <div className="py-2 px-3 bg-purple-900/30 backdrop-blur-sm rounded-xl border border-purple-700/50 mb-3 flex items-center">
                     <LightBulbIcon className="h-4 w-4 text-purple-400 mr-2" />
                     <h3 className="text-sm font-medium text-purple-300">
                       {`Similar to "${queryIntent.referenceName}"`}
@@ -370,7 +484,11 @@ export const SearchBar = ({ currentUser }) => {
                   
                   {/* Show no results message when we have a reference but no similar results */}
                   {groupedResults.similarTo?.length === 0 ? (
-                    <div className="bg-gray-800/80 rounded-lg p-6 text-center">
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-6 text-center border border-gray-700/50"
+                    >
                       <h3 className="text-lg font-semibold text-gray-200 mb-2">No Similar Titles Found</h3>
                       <p className="text-gray-300 mb-4">
                         We couldn't find shows similar to "{queryIntent.referenceName}". This might be because:
@@ -383,27 +501,37 @@ export const SearchBar = ({ currentUser }) => {
                       <p className="text-gray-300">
                         Try searching for a broader category like "{queryIntent.referenceName?.split(' ')[0]} anime" or "anime action"
                       </p>
-                    </div>
+                    </motion.div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {groupedResults.similarTo.map(item => (
-                        <MediaCard
+                        <motion.div
                           key={`similar-${item.id}-${item.media_type}`}
-                          result={item}
-                          currentUser={currentUser}
-                          onClick={() => handleResultClickWithRedirect(item)}
-                          promptLogin={() => {}}
-                          highlightMatch={item.isReferenceMedia}
-                        />
+                          whileHover={{ scale: 1.03 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                        >
+                          <MediaCard
+                            result={item}
+                            currentUser={currentUser}
+                            onClick={() => handleResultClickWithRedirect(item)}
+                            promptLogin={() => {}}
+                            highlightMatch={item.isReferenceMedia}
+                          />
+                        </motion.div>
                       ))}
                     </div>
                   )}
-                </div>
+                </motion.div>
               )}
 
               {/* Main Results Section with pagination */}
               {groupedResults.main && groupedResults.main.length > 0 && (
-                <div className="w-full max-w-7xl mb-8">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                  className="w-full max-w-7xl mb-8"
+                >
                   <MediaResults
                     hasSearched={hasSearched}
                     isLoading={isLoading}
@@ -412,7 +540,7 @@ export const SearchBar = ({ currentUser }) => {
                     currentUser={currentUser}
                   />
                   <PaginationControls />
-                </div>
+                </motion.div>
               )}
             </>
           )}
@@ -424,29 +552,171 @@ export const SearchBar = ({ currentUser }) => {
     }
   };
 
-  return (    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 relative flex flex-col items-center justify-start pt-12 sm:pt-16 md:pt-24 pb-16 sm:pb-20">
-      {/* Search Input - Moved to top */}
-      <div className="w-full max-w-2xl mb-3 sm:mb-4">
-        <SearchInput
-          query={query}
-          setQuery={setQuery}
-          handleSearch={handleSearchWithUrlUpdate} // Updated to use URL updater
-          isLoading={isLoading}
-          isFocused={isFocused}
-          setIsFocused={setIsFocused}
-          suggestions={suggestions}
-          handleSuggestionClick={handleSuggestionClick}
-          handleSuggestionHover={handleSuggestionHover}
-          searchMode={activeFilters.searchMode} // Pass search mode
-        />
-      </div>      {/* Direct Search Indicator */}
+  // Main floating search bar design
+  return (
+    <div 
+      ref={searchContainerRef}
+      className={`w-full max-w-screen-2xl mx-auto px-3 sm:px-6 relative flex flex-col items-center justify-start 
+        ${isExpanded ? 'pt-8 sm:pt-12 pb-20' : 'pt-12 sm:pt-16 md:pt-24 pb-16'}`}
+    >
+      {/* Floating Search Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className={`relative w-full max-w-2xl ${isExpanded ? 'mb-6' : 'mb-4'} z-10`}
+      >
+        <div className={`relative bg-gray-900/50 backdrop-blur-lg rounded-2xl ${isExpanded ? 'p-3 sm:p-4' : 'p-1.5 sm:p-2.5'} 
+          border border-gray-700/50 shadow-xl transition-all duration-300`}>
+          
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-3"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-gray-200 font-medium px-2">Search Movies & Shows</h2>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setIsExpanded(false)}
+                    className="text-gray-400 hover:text-white p-1 rounded-full"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </motion.button>
+                </div>
+                <div className="border-b border-gray-700/50 mb-3"></div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* Search Input - Enhanced */}
+          <div className="w-full">
+            <SearchInput
+              query={query}
+              setQuery={setQuery}
+              handleSearch={(e) => {
+                setIsExpanded(true);
+                handleSearchWithUrlUpdate(e);
+              }}
+              isLoading={isLoading}
+              isFocused={isFocused}
+              setIsFocused={(focused) => {
+                setIsFocused(focused);
+                if (focused && !isExpanded) {
+                  setIsExpanded(true);
+                }
+              }}
+              suggestions={suggestions}
+              handleSuggestionClick={(suggestion) => {
+                setIsExpanded(true);
+                handleSuggestionClick(suggestion);
+              }}
+              handleSuggestionHover={handleSuggestionHover}
+              searchMode={activeFilters.searchMode}
+            />
+          </div>
+          
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                {/* Search Mode Toggle */}
+                <div className="mt-3 flex items-center justify-between px-2">
+                  <div className="flex items-center space-x-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`flex items-center space-x-1.5 px-3 py-1 rounded-full transition-all ${
+                        showFilters 
+                          ? 'bg-indigo-600 text-white shadow-lg'
+                          : 'bg-gray-800/70 text-gray-300 hover:bg-indigo-700/50'
+                      }`}
+                    >
+                      {showFilters ? (
+                        <FunnelSolidIcon className="w-3.5 h-3.5" />
+                      ) : (
+                        <FunnelIcon className="w-3.5 h-3.5" />
+                      )}
+                      <span className="font-medium text-xs">
+                        {showFilters ? 'Hide Filters' : 'Filters'}
+                      </span>
+                    </motion.button>
+                    
+                    <div className="flex items-center space-x-1.5">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setActiveFilters({...activeFilters, searchMode: 'smart'})}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                          activeFilters.searchMode === 'smart'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-800/70 text-gray-300 hover:bg-indigo-700/50'
+                        }`}
+                      >
+                        Smart
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setActiveFilters({...activeFilters, searchMode: 'direct'})}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                          activeFilters.searchMode === 'direct'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-800/70 text-gray-300 hover:bg-blue-700/50'
+                        }`}
+                      >
+                        Direct
+                      </motion.button>
+                    </div>
+                  </div>
+                  
+                  {hasSearched && filteredResults.length > 0 && (
+                    <span className="text-xs text-gray-400">
+                      {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Filters Panel */}
+                <AnimatePresence>
+                  {showFilters && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="mt-3 overflow-hidden"
+                    >
+                      <FiltersSection
+                        activeFilters={activeFilters}
+                        setActiveFilters={setActiveFilters}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+      
+      {/* Direct Search Indicator */}
       {isDirectSearch && hasSearched && !isLoading && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-3 sm:mb-4 p-2 rounded-lg bg-blue-900/30 border border-blue-800 text-blue-200 flex items-center"
+          className="w-full max-w-4xl mb-4 p-2.5 rounded-xl bg-blue-900/30 backdrop-blur-sm border border-blue-800/50 text-blue-200 flex items-center shadow-lg"
         >
-          <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-blue-400 flex-shrink-0" />
+          <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-400 flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium truncate">
             Direct Title Search: {query}
             {filteredResults.length > 0 && ` (${filteredResults.length} results found)`}
@@ -459,48 +729,37 @@ export const SearchBar = ({ currentUser }) => {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-3 sm:mb-4 p-2 rounded-lg bg-indigo-900/30 border border-indigo-800 text-indigo-200 flex items-center"
+          className="w-full max-w-4xl mb-4 p-2.5 rounded-xl bg-indigo-900/30 backdrop-blur-sm border border-indigo-800/50 text-indigo-200 flex items-center shadow-lg"
         >
-          <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-indigo-400 flex-shrink-0" />
+          <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-indigo-400 flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium truncate">{intentSummary}</p>
         </motion.div>
-      )}      {/* Filters Toggle and Section */}
-      {(hasSearched || isDirectSearch) && (
-        <div className="w-full max-w-4xl mb-3 sm:mb-4 space-y-2">
-          <motion.button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1 sm:py-2 rounded-full transition-all ${
-              showFilters 
-                ? 'bg-indigo-500 text-white shadow-lg'
-                : 'bg-white/90 text-indigo-500 hover:bg-indigo-50 backdrop-blur-sm'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {showFilters ? (
-              <FunnelSolidIcon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-            ) : (
-              <FunnelIcon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-            )}
-            <span className="font-semibold text-xs sm:text-sm">
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </span>
-          </motion.button>
-
-          {showFilters && (
-            <FiltersSection
-              activeFilters={activeFilters}
-              setActiveFilters={setActiveFilters}
-            />
-          )}
-        </div>
       )}
-
+      
       {/* Error Messages */}
       <ErrorMessage error={error} isVisible={isErrorVisible} />
 
       {/* Render Results with Error Boundary */}
-      {renderResultsSection()}
+      <div className={`w-full transition-all duration-300 ${isExpanded ? 'opacity-100' : 'opacity-75'}`}>
+        {renderResultsSection()}
+      </div>
+      
+      {/* Back to Top Button */}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 p-3 rounded-full bg-indigo-600/80 backdrop-blur-sm text-white shadow-lg z-50"
+          >
+            <ArrowUpIcon className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
