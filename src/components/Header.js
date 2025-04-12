@@ -53,6 +53,66 @@ function Header({
     }
   };
 
+  // Handler function to ensure only one panel is open at a time
+  const handlePanelToggle = (panelName, isVisible) => {
+    // Close user dropdown whenever a panel is opened
+    setShowUserDropdown(false);
+    
+    switch(panelName) {
+      case 'search':
+        if (onSearchClick) {
+          // First close other panels if opening search
+          if (!isVisible && showFavorites) onFavoritesClick(false);
+          if (!isVisible) onAccountClick(false); // Close account details if open
+          if (!isVisible) onPreferencesClick(false); // Close preferences if open
+          
+          // Then toggle search with a small delay to ensure smooth transitions
+          setTimeout(() => onSearchClick(isVisible), 50);
+        }
+        break;
+      case 'favorites':
+        if (onFavoritesClick) {
+          // First close other panels if opening favorites
+          if (!isVisible && showSearch) onSearchClick(false);
+          if (!isVisible) onAccountClick(false); // Close account details if open
+          if (!isVisible) onPreferencesClick(false); // Close preferences if open
+          
+          // Then toggle favorites with a small delay
+          setTimeout(() => onFavoritesClick(isVisible), 50);
+        }
+        break;
+      case 'preferences':
+        if (onPreferencesClick) {
+          // Close other panels before opening preferences
+          if (showSearch) onSearchClick(false);
+          if (showFavorites) onFavoritesClick(false);
+          if (onAccountClick) onAccountClick(false);
+          
+          // Then open preferences with a small delay
+          setTimeout(() => onPreferencesClick(), 50);
+        }
+        break;
+      case 'account':
+        if (onAccountClick) {
+          // Close other panels before opening account
+          if (showSearch) onSearchClick(false);
+          if (showFavorites) onFavoritesClick(false);
+          if (onPreferencesClick) onPreferencesClick(false);
+          
+          // Then open account with a small delay
+          setTimeout(() => onAccountClick(), 50);
+        }
+        break;
+      default:
+        break;
+    }
+    
+    // Close mobile menu if it's open
+    if (showMobileMenu) {
+      setShowMobileMenu(false);
+    }
+  };
+
   // Listen for the custom event to close dropdown when a modal opens
   useEffect(() => {
     const handleModalOpen = () => {
@@ -105,9 +165,7 @@ function Header({
             initial="initial"
             whileHover="hover"
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              if (onSearchClick) onSearchClick(!showSearch);
-            }}
+            onClick={() => handlePanelToggle('search', !showSearch)}
             onMouseEnter={() => setHoveredButton('search')}
             onMouseLeave={() => setHoveredButton(null)} 
             className={`relative p-2.5 rounded-full transition-colors duration-200 ${
@@ -135,9 +193,7 @@ function Header({
                 initial="initial"
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  if (onPreferencesClick) onPreferencesClick();
-                }}
+                onClick={() => handlePanelToggle('preferences')}
                 onMouseEnter={() => setHoveredButton('preferences')}
                 onMouseLeave={() => setHoveredButton(null)}
                 className={`relative p-2.5 rounded-full transition-colors duration-200 ${
@@ -165,9 +221,7 @@ function Header({
                 initial="initial"
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  if (onFavoritesClick) onFavoritesClick(!showFavorites);
-                }}
+                onClick={() => handlePanelToggle('favorites', !showFavorites)}
                 onMouseEnter={() => setHoveredButton('favorites')}
                 onMouseLeave={() => setHoveredButton(null)}
                 className={`relative p-2.5 rounded-full transition-colors duration-200 ${
@@ -216,10 +270,8 @@ function Header({
                   >
                     <div 
                       onClick={() => {
-                        if (onAccountClick) {
-                          onAccountClick();
-                          setShowUserDropdown(false);
-                        }
+                        setShowUserDropdown(false);
+                        handlePanelToggle('account');
                       }}
                       className="px-4 py-3 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-colors duration-150"
                     >
@@ -272,10 +324,7 @@ function Header({
           >
             <div className="px-4 py-3 space-y-3">
               <button 
-                onClick={() => {
-                  if (onSearchClick) onSearchClick(!showSearch);
-                  setShowMobileMenu(false);
-                }}
+                onClick={() => handlePanelToggle('search', !showSearch)}
                 className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
               >
                 <SearchIcon className="w-5 h-5 mr-3" />
@@ -285,10 +334,7 @@ function Header({
               {isAuthenticated && (
                 <>
                   <button 
-                    onClick={() => {
-                      if (onPreferencesClick) onPreferencesClick();
-                      setShowMobileMenu(false);
-                    }}
+                    onClick={() => handlePanelToggle('preferences')}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
                   >
                     <AdjustmentsHorizontalIcon className="w-5 h-5 mr-3" />
@@ -296,10 +342,7 @@ function Header({
                   </button>
                   
                   <button 
-                    onClick={() => {
-                      if (onFavoritesClick) onFavoritesClick(!showFavorites);
-                      setShowMobileMenu(false);
-                    }}
+                    onClick={() => handlePanelToggle('favorites', !showFavorites)}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
                   >
                     <HeartIcon className="w-5 h-5 mr-3" />
@@ -307,10 +350,7 @@ function Header({
                   </button>
                   
                   <button 
-                    onClick={() => {
-                      if (onAccountClick) onAccountClick();
-                      setShowMobileMenu(false);
-                    }}
+                    onClick={() => handlePanelToggle('account')}
                     className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
                   >
                     <UserIcon className="w-5 h-5 mr-3" />

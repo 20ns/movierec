@@ -516,21 +516,19 @@ function AppContent() {
             />
           </motion.div>
         )}
-      </AnimatePresence>
-
-      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
+      </AnimatePresence>      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
           isAuthenticated={isAuthenticated}
           currentUser={currentUser}
           onSignout={handleSignout}
-          onSearchClick={() => setShowSearch((prev) => !prev)}
-          onPreferencesClick={() => setShowQuestionnaireModal(true)}
-          onFavoritesClick={() => setShowFavorites((prev) => !prev)}
-          onAccountClick={() => setShowAccountDetails(true)}
+          onSearchClick={(isVisible) => setShowSearch(isVisible === undefined ? true : isVisible)}
+          onPreferencesClick={(isVisible) => setShowQuestionnaireModal(isVisible === undefined ? true : isVisible)}
+          onFavoritesClick={(isVisible) => setShowFavorites(isVisible === undefined ? true : isVisible)}
+          onAccountClick={(isVisible) => setShowAccountDetails(isVisible === undefined ? true : isVisible)}
           showFavorites={showFavorites}
           showSearch={showSearch}
           hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
         />
-      )}      <AnimatePresence>
+      )}<AnimatePresence>
         {showSearch && (
           <>
             {/* Backdrop overlay with click-away functionality */}
