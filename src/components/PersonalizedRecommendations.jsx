@@ -570,16 +570,33 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
     prevPreferencesRef.current = currentPrefs;
   }, [propUserPreferences, initialAppLoadComplete, propHasCompletedQuestionnaire, handleRefresh, safeSetState]);
-
-  // --- Imperative Handle ---
+  // --- Expose methods for parent components to call ---
   useImperativeHandle(ref, () => ({
-    refresh: handleRefresh,
-    getCurrentState: () => ({
-      ...state,
-      isFetching: isFetchingRef.current,
-      dataLoadAttempted: dataLoadAttemptedRef.current,
-    }),
-  }), [handleRefresh, state]);
+    // Allow parent components to trigger recommendation refresh
+    refreshRecommendations: (updatedPrefs = null) => {
+      logMessage('Refreshing recommendations from external trigger');
+      // Clear cache if needed
+      if (userId) {
+        const cacheKey = getCacheKey(userId, contentTypeFilter);
+        if (cacheKey) localStorage.removeItem(cacheKey);
+      }
+      
+      // Update preferences reference if provided
+      if (updatedPrefs) {
+        prevPreferencesRef.current = JSON.stringify(updatedPrefs);
+      }
+      
+      // Trigger refresh
+      safeSetState({ 
+        isLoading: true, 
+        isThinking: true,
+        refreshCounter: state.refreshCounter + 1 
+      });
+      
+      // Use the existing handleRefresh function
+      handleRefresh();
+    },
+  }));
 
   // --- Render Logic ---
   // IMPORTANT FIX: Only require authentication, not questionnaire completion
@@ -612,6 +629,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               </div>
             </div>
           ))}
+
         </div>
       </motion.div>
     );

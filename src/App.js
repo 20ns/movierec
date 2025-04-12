@@ -56,6 +56,9 @@ function AppContent() {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [justSignedIn, setJustSignedIn] = useState(false);
 
+  // Calculate if user has only completed basic preferences but not detailed ones
+  const hasBasicPreferencesOnly = userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted;
+
   // --- Refs ---
   const personalizedRecommendationsRef = useRef(null);
   const prevPreferencesRef = useRef(null);
@@ -431,6 +434,18 @@ function AppContent() {
     return null;
   };
 
+  // Function to handle preference updates from onboarding questionnaire
+  const handlePreferencesUpdated = useCallback((updatedPreferences) => {
+    logApp('Preferences updated from questionnaire', updatedPreferences);
+    setUserPreferences(updatedPreferences);
+    
+    // Trigger recommendation refresh if reference is available
+    if (personalizedRecommendationsRef.current) {
+      logApp('Triggering recommendation refresh with updated preferences');
+      personalizedRecommendationsRef.current.refreshRecommendations(updatedPreferences);
+    }
+  }, []);
+
   return (
     <>
       <Bg />
@@ -474,8 +489,7 @@ function AppContent() {
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) setShowQuestionnaireModal(false);
             }}
-          >
-            <motion.div
+          >            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -487,8 +501,17 @@ function AppContent() {
                 onComplete={handleQuestionnaireComplete}
                 onSkip={() => setShowQuestionnaireModal(false)}
                 isModal={true}
-                onClose={() => setShowQuestionnaireModal(false)}
+                onClose={() => {
+                  // When modal is closed with X button, save preferences and trigger recalculation
+                  if (personalizedRecommendationsRef.current && userPreferences) {
+                    personalizedRecommendationsRef.current.refreshRecommendations(userPreferences);
+                  }
+                  setShowQuestionnaireModal(false);
+                }}
                 existingPreferences={userPreferences}
+                onPreferencesUpdated={handlePreferencesUpdated}
+                // Skip basic questions when user has already completed them
+                skipBasicQuestions={hasBasicPreferencesOnly}
               />
             </motion.div>
           </motion.div>

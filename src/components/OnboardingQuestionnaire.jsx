@@ -72,7 +72,7 @@ const SUBGENRE_OPTIONS = [
   { id: 'slasher', name: 'Slasher' },
   { id: 'noir', name: 'Film Noir' },
   { id: 'comingofage', name: 'Coming of Age' },
-  { id: 'historical', name: 'Historical Fiction' },
+  { id:  'historical', name: 'Historical Fiction' },
 ];
 
 const AESTHETIC_OPTIONS = [
@@ -216,7 +216,8 @@ const OnboardingQuestionnaire = ({
   onClose = () => {},
   existingPreferences = null,
   isUpdate = false,
-  personalRecommendationsRef = null, // Add this prop to receive the ref
+  onPreferencesUpdated = null, // Prop to handle preference updates
+  skipBasicQuestions = false, // New prop to control whether to skip basic questions
 }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -291,7 +292,6 @@ const OnboardingQuestionnaire = ({
     
     return fields[detailedStep - 1];
   };
-
   useEffect(() => {
     if (existingPreferences) {
       setPreferences((prev) => ({
@@ -300,44 +300,73 @@ const OnboardingQuestionnaire = ({
         favoritePeople: existingPreferences.favoritePeople || { actors: [], directors: [] },
       }));
       
-      if (existingPreferences.detailedQuestionsCompleted) {
+      // If this is a new user (no preferences), start with the first 5 questions
+      if (!existingPreferences.questionnaireCompleted && !existingPreferences.detailedQuestionsCompleted) {
+        // New user - start with the first question
+        setStep(1);
+        setInitialQuestionsCompleted(false);
+        setShowDetailedQuestions(false);
+        setTotalSteps(coreSteps);
+      }
+      // If user has completed basic questions but not detailed ones, and we want to skip to detailed
+      else if (skipBasicQuestions && existingPreferences.questionnaireCompleted && !existingPreferences.detailedQuestionsCompleted) {
         setShowDetailedQuestions(true);
         setTotalSteps(coreSteps + 19);
-        setStep(existingPreferences.questionnaireCompleted ? coreSteps + 19 : coreSteps + 1);
-        setInitialQuestionsCompleted(existingPreferences.questionnaireCompleted || false);
-      } else if (existingPreferences.questionnaireCompleted) {
+        setStep(coreSteps + 1); // Skip directly to first detailed question
         setInitialQuestionsCompleted(true);
-        setStep(coreSteps);
+      } 
+      // If user has already completed detailed questions
+      else if (existingPreferences.detailedQuestionsCompleted) {
+        setShowDetailedQuestions(true);
+        setTotalSteps(coreSteps + 19);
+        setStep(coreSteps); // Resume at the question asking if they want to continue
+        setInitialQuestionsCompleted(true);
+      } 
+      // If user has completed basic questions but not detailed
+      else if (existingPreferences.questionnaireCompleted) {
+        setInitialQuestionsCompleted(true);
+        setStep(coreSteps); // Show the prompt asking if they want more questions
       }
+    } else {
+      // Completely new user with no preference data at all
+      setStep(1);
+      setTotalSteps(coreSteps);
+      setInitialQuestionsCompleted(false);
+      setShowDetailedQuestions(false);
     }
-  }, [existingPreferences, coreSteps]);
+  }, [existingPreferences, coreSteps, skipBasicQuestions]);
 
   const updatePreference = (field, value) => {
-    setPreferences((prev) => ({ ...prev, [field]: value }));
-    
-    // Trigger immediate partial save and recommendation refresh
-    savePartialPreferences({ ...preferences, [field]: value });
+    setPreferences((prev) => {
+      const newPreferences = { ...prev, [field]: value };
+      // Auto-save preferences when a question is answered and trigger recalculation
+      if (currentUser) {
+        savePreferences(true, newPreferences);
+      }
+      return newPreferences;
+    });
   };
 
   const toggleArrayItem = (field, item) => {
     setPreferences((prev) => {
       const array = prev[field] || [];
-      const newPrefs = {
+      const newPreferences = {
         ...prev,
         [field]: array.includes(item) ? array.filter((i) => i !== item) : [...array, item],
       };
       
-      // Trigger immediate partial save and recommendation refresh
-      savePartialPreferences(newPrefs);
-      
-      return newPrefs;
+      // Auto-save preferences when a question is answered and trigger recalculation
+      if (currentUser) {
+        savePreferences(true, newPreferences);
+      }
+      return newPreferences;
     });
   };
 
   const addPerson = (type) => {
     if (peopleInput[type] && !preferences.favoritePeople[type + 's'].includes(peopleInput[type])) {
       setPreferences((prev) => {
-        const newPrefs = {
+        const newPreferences = {
           ...prev,
           favoritePeople: {
             ...prev.favoritePeople,
@@ -345,31 +374,40 @@ const OnboardingQuestionnaire = ({
           },
         };
         
-        // Trigger immediate partial save and recommendation refresh
-        savePartialPreferences(newPrefs);
-        
-        return newPrefs;
+        // Auto-save preferences when a question is answered and trigger recalculation
+        if (currentUser) {
+          savePreferences(true, newPreferences);
+        }
+        return newPreferences;
       });
       setPeopleInput((prev) => ({ ...prev, [type]: '' }));
     }
   };
 
-  const savePreferences = async (isPartial = false) => {
+  const savePreferences = async (isPartial = false, prefsToUpdate = null) => {
     if (!currentUser || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
       setAuthError(true);
       setError('Please log in to save preferences.');
       return;
     }
 
-    const prefsToSave = {
+    const prefsToSave = prefsToUpdate || {
       ...preferences,
       questionnaireCompleted: !isPartial && step === totalSteps,
       detailedQuestionsCompleted: !isPartial && showDetailedQuestions && step === totalSteps,
     };
 
-    setIsSubmitting(true);
-    try {
+    setIsSubmitting(true);    try {
       const token = currentUser.signInUserSession.accessToken.jwtToken;
+      
+      // Validate API Gateway URL
+      if (!process.env.REACT_APP_API_GATEWAY_INVOKE_URL) {
+        console.error('API Gateway URL is not defined in environment variables');
+        throw new Error('API configuration issue');
+      }
+      
+      console.log('Saving preferences to API:', `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`);
+      
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
         method: 'POST',
         headers: {
@@ -379,48 +417,49 @@ const OnboardingQuestionnaire = ({
         body: JSON.stringify(prefsToSave),
       });
 
-      if (!response.ok) throw new Error('Failed to save preferences');
-      localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(prefsToSave));
-      localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, prefsToSave.questionnaireCompleted.toString());
+      // Improved error handling with status code information
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => null);
+        console.error(`API error (${response.status}):`, errorText || 'No error details available');
+        
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Authentication error. Please try signing in again.');
+        } else if (response.status === 500) {
+          throw new Error('Server error. Our team has been notified.');
+        } else {
+          throw new Error(`Failed to save preferences (Status: ${response.status})`);
+        }
+      }
+
+      // Save to localStorage for offline/cache use
+      try {
+        localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(prefsToSave));
+        localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, prefsToSave.questionnaireCompleted.toString());
+      } catch (storageError) {
+        console.warn('Could not save preferences to localStorage:', storageError);
+        // Non-fatal error, continue execution
+      }
+
+      // Trigger the callback to recalculate recommendations
+      if (onPreferencesUpdated) {
+        onPreferencesUpdated(prefsToSave);
+      }
 
       if (!isPartial && step === totalSteps && onComplete) onComplete();
     } catch (error) {
-      setError('Failed to save preferences. Please try again.');
+      console.error('Error saving preferences:', error);
+      
+      // Provide more specific error messages based on error type
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else if (error.message.includes('Authentication')) {
+        setAuthError(true);
+        setError(error.message);
+      } else {
+        setError(error.message || 'Failed to save preferences. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Helper function to save partial preferences and refresh recommendations
-  const savePartialPreferences = async (prefsToSave) => {
-    if (!currentUser || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      return; // Silently return if not authenticated
-    }
-
-    try {
-      // Save to local storage for immediate use by recommendation engine
-      localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(prefsToSave));
-      
-      // Update recommendations if the ref is available
-      if (personalRecommendationsRef && personalRecommendationsRef.current) {
-        personalRecommendationsRef.current.refresh();
-      }
-      
-      // Optionally save to backend (can be debounced for performance)
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
-      fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...prefsToSave,
-          questionnaireCompleted: false, // Mark as partial update
-        }),
-      }).catch(err => console.error('Failed to save partial preferences', err));
-    } catch (error) {
-      console.error('Error in savePartialPreferences:', error);
     }
   };
 
@@ -1014,24 +1053,41 @@ const OnboardingQuestionnaire = ({
   return (
     <div className="w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div className="relative bg-gray-900/60 p-6 rounded-xl">
-        {isModal && (
-          <button
-            onClick={() => {
-              savePreferences(true);
-              onClose();
-            }}
-            className="absolute right-4 top-4 p-2 text-gray-400 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        )}
-
-        <div className="w-full bg-gray-700 rounded-full h-2 mb-8">
-          <div
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2 rounded-full transition-all"
-            style={{ width: `${calculateProgressPercentage()}%` }}
-          ></div>
+        {/* Header section with close button and title */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl text-white font-semibold">Your Preferences</h2>
+          {isModal && (
+            <button
+              onClick={() => {
+                // When X is clicked, save current progress and close
+                const currentPrefs = {
+                  ...preferences,
+                  questionnaireCompleted: step >= coreSteps,
+                  detailedQuestionsCompleted: showDetailedQuestions && step === totalSteps
+                };
+                savePreferences(true, currentPrefs);
+                onClose();
+              }}
+              className="p-2 bg-gray-800 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+              aria-label="Close"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+        
+        {/* Progress bar with percentage */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="text-xs text-gray-400 mr-2">Progress</div>
+          <div className="w-full bg-gray-700 rounded-full h-2.5">
+            <div
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2.5 rounded-full transition-all"
+              style={{ width: `${calculateProgressPercentage()}%` }}
+            ></div>
+          </div>
+          <div className="ml-2 text-xs font-medium text-gray-400">
+            {Math.round(calculateProgressPercentage())}%
+          </div>
         </div>
 
         {error && (
