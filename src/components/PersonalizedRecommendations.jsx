@@ -153,7 +153,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       retryCountRef.current = 0;
       prevPreferencesRef.current = null;
       
-      // Adding a small delay to avoid UI jank and unnecessary state flaps
       setTimeout(() => {
         prevUserIdRef.current = currentUserId;
       }, 100);
@@ -299,13 +298,11 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   // --- Core Recommendation Fetch Logic ---
   const fetchRecommendations = useCallback(
     async (forceRefresh = false) => {
-      // Modified to not depend on questionnaire completion
       if (!isAuthenticated || !userId || !initialAppLoadComplete || isFetchingRef.current) {
         safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
         return false;
       }
 
-      // Continue with rest of function
       isFetchingRef.current = true;
       dataLoadAttemptedRef.current = true;
       retryCountRef.current = 0;
@@ -335,7 +332,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           const apiKey = process.env.REACT_APP_TMDB_API_KEY;
           if (!apiKey) throw new Error('TMDB API Key missing');
 
-          // Set mediaType correctly using the helper function
           let mediaType;
           if (contentTypeFilter !== 'both') {
             mediaType = getApiMediaType(contentTypeFilter);
@@ -355,7 +351,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           const params = {
             api_key: apiKey,
             sort_by: 'popularity.desc',
-            page: Math.floor(Math.random() * 3) + 1,
             'vote_count.gte': 100,
             'vote_average.gte': 6.0,
             include_adult: false,
@@ -390,29 +385,32 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
 
           const url = `https://api.themoviedb.org/3/discover/${mediaType}`;
-          const response = await axios.get(url, { params });
-
-          if (response.data?.results?.length > 0) {
-            fetchedRecs = response.data.results
+          let page = 1;
+          const maxPages = 5;
+          let allItems = [];
+          while (allItems.length < MAX_RECOMMENDATION_COUNT && page <= maxPages) {
+            const response = await axios.get(url, { params: { ...params, page } });
+            const newItems = response.data.results
               .filter((item) => item.poster_path && item.overview && !favoriteIds.has(item.id?.toString()) && !shownItemsHistory.has(item.id))
               .map((item) => ({
                 ...item,
                 media_type: mediaType,
                 score: calculateSimilarity(item, genresToUse, prefs.moodPreferences),
-              }))
-              .sort((a, b) => b.score - a.score)
-              .slice(0, MAX_RECOMMENDATION_COUNT);
+              }));
+            allItems = [...allItems, ...newItems];
+            page++;
+          }
+          fetchedRecs = allItems.sort((a, b) => b.score - a.score).slice(0, MAX_RECOMMENDATION_COUNT);
 
-            if (fetchedRecs.length > 0) {
-              finalDataSource = hasPrefs && hasFavs ? 'both' : hasPrefs ? 'preferences' : 'favorites';
-              finalReason = finalDataSource === 'both' ? 'Based on your preferences & favorites' : hasPrefs ? 'Based on your taste' : 'Inspired by your favorites';
-              fetchSuccessful = true;
-            }
+          if (fetchedRecs.length > 0) {
+            finalDataSource = hasPrefs && hasFavs ? 'both' : hasPrefs ? 'preferences' : 'favorites';
+            finalReason = finalDataSource === 'both' ? 'Based on your preferences & favorites' : hasPrefs ? 'Based on your taste' : 'Inspired by your favorites';
+            fetchSuccessful = true;
           }
         }
 
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
-          const existingIds = new Set([...fetchedRecs.map((r) => r.id), ...favoriteIds]);
+          const existingIds = new Set([...fetchedRecs.map((r) => r.id), ...favoriteIds, ...shownItemsHistory]);
           const supplementary = await fetchSupplementaryRecommendations(fetchedRecs.length, existingIds, contentTypeFilter);
           fetchedRecs = [...fetchedRecs, ...supplementary].slice(0, MAX_RECOMMENDATION_COUNT);
           if (!fetchSuccessful && supplementary.length > 0) {
@@ -423,7 +421,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         }
 
         if (fetchedRecs.length === 0) {
-          const genericRecs = await fetchGenericRecommendations(favoriteIds, contentTypeFilter);
+          const genericRecs = await fetchGenericRecommendations(new Set([...favoriteIds, ...shownItemsHistory]), contentTypeFilter);
           if (genericRecs.length > 0) {
             fetchedRecs = genericRecs;
             finalDataSource = 'generic';
@@ -491,7 +489,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Similarity Scoring ---
   const calculateSimilarity = (item, genresToUse, moodPrefs) => {
-    let score = item.vote_average * 10; // Base score from rating
+    let score = item.vote_average * 10;
     if (genresToUse.length > 0) {
       const itemGenres = item.genre_ids || [];
       genresToUse.forEach((g) => {
@@ -519,7 +517,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Manual Refresh Handler ---
   const handleRefresh = useCallback(async () => {
-    if (isFetchingRef.current || !userId || !isAuthenticated || !propHasCompletedQuestionnaire) return;
+    if (isFetchingRef.current || !userId || !isAuthenticated) return;
 
     const cacheKey = getCacheKey(userId, contentTypeFilter);
     if (cacheKey) localStorage.removeItem(cacheKey);
@@ -528,11 +526,10 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     dataLoadAttemptedRef.current = false;
     safeSetState((prev) => ({ refreshCounter: prev.refreshCounter + 1 }));
     await fetchRecommendations(true);
-  }, [userId, isAuthenticated, propHasCompletedQuestionnaire, contentTypeFilter, fetchRecommendations, safeSetState]);
+  }, [userId, isAuthenticated, contentTypeFilter, fetchRecommendations, safeSetState]);
 
   // --- Initial Load and Preference Changes ---
   useEffect(() => {
-    // Simplified check to allow rendering even without completed questionnaire
     if (!isAuthenticated || !userId || !initialAppLoadComplete) return;
 
     console.log('[PersonalRecs] Checking for cached recommendations', { 
@@ -570,36 +567,28 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
     prevPreferencesRef.current = currentPrefs;
   }, [propUserPreferences, initialAppLoadComplete, propHasCompletedQuestionnaire, handleRefresh, safeSetState]);
+
   // --- Expose methods for parent components to call ---
   useImperativeHandle(ref, () => ({
-    // Allow parent components to trigger recommendation refresh
     refreshRecommendations: (updatedPrefs = null) => {
       logMessage('Refreshing recommendations from external trigger');
-      // Clear cache if needed
       if (userId) {
         const cacheKey = getCacheKey(userId, contentTypeFilter);
         if (cacheKey) localStorage.removeItem(cacheKey);
       }
-      
-      // Update preferences reference if provided
       if (updatedPrefs) {
         prevPreferencesRef.current = JSON.stringify(updatedPrefs);
       }
-      
-      // Trigger refresh
       safeSetState({ 
         isLoading: true, 
         isThinking: true,
         refreshCounter: state.refreshCounter + 1 
       });
-      
-      // Use the existing handleRefresh function
       handleRefresh();
     },
   }));
 
   // --- Render Logic ---
-  // IMPORTANT FIX: Only require authentication, not questionnaire completion
   if (!isAuthenticated || !initialAppLoadComplete) {
     console.log('[PersonalRecs] Not rendering due to:', { 
       isAuthenticated, 
@@ -629,11 +618,11 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               </div>
             </div>
           ))}
-
         </div>
       </motion.div>
     );
-  } else if (showRecs) {    content = (
+  } else if (showRecs) {
+    content = (
       <motion.div
         key={`recommendations-${refreshCounter}-${dataSource}`}
         className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
@@ -720,7 +709,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="mb-12 max-w-7xl mx-auto px-4"
-    >      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+    >      
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
         <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
         <div className="flex flex-wrap gap-2">
           <motion.button
@@ -752,7 +742,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}            onClick={handleRefresh}
+            whileTap={{ scale: 0.95 }}            
+            onClick={handleRefresh}
             disabled={isThinking || isLoading}
             className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${isThinking || isLoading ? 'bg-gray-600 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
           >

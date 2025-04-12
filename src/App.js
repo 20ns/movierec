@@ -371,31 +371,9 @@ function AppContent() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
+            </div>          </div>
           
-          {/* Favorites Section Skeleton */}
-          <div className="fixed top-16 right-4 sm:right-10 z-50 w-72 sm:w-80">
-            <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-xl">
-              <div className="p-3 sm:p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <div className="h-5 bg-gray-700 rounded w-1/3"></div>
-                  <div className="h-5 w-5 bg-gray-700 rounded-full"></div>
-                </div>
-                <div className="grid grid-cols-1 gap-3 max-h-[50vh]">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="bg-gray-700 rounded-lg overflow-hidden">
-                      <div className="aspect-w-2 aspect-h-3 h-24 bg-gray-600"></div>
-                      <div className="p-2">
-                        <div className="h-4 bg-gray-600 rounded w-3/4 mb-1"></div>
-                        <div className="h-3 bg-gray-600 rounded w-1/2"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Favorites Section Skeleton is now hidden during loading */}
         </div>
       );
     }
