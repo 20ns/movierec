@@ -17,7 +17,7 @@ import {
   ChevronDownIcon
 } from '@heroicons/react/24/solid';
 import { formatQueryIntentSummary } from './SearchBarUtils';
-import { MediaCard } from './MediaCard';
+import MediaCard from './MediaCard';
 
 export const SearchBar = ({ currentUser }) => {
   // State management

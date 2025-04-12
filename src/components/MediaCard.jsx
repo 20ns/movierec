@@ -4,7 +4,7 @@ import {
   StarIcon, CalendarIcon, ChartBarIcon,
   UserGroupIcon, CheckCircleIcon, HeartIcon as HeartSolidIcon
 } from '@heroicons/react/24/solid';
-import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline'; // Add outline version
+import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
 import { useToast } from './ToastManager';
 
@@ -15,58 +15,51 @@ const extractYear = (dateString) => {
   return isNaN(date.getFullYear()) ? '' : date.getFullYear().toString();
 };
 
-// Global cache to prevent multiple fetch requests for favorites
+// Global cache for favorite media IDs
+let globalFavoriteIds = new Set();
 let globalFavoritesFetched = false;
-let globalFavorites = null;
 let lastFetchTime = 0;
 const FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 
 // Simplified token extractor
 const extractToken = (user) => {
   if (!user) return null;
-  
-  // Primary check for Cognito structure
   if (user.signInUserSession?.accessToken?.jwtToken) {
     return user.signInUserSession.accessToken.jwtToken;
   }
-  // Fallbacks
   if (user.token) return user.token;
   if (user.signInUserSession?.idToken?.jwtToken) {
     return user.signInUserSession.idToken.jwtToken;
   }
-  // Raw JWT
   if (typeof user === 'string' && user.split('.').length === 3) {
     return user;
   }
-  
   console.log("Could not extract token from user object:", user);
   return null;
 };
 
-export const MediaCard = ({ 
+const MediaCard = ({ 
   result, 
   onClick, 
   promptLogin, 
   currentUser, 
-  isAuthenticated = !!currentUser, // Default to currentUser presence if not provided
+  isAuthenticated = !!currentUser,
   simplifiedView = false,
   onFavoriteToggle,
   highlightMatch = false,
-  initialIsFavorited = null // Allow parent to specify favorite status
+  initialIsFavorited = null
 }) => {
   const toast = useToast();
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
-  const hasFetchedRef = useRef(initialIsFavorited !== null); // Skip API check if initial value provided
-  
-  // Safely extract properties from result
+  const hasFetchedRef = useRef(initialIsFavorited !== null);
+
   const {
     id, title, name, poster_path, overview, vote_average,
     release_date, first_air_date, media_type, genre_ids,
     score, scoreReasons, popularity
   } = result || {};
-  
-  // Derived/computed values
+
   const mediaId = id?.toString();
   const displayTitle = title || name || 'Untitled';
   const year = extractYear(release_date || first_air_date);
@@ -77,49 +70,29 @@ export const MediaCard = ({
   const posterUrl = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/placeholder.png';
   const socialProof = getSocialProof(result);
 
-  // Check if this media is already in user favorites - optimized
   useEffect(() => {
-    // Skip if we've already determined favorite status or have initial value
     if (hasFetchedRef.current || initialIsFavorited !== null) {
       if (initialIsFavorited !== null) setIsFavorited(initialIsFavorited);
       return;
     }
-    
+
     const checkFavoriteStatus = async () => {
       if (!isAuthenticated || !currentUser) return;
-      
+
       const token = extractToken(currentUser);
       if (!token) return;
-      
+
       try {
-        // First, check if we've already cached this media's favorite status
-        const cacheKey = `favorite_${mediaId}`;
-        const cachedStatus = sessionStorage.getItem(cacheKey);
-        
-        if (cachedStatus !== null) {
-          setIsFavorited(cachedStatus === 'true');
+        const now = Date.now();
+        if (globalFavoritesFetched && now - lastFetchTime < FETCH_COOLDOWN) {
+          const isFavorite = globalFavoriteIds.has(mediaId);
+          setIsFavorited(isFavorite);
           hasFetchedRef.current = true;
           return;
         }
-        
-        // Check global cache if recent
-        const now = Date.now();
-        if (globalFavoritesFetched && now - lastFetchTime < FETCH_COOLDOWN) {
-          if (globalFavorites && Array.isArray(globalFavorites)) {
-            const isFavorite = globalFavorites.some(item => 
-              item.mediaId === mediaId || item.mediaId === id
-            );
-            setIsFavorited(isFavorite);
-            sessionStorage.setItem(cacheKey, isFavorite ? 'true' : 'false');
-            hasFetchedRef.current = true;
-            return;
-          }
-        }
 
-        // Skip duplicate API calls if global fetch is in progress
         if (globalFavoritesFetched) return;
-        
-        // Fetch all favorites at once
+
         setIsLoadingFavorite(true);
         const response = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
@@ -144,32 +117,19 @@ export const MediaCard = ({
 
         if (response.ok) {
           const data = await response.json();
-          
-          // Update global cache
           if (data?.items && Array.isArray(data.items)) {
-            globalFavorites = data.items;
+            globalFavoriteIds = new Set(data.items.map(item => item.mediaId));
             globalFavoritesFetched = true;
             lastFetchTime = Date.now();
-            
-            const isFavorite = data.items.some(item => 
-              item.mediaId === mediaId || item.mediaId === id
-            );
-            
+            const isFavorite = globalFavoriteIds.has(mediaId);
             setIsFavorited(isFavorite);
-            sessionStorage.setItem(cacheKey, isFavorite ? 'true' : 'false');
-            
-            // Cache other favorites we learned about
-            data.items.forEach(item => {
-              const itemCacheKey = `favorite_${item.mediaId}`;
-              sessionStorage.setItem(itemCacheKey, 'true');
-            });
           } else {
             setIsFavorited(false);
           }
         } else {
           setIsFavorited(false);
         }
-        
+
         hasFetchedRef.current = true;
         setIsLoadingFavorite(false);
       } catch (error) {
@@ -179,31 +139,31 @@ export const MediaCard = ({
       }
     };
 
-    // Use a small delay to avoid too many simultaneous requests on page load
     const timeoutId = setTimeout(checkFavoriteStatus, Math.random() * 500);
-    
     return () => clearTimeout(timeoutId);
-  }, [isAuthenticated, currentUser, mediaId, id, initialIsFavorited]);
+  }, [isAuthenticated, currentUser, mediaId, initialIsFavorited]);
 
-  // Listen for global favorite updates from other components
   useEffect(() => {
     const handleFavoriteUpdate = (event) => {
       const { mediaId: updatedId, isFavorited: newStatus } = event.detail || {};
-      if (updatedId === mediaId || updatedId === id?.toString()) {
+      if (updatedId === mediaId) {
         setIsFavorited(newStatus);
-        sessionStorage.setItem(`favorite_${mediaId}`, newStatus ? 'true' : 'false');
+        if (newStatus) {
+          globalFavoriteIds.add(updatedId);
+        } else {
+          globalFavoriteIds.delete(updatedId);
+        }
       }
     };
-    
+
     document.addEventListener('favorites-updated', handleFavoriteUpdate);
     return () => {
       document.removeEventListener('favorites-updated', handleFavoriteUpdate);
     };
-  }, [mediaId, id]);
+  }, [mediaId]);
 
-  // Handle adding/removing favorites with improved UX
   const handleFavoriteToggle = useCallback(async (e) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     e.preventDefault();
 
     if (!isAuthenticated) {
@@ -211,7 +171,7 @@ export const MediaCard = ({
       if (toast?.showToast) {
         toast.showToast("Please sign in to save favorites", "warning");
       }
-      promptLogin?.(); // Show login modal if provided
+      promptLogin?.();
       return;
     }
 
@@ -227,8 +187,6 @@ export const MediaCard = ({
     setIsLoadingFavorite(true);
     const previousState = isFavorited;
     const method = previousState ? 'DELETE' : 'POST';
-    
-    // Optimistic update for better UX
     setIsFavorited(!previousState);
 
     try {
@@ -238,7 +196,7 @@ export const MediaCard = ({
           method,
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}` 
+            Authorization: `Bearer ${token}`
           },
           credentials: 'include',
           mode: 'cors',
@@ -253,34 +211,16 @@ export const MediaCard = ({
       );
 
       if (!response.ok) {
-        // Revert optimistic update on error
         setIsFavorited(previousState);
         throw new Error(`Server error: ${response.status}`);
       }
 
-      // Success - update session storage
-      sessionStorage.setItem(`favorite_${mediaId}`, (!previousState).toString());
-      
-      // Update global cache
-      if (globalFavorites) {
-        if (previousState) {
-          // Remove from favorites
-          globalFavorites = globalFavorites.filter(
-            item => item.mediaId !== mediaId && item.mediaId !== id
-          );
-        } else {
-          // Add to favorites
-          globalFavorites.push({
-            mediaId: mediaId,
-            title: displayTitle,
-            mediaType: determinedMediaType,
-            posterPath: poster_path,
-            overview: overview
-          });
-        }
+      if (previousState) {
+        globalFavoriteIds.delete(mediaId);
+      } else {
+        globalFavoriteIds.add(mediaId);
       }
-      
-      // Show toast notification
+
       if (toast?.showToast) {
         toast.showToast(
           previousState 
@@ -289,22 +229,18 @@ export const MediaCard = ({
           previousState ? 'info' : 'favorite'
         );
       }
-      
-      // Call the callback if provided
+
       if (onFavoriteToggle) {
         onFavoriteToggle(mediaId, !previousState);
       }
-      
-      // Emit global event for other components
+
       document.dispatchEvent(new CustomEvent('favorites-updated', { 
         detail: { mediaId: mediaId, isFavorited: !previousState } 
       }));
-      
-      // Force refresh global cache on next page load
+
       lastFetchTime = 0;
     } catch (error) {
       console.error("Error updating favorite:", error);
-      // Show error toast
       if (toast?.showToast) {
         toast.showToast(
           `Failed to ${previousState ? 'remove from' : 'add to'} favorites`,
@@ -314,15 +250,13 @@ export const MediaCard = ({
     } finally {
       setIsLoadingFavorite(false);
     }
-  }, [isAuthenticated, currentUser, mediaId, id, isFavorited, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onFavoriteToggle]);
+  }, [isAuthenticated, currentUser, mediaId, isFavorited, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onFavoriteToggle]);
 
-  // Generate appropriate heart icon based on state
   const HeartIcon = isFavorited ? HeartSolidIcon : HeartOutlineIcon;
   const heartIconClasses = isFavorited 
     ? 'text-red-500 animate-pulse' 
     : 'text-white hover:text-red-300';
 
-  // Handle card click (prevent if favorite button was clicked)
   const handleCardClick = (e) => {
     if (e.target.closest('button[aria-label*="avorite"]')) {
       return;
@@ -330,10 +264,8 @@ export const MediaCard = ({
     onClick?.(result);
   };
 
-  // Render content based on view type
   const renderContent = () => {
     if (simplifiedView) {
-      // Simplified view for favorites section with WHITE background
       return (
         <div className="p-2 sm:p-3">
           <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base" title={displayTitle}>
@@ -357,8 +289,8 @@ export const MediaCard = ({
       );
     }
 
-    // Regular view with more details
-    return (      <div className="p-2 sm:p-3 flex flex-col flex-grow bg-white rounded-b-xl">
+    return (
+      <div className="p-2 sm:p-3 flex flex-col flex-grow bg-white rounded-b-xl">
         <h2 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors duration-300" title={displayTitle}>
           {displayTitle}
         </h2>
@@ -368,7 +300,6 @@ export const MediaCard = ({
           </p>
         )}
 
-        {/* Optional: Score Reasons */}
         {scoreReasons && scoreReasons.length > 0 && (
           <div className="mt-auto mb-2 space-y-1">
             {scoreReasons.map((reason, i) => (
@@ -408,11 +339,20 @@ export const MediaCard = ({
 
   return (
     <motion.div
+      role="button"
+      tabIndex="0"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick(e);
+        }
+      }}
+      aria-label={`View details for ${displayTitle}`}
       className={`group bg-transparent rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 ease-out relative flex flex-col h-full cursor-pointer ${
         highlightMatch ? 'ring-2 ring-offset-1 ring-offset-gray-900 ring-indigo-500 shadow-lg shadow-indigo-500/20' : ''
       }`}
-      whileHover={{ y: -3 }} // Subtle lift on hover
-      layout // Enable layout animations if card position changes
+      whileHover={{ y: -3 }}
+      layout
     >
       <div 
         className={`bg-white rounded-xl overflow-hidden shadow-lg ${
@@ -420,7 +360,7 @@ export const MediaCard = ({
         } transition-all duration-300 h-full`}
         onClick={handleCardClick}
       >
-        {/* Image Section */}        <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
+        <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
           <motion.img
             src={posterUrl}
@@ -432,7 +372,6 @@ export const MediaCard = ({
             loading="lazy"
           />
           
-          {/* Score Badge */}
           {displayScore !== null && (
             <div className={`absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-semibold text-white shadow-md ${
               displayScore >= 70 ? 'bg-green-600/90' : displayScore >= 50 ? 'bg-yellow-600/90' : 'bg-red-600/90'
@@ -441,12 +380,10 @@ export const MediaCard = ({
             </div>
           )}
           
-          {/* Media Type Badge */}
           <span className="absolute top-2 left-2 z-10 bg-black/60 text-white px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium backdrop-blur-sm shadow">
             {determinedMediaType === 'movie' ? 'Movie' : 'TV'}
           </span>
 
-          {/* Favorite Button - More visible */}
           {isAuthenticated && (
             <motion.button
               onClick={handleFavoriteToggle}
@@ -471,7 +408,6 @@ export const MediaCard = ({
             </motion.button>
           )}
 
-          {/* Social Proof */}
           {socialProof.friendsLiked > 0 && !simplifiedView && (
             <div className="absolute bottom-2 right-2 z-10 flex items-center bg-black/60 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
               <UserGroupIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-300" />
@@ -481,7 +417,6 @@ export const MediaCard = ({
             </div>
           )}
 
-          {/* Highlight Match Badge */}
           {highlightMatch && (
             <div className="absolute top-0 left-0 z-10 bg-gradient-to-br from-purple-600 to-indigo-600 text-white text-[10px] sm:text-xs py-0.5 px-2 rounded-br-lg rounded-tl-xl shadow font-semibold">
               Matched! ✨
@@ -489,11 +424,10 @@ export const MediaCard = ({
           )}
         </div>
 
-        {/* Content Section */}
         {renderContent()}
       </div>
     </motion.div>
   );
 };
 
-export default MediaCard;
+export default React.memo(MediaCard);

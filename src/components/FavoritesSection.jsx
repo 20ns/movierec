@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import { MediaCard } from './MediaCard';
+import MediaCard from './MediaCard';
 
 // Cache utilities for favorites
 const FAVORITES_CACHE_KEY = 'user_favorites_cache';

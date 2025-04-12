@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MediaCard } from './MediaCard'; // Ensure this import exists
+import MediaCard from './MediaCard'; // Using default import
 import ScrollContainer from './ScrollContainer'; // Import the new component
 
 export const MediaResults = ({

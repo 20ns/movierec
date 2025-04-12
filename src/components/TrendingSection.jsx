@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { MediaCard } from './MediaCard';
+import MediaCard from './MediaCard';
 
 const TrendingSection = ({ currentUser }) => {
   const [trendingContent, setTrendingContent] = useState([]);
