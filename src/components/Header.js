@@ -54,72 +54,56 @@ function Header({
       scale: 0.95,
       transition: { duration: 0.2 } 
     }
-  };
-
-  // Handler function to ensure only one panel is open at a time
+  };  // Handler function to ensure only one panel is open at a time
   const handlePanelToggle = (panelName, isVisible) => {
     // Close user dropdown whenever a panel is opened
     setShowUserDropdown(false);
     
+    // Helper function to close all open panels except the one being toggled
+    const closeOtherPanels = (currentPanel) => {
+      if (currentPanel !== 'search' && showSearch) onSearchClick(false);
+      if (currentPanel !== 'favorites' && showFavorites) onFavoritesClick(false);
+      if (currentPanel !== 'watchlist' && showWatchlist) onWatchlistClick(false);
+    };
+    
     switch(panelName) {
       case 'search':
         if (onSearchClick) {
-          // First close other panels if opening search
-          if (!isVisible && showFavorites) onFavoritesClick(false);
-          if (!isVisible && showWatchlist) onWatchlistClick(false);
-          if (!isVisible) onAccountClick(false); // Close account details if open
-          if (!isVisible) onPreferencesClick(false); // Close preferences if open
-          
-          // Then toggle search with a small delay to ensure smooth transitions
-          setTimeout(() => onSearchClick(isVisible), 50);
+          // Close other panels first
+          closeOtherPanels('search');
+          // Toggle search panel
+          onSearchClick(!showSearch);
         }
         break;
       case 'favorites':
         if (onFavoritesClick) {
-          // First close other panels if opening favorites
-          if (!isVisible && showSearch) onSearchClick(false);
-          if (!isVisible && showWatchlist) onWatchlistClick(false);
-          if (!isVisible) onAccountClick(false); // Close account details if open
-          if (!isVisible) onPreferencesClick(false); // Close preferences if open
-          
-          // Then toggle favorites with a small delay
-          setTimeout(() => onFavoritesClick(isVisible), 50);
+          // Close other panels first
+          closeOtherPanels('favorites');
+          // Toggle favorites panel
+          onFavoritesClick(!showFavorites);
         }
         break;
       case 'watchlist':
         if (onWatchlistClick) {
-          // First close other panels if opening watchlist
-          if (!isVisible && showSearch) onSearchClick(false);
-          if (!isVisible && showFavorites) onFavoritesClick(false);
-          if (!isVisible) onAccountClick(false); // Close account details if open
-          if (!isVisible) onPreferencesClick(false); // Close preferences if open
-          
-          // Then toggle watchlist with a small delay
-          setTimeout(() => onWatchlistClick(isVisible), 50);
-        }
+          // Close other panels first
+          closeOtherPanels('watchlist');
+          // Toggle watchlist panel
+          onWatchlistClick(!showWatchlist);        }
         break;
       case 'preferences':
         if (onPreferencesClick) {
           // Close other panels before opening preferences
-          if (showSearch) onSearchClick(false);
-          if (showFavorites) onFavoritesClick(false);
-          if (showWatchlist) onWatchlistClick(false);
-          if (onAccountClick) onAccountClick(false);
-          
-          // Then open preferences with a small delay
-          setTimeout(() => onPreferencesClick(), 50);
+          closeOtherPanels('preferences');
+          // Open preferences
+          onPreferencesClick();
         }
         break;
       case 'account':
         if (onAccountClick) {
           // Close other panels before opening account
-          if (showSearch) onSearchClick(false);
-          if (showFavorites) onFavoritesClick(false);
-          if (showWatchlist) onWatchlistClick(false);
-          if (onPreferencesClick) onPreferencesClick(false);
-          
-          // Then open account with a small delay
-          setTimeout(() => onAccountClick(), 50);
+          closeOtherPanels('account');
+          // Open account
+          onAccountClick();
         }
         break;
       default:

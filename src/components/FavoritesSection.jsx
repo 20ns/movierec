@@ -114,8 +114,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       // Only use cache if not forcing a refresh
       const cachedFavorites = !forceRefresh ? getFavoritesFromCache(userId) : null;
       
-      if (cachedFavorites) {
-        console.log('Using cached favorites data');
+      if (cachedFavorites) {      console.log('Using cached favorites data');
         setUserFavorites(cachedFavorites);
         setIsLoading(false);
         return;
@@ -140,9 +139,23 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       const data = await response.json();
       const favorites = data && data.items ? data.items : (Array.isArray(data) ? data : []);
       
+      // Process favorites items to ensure metadata is properly formatted
+      const processedFavorites = favorites.map(item => ({
+        ...item,
+        // Ensure required fields have default values if missing
+        mediaType: item.mediaType || 'movie',
+        posterPath: item.posterPath || null,
+        backdropPath: item.backdropPath || null,
+        voteAverage: item.voteAverage || 0,
+        popularity: item.popularity || 0,
+        releaseDate: item.releaseDate || null,
+        // Handle any other fields that might be missing
+        genres: item.genres || []
+      }));
+      
       lastFetchTimeRef.current = now;
-      cacheFavorites(userId, favorites);
-      setUserFavorites(favorites);
+      cacheFavorites(userId, processedFavorites);
+      setUserFavorites(processedFavorites);
     } catch (err) {
       console.error('Error fetching favorites:', err);
       setError('Failed to load favorites. Please try again later.');
@@ -238,13 +251,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   // Header mode render
   if (inHeader) {
-    return (
-      <motion.div
+    return (      <motion.div
         ref={panelRef}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1, transition: { duration: 0.15, ease: "easeOut" } }}
         exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1, ease: "easeIn" } }}
-        className="bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-700 w-full"
+        className="absolute top-16 right-0 bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-700 w-72 sm:w-80 md:w-96 max-w-[90vw] z-50"
       >
         <div className="p-3 sm:p-4">
           <div className="flex justify-between items-center mb-3">
@@ -305,8 +317,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <div 
               ref={favoritesScrollRef}
               className="grid grid-cols-2 gap-3 pb-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar"
-            >
-              {userFavorites.map((item) => (
+            >              {userFavorites.map((item) => (
                 <MediaCard
                   key={`favorite-${item.mediaId}-${item.mediaType}`}
                   result={{
@@ -317,8 +328,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                     poster_path: item.posterPath,
                     backdrop_path: item.backdropPath,
                     vote_average: item.voteAverage || 0,
+                    popularity: item.popularity || 0,
                     release_date: item.releaseDate,
                     first_air_date: item.releaseDate,
+                    genre_ids: item.genreIds || []
                   }}
                   currentUser={currentUser}
                   isMiniCard={true}
