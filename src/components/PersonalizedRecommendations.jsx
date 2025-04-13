@@ -717,12 +717,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   } else {
     content = <div key="fallback" className="min-h-[200px]"></div>;
   }
-
   let title = "Recommendations";
-  if (isThinking && recommendations.length === 0) title = "Finding Recommendations...";
-  else if (isLoading) title = "Loading Recommendations...";
-  else if (isRefreshing) title = "Refreshing...";
-  else if (dataSource === 'error') title = "Error Loading";
+  if (dataSource === 'error') title = "Error Loading";
   else if (dataSource === 'both') title = 'For You';
   else if (dataSource === 'preferences') title = 'Based on Your Taste';
   else if (dataSource === 'favorites') title = 'Inspired by Your Favorites';
