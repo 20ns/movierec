@@ -428,33 +428,58 @@ function AppContent() {
 
   return (
     <>
-      <Bg />
-      <AnimatePresence>
+      <Bg />      <AnimatePresence>
         {showPreferencesPromptBanner && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
+            exit={{ opacity: 0, y: 20 }}
             transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-            className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-lg z-50 px-4"
+            className="fixed bottom-6 right-6 z-50"
             role="alert"
             aria-live="polite"
           >
-            <div className="bg-gradient-to-r from-indigo-800 to-purple-800 rounded-lg shadow-xl p-4 border border-indigo-600">
-              <div className="flex items-center gap-3">
-                <SparklesIcon className="h-8 w-8 text-yellow-300 flex-shrink-0" />
-                <div className="flex-grow">
-                  <h3 className="text-white font-semibold">Personalize Your Experience!</h3>
-                  <p className="text-indigo-200 text-sm mt-1">Complete your preferences to unlock tailored recommendations.</p>
-                </div>
-                <button
-                  onClick={() => setShowQuestionnaireModal(true)}
-                  className="bg-white text-indigo-700 px-4 py-1.5 rounded-md text-sm font-bold hover:bg-indigo-100 flex-shrink-0 transition-colors shadow"
+            <motion.div 
+              className="bg-gray-800/90 backdrop-blur-sm rounded-lg shadow-lg border border-purple-700/50 overflow-hidden"
+              whileHover={{ scale: 1.03 }}
+              animate={{ boxShadow: ["0px 0px 0px rgba(124, 58, 237, 0)", "0px 0px 15px rgba(124, 58, 237, 0.3)", "0px 0px 0px rgba(124, 58, 237, 0)"] }}
+              transition={{ boxShadow: { repeat: Infinity, duration: 2, repeatDelay: 1 } }}
+            >
+              <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-900/80 to-indigo-900/80">
+                <h3 className="text-xs font-medium text-white flex items-center">
+                  <SparklesIcon className="h-3.5 w-3.5 text-purple-300 mr-1.5" />
+                  Personalize Your Experience
+                </h3>
+                <button 
+                  onClick={() => {
+                    setShowPreferencesPromptBanner(false);
+                    // Remember that user has dismissed this prompt
+                    try {
+                      const userId = currentUser?.attributes?.sub;
+                      if (userId) {
+                        localStorage.setItem(`preferences_prompt_dismissed_${userId}`, 'true');
+                      }
+                    } catch (e) {
+                      console.warn('Could not save preference prompt state:', e);
+                    }
+                  }}
+                  className="text-gray-400 hover:text-white -mr-1" 
+                  aria-label="Close"
                 >
-                  Start Now
+                  <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-            </div>
+              <div className="p-3">
+                <button
+                  onClick={() => setShowQuestionnaireModal(true)}
+                  className="w-full text-center bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 px-3 py-1.5 rounded text-xs font-medium text-white transition-colors"
+                >
+                  Set Preferences
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
