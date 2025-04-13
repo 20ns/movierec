@@ -519,25 +519,35 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const handleRefresh = useCallback(async () => {
     if (isFetchingRef.current || !userId || !isAuthenticated) return;
 
+    safeSetState({
+      isLoading: true,
+      isThinking: true,
+      refreshCounter: state.refreshCounter + 1,
+    });
+
+    // Clear cache for this user and content type
     const cacheKey = getCacheKey(userId, contentTypeFilter);
     if (cacheKey) localStorage.removeItem(cacheKey);
     sessionStorage.removeItem(SESSION_RECS_LOADED_FLAG);
 
     dataLoadAttemptedRef.current = false;
-    safeSetState((prev) => ({ refreshCounter: prev.refreshCounter + 1 }));
-    await fetchRecommendations(true);
-  }, [userId, isAuthenticated, contentTypeFilter, fetchRecommendations, safeSetState]);
+
+    // Small delay to ensure skeleton appears before fetch starts
+    setTimeout(async () => {
+      await fetchRecommendations(true);
+    }, 100);
+  }, [userId, isAuthenticated, contentTypeFilter, fetchRecommendations, safeSetState, state.refreshCounter]);
 
   // --- Initial Load and Preference Changes ---
   useEffect(() => {
     if (!isAuthenticated || !userId || !initialAppLoadComplete) return;
 
-    console.log('[PersonalRecs] Checking for cached recommendations', { 
-      isAuthenticated, 
-      userId, 
-      initialAppLoadComplete, 
-      propHasCompletedQuestionnaire, 
-      cacheChecked 
+    console.log('[PersonalRecs] Checking for cached recommendations', {
+      isAuthenticated,
+      userId,
+      initialAppLoadComplete,
+      propHasCompletedQuestionnaire,
+      cacheChecked,
     });
 
     const cached = getRecommendationsFromCache(userId, contentTypeFilter);
@@ -572,28 +582,35 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
     refreshRecommendations: (updatedPrefs = null) => {
       logMessage('Refreshing recommendations from external trigger');
+
+      safeSetState({
+        isLoading: true,
+        isThinking: true,
+        refreshCounter: state.refreshCounter + 1,
+      });
+
       if (userId) {
         const cacheKey = getCacheKey(userId, contentTypeFilter);
         if (cacheKey) localStorage.removeItem(cacheKey);
       }
+
       if (updatedPrefs) {
         prevPreferencesRef.current = JSON.stringify(updatedPrefs);
       }
-      safeSetState({ 
-        isLoading: true, 
-        isThinking: true,
-        refreshCounter: state.refreshCounter + 1 
-      });
-      handleRefresh();
+
+      // Small delay to ensure the skeleton shows before heavy fetch operations
+      setTimeout(() => {
+        handleRefresh();
+      }, 50);
     },
   }));
 
   // --- Render Logic ---
   if (!isAuthenticated || !initialAppLoadComplete) {
-    console.log('[PersonalRecs] Not rendering due to:', { 
-      isAuthenticated, 
+    console.log('[PersonalRecs] Not rendering due to:', {
+      isAuthenticated,
       initialAppLoadComplete,
-      userId: currentUser?.attributes?.sub || null
+      userId: currentUser?.attributes?.sub || null,
     });
     return null;
   }
@@ -606,7 +623,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   let content;
   if (showLoading) {
     content = (
-      <motion.div key={`loading-${refreshCounter}`}>
+      <motion.div
+        key={`loading-${refreshCounter}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(MIN_RECOMMENDATION_COUNT)].map((_, i) => (
             <div key={i} className="bg-gray-800 rounded-xl h-[350px] shadow-md overflow-hidden animate-pulse">
@@ -625,13 +648,11 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     content = (
       <motion.div
         key={`recommendations-${refreshCounter}-${dataSource}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
         className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
-        initial="hidden"
-        animate="visible"
-        variants={{
-          hidden: { opacity: 0 },
-          visible: { opacity: 1, transition: { staggerChildren: 0.07 } },
-        }}
       >
         {recommendations.map((item) => (
           <motion.div
@@ -652,6 +673,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         key="error"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
         className="text-center py-12 bg-gray-800/50 rounded-xl p-8 border border-red-700"
       >
         <div className="mb-4 text-5xl text-red-400">⚠️</div>
@@ -674,6 +697,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         key="empty"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
         className="text-center py-12 bg-gray-800/50 rounded-xl p-8 border border-gray-700"
       >
         <div className="mb-4 text-5xl text-indigo-400">🤷‍♂️</div>
@@ -709,7 +734,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="mb-12 max-w-7xl mx-auto px-4"
-    >      
+    >
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
         <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
         <div className="flex flex-wrap gap-2">
@@ -742,7 +767,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}            
+            whileTap={{ scale: 0.95 }}
             onClick={handleRefresh}
             disabled={isThinking || isLoading}
             className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${isThinking || isLoading ? 'bg-gray-600 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
