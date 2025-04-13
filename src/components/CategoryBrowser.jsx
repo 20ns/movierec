@@ -16,10 +16,12 @@ const GENRE_CATEGORIES = [
 const CategoryBrowser = ({ onCategorySelect }) => {
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [bgImages, setBgImages] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     const fetchCategoryBackgrounds = async () => {
       try {
+        setIsLoading(true);
         const imagePromises = GENRE_CATEGORIES.map(async (genre) => {
           const response = await axios.get(
             'https://api.themoviedb.org/3/discover/movie',
@@ -51,6 +53,8 @@ const CategoryBrowser = ({ onCategorySelect }) => {
         setBgImages(imageMap);
       } catch (error) {
         console.error('Error fetching category backgrounds:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -79,20 +83,31 @@ const CategoryBrowser = ({ onCategorySelect }) => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            {bgImages[category.id] && (
-              <div 
-                className="absolute inset-0 bg-cover bg-center" 
-                style={{ 
-                  backgroundImage: `url(https://image.tmdb.org/t/p/w500${bgImages[category.id]})`,
-                  filter: 'brightness(60%)'
-                }}
-              />
+            {isLoading ? (
+              <div className="absolute inset-0 bg-gray-800 animate-pulse">
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gray-700 mb-2"></div>
+                  <div className="h-5 bg-gray-700 rounded w-24"></div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {bgImages[category.id] && (
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center" 
+                    style={{ 
+                      backgroundImage: `url(https://image.tmdb.org/t/p/w500${bgImages[category.id]})`,
+                      filter: 'brightness(60%)'
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-black bg-opacity-50" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl mb-2">{category.icon}</span>
+                  <h3 className="text-white text-lg font-semibold">{category.name}</h3>
+                </div>
+              </>
             )}
-            <div className="absolute inset-0 bg-black bg-opacity-50" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl mb-2">{category.icon}</span>
-              <h3 className="text-white text-lg font-semibold">{category.name}</h3>
-            </div>
           </motion.div>
         ))}
       </div>

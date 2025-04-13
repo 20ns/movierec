@@ -47,7 +47,33 @@ const GenreResults = ({ genreId, mediaType = 'movie', currentUser }) => {
     setPage(prev => prev + 1);
   };
 
-  if (!genreId || results.length === 0) return null;
+  if (!genreId) return null;
+
+  // Add loading skeleton for initial load
+  if (isLoading && results.length === 0) {
+    return (
+      <section className="mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-gray-800 rounded-xl overflow-hidden h-[350px] shadow-lg animate-pulse">
+              <div className="h-[180px] bg-gray-700"></div>
+              <div className="p-4 space-y-3">
+                <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-700 rounded w-full"></div>
+                <div className="flex justify-between pt-2">
+                  <div className="h-4 bg-gray-700 rounded w-16"></div>
+                  <div className="h-4 bg-gray-700 rounded w-12"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (results.length === 0) return null;
 
   return (
     <section className="mb-12">

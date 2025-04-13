@@ -377,11 +377,22 @@ export const SearchBar = ({ currentUser }) => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="w-full max-w-7xl mb-8 p-6"
+            className="w-full max-w-7xl mb-8"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-800/40 backdrop-blur-sm rounded-xl h-72 animate-pulse"></div>
+                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden h-[350px] shadow-lg animate-pulse">
+                  <div className="h-[180px] bg-gray-700"></div>
+                  <div className="p-4 space-y-3">
+                    <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-700 rounded w-full"></div>
+                    <div className="flex justify-between pt-2">
+                      <div className="h-4 bg-gray-700 rounded w-16"></div>
+                      <div className="h-4 bg-gray-700 rounded w-12"></div>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </motion.div>

@@ -21,6 +21,11 @@ let globalFavoritesFetched = false;
 let lastFetchTime = 0;
 const FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 
+// Global cache for watchlist media IDs
+let globalWatchlistIds = new Set();
+let globalWatchlistFetched = false;
+let lastWatchlistFetchTime = 0;
+
 // Simplified token extractor
 const extractToken = (user) => {
   if (!user) return null;
@@ -46,13 +51,19 @@ const MediaCard = ({
   isAuthenticated = !!currentUser,
   simplifiedView = false,
   onFavoriteToggle,
+  onWatchlistToggle,
   highlightMatch = false,
-  initialIsFavorited = null
+  initialIsFavorited = null,
+  initialIsInWatchlist = null,
+  fromWatchlist = false
 }) => {
   const toast = useToast();
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
+  const [isInWatchlist, setIsInWatchlist] = useState(initialIsInWatchlist ?? false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
+  const [isLoadingWatchlist, setIsLoadingWatchlist] = useState(false);
   const hasFetchedRef = useRef(initialIsFavorited !== null);
+  const hasWatchlistFetchedRef = useRef(initialIsInWatchlist !== null);
 
   const {
     id, title, name, poster_path, overview, vote_average,
@@ -144,6 +155,79 @@ const MediaCard = ({
   }, [isAuthenticated, currentUser, mediaId, initialIsFavorited]);
 
   useEffect(() => {
+    if (hasWatchlistFetchedRef.current || initialIsInWatchlist !== null) {
+      if (initialIsInWatchlist !== null) setIsInWatchlist(initialIsInWatchlist);
+      return;
+    }
+
+    const checkWatchlistStatus = async () => {
+      if (!isAuthenticated || !currentUser) return;
+
+      const token = extractToken(currentUser);
+      if (!token) return;
+
+      try {
+        const now = Date.now();
+        if (globalWatchlistFetched && now - lastWatchlistFetchTime < FETCH_COOLDOWN) {
+          const isInList = globalWatchlistIds.has(mediaId);
+          setIsInWatchlist(isInList);
+          hasWatchlistFetchedRef.current = true;
+          return;
+        }
+
+        if (globalWatchlistFetched) return;
+
+        setIsLoadingWatchlist(true);
+        const response = await fetch(
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            },
+            credentials: 'include',
+            mode: 'cors'
+          }
+        ).catch(error => {
+          console.warn("Error fetching watchlist:", error.message);
+          return null;
+        });
+
+        if (!response) {
+          setIsInWatchlist(false);
+          hasWatchlistFetchedRef.current = true;
+          setIsLoadingWatchlist(false);
+          return;
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.items && Array.isArray(data.items)) {
+            globalWatchlistIds = new Set(data.items.map(item => item.mediaId));
+            globalWatchlistFetched = true;
+            lastWatchlistFetchTime = Date.now();
+            const isInList = globalWatchlistIds.has(mediaId);
+            setIsInWatchlist(isInList);
+          } else {
+            setIsInWatchlist(false);
+          }
+        } else {
+          setIsInWatchlist(false);
+        }
+
+        hasWatchlistFetchedRef.current = true;
+        setIsLoadingWatchlist(false);
+      } catch (error) {
+        console.error("Error checking watchlist status:", error);
+        hasWatchlistFetchedRef.current = true;
+        setIsLoadingWatchlist(false);
+      }
+    };
+
+    const timeoutId = setTimeout(checkWatchlistStatus, Math.random() * 500);
+    return () => clearTimeout(timeoutId);
+  }, [isAuthenticated, currentUser, mediaId, initialIsInWatchlist]);
+
+  useEffect(() => {
     const handleFavoriteUpdate = (event) => {
       const { mediaId: updatedId, isFavorited: newStatus } = event.detail || {};
       if (updatedId === mediaId) {
@@ -159,6 +243,25 @@ const MediaCard = ({
     document.addEventListener('favorites-updated', handleFavoriteUpdate);
     return () => {
       document.removeEventListener('favorites-updated', handleFavoriteUpdate);
+    };
+  }, [mediaId]);
+
+  useEffect(() => {
+    const handleWatchlistUpdate = (event) => {
+      const { mediaId: updatedId, isInWatchlist: newStatus } = event.detail || {};
+      if (updatedId === mediaId) {
+        setIsInWatchlist(newStatus);
+        if (newStatus) {
+          globalWatchlistIds.add(updatedId);
+        } else {
+          globalWatchlistIds.delete(updatedId);
+        }
+      }
+    };
+
+    document.addEventListener('watchlist-updated', handleWatchlistUpdate);
+    return () => {
+      document.removeEventListener('watchlist-updated', handleWatchlistUpdate);
     };
   }, [mediaId]);
 
@@ -251,6 +354,96 @@ const MediaCard = ({
       setIsLoadingFavorite(false);
     }
   }, [isAuthenticated, currentUser, mediaId, isFavorited, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onFavoriteToggle]);
+
+  const handleWatchlistToggle = useCallback(async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (!isAuthenticated) {
+      console.log("MediaCard: User not authenticated for watchlist toggle");
+      if (toast?.showToast) {
+        toast.showToast("Please sign in to use watchlist", "warning");
+      }
+      promptLogin?.();
+      return;
+    }
+
+    const token = extractToken(currentUser);
+    if (!token) {
+      console.error("MediaCard: No authentication token found");
+      if (toast?.showToast) {
+        toast.showToast("Authentication error. Please try signing in again.", "error");
+      }
+      return;
+    }
+
+    setIsLoadingWatchlist(true);
+    const previousState = isInWatchlist;
+    const method = previousState ? 'DELETE' : 'POST';
+    setIsInWatchlist(!previousState);
+
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`,
+        {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          credentials: 'include',
+          mode: 'cors',
+          body: JSON.stringify({
+            mediaId: mediaId,
+            title: displayTitle,
+            mediaType: determinedMediaType,
+            posterPath: poster_path,
+            overview: overview
+          })
+        }
+      );
+
+      if (!response.ok) {
+        setIsInWatchlist(previousState);
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      if (previousState) {
+        globalWatchlistIds.delete(mediaId);
+      } else {
+        globalWatchlistIds.add(mediaId);
+      }
+
+      if (toast?.showToast) {
+        toast.showToast(
+          previousState 
+            ? `Removed "${displayTitle}" from watchlist` 
+            : `Added "${displayTitle}" to watchlist!`,
+          previousState ? 'info' : 'watchlist'
+        );
+      }
+
+      if (onWatchlistToggle) {
+        onWatchlistToggle(mediaId, !previousState);
+      }
+
+      document.dispatchEvent(new CustomEvent('watchlist-updated', { 
+        detail: { mediaId: mediaId, isInWatchlist: !previousState } 
+      }));
+
+      lastWatchlistFetchTime = 0;
+    } catch (error) {
+      console.error("Error updating watchlist:", error);
+      if (toast?.showToast) {
+        toast.showToast(
+          `Failed to ${previousState ? 'remove from' : 'add to'} watchlist`,
+          'error'
+        );
+      }
+    } finally {
+      setIsLoadingWatchlist(false);
+    }
+  }, [isAuthenticated, currentUser, mediaId, isInWatchlist, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onWatchlistToggle]);
 
   const HeartIcon = isFavorited ? HeartSolidIcon : HeartOutlineIcon;
   const heartIconClasses = isFavorited 
@@ -385,27 +578,66 @@ const MediaCard = ({
           </span>
 
           {isAuthenticated && (
-            <motion.button
-              onClick={handleFavoriteToggle}
-              disabled={isLoadingFavorite}
-              className={`absolute top-2 right-2 z-20 p-1.5 rounded-full transition-all duration-200 ease-in-out backdrop-blur-sm focus:outline-none ${
-                isLoadingFavorite
-                  ? 'bg-gray-500/70 cursor-not-allowed'
-                  : isFavorited
-                  ? 'bg-red-600/70 hover:bg-red-500/80'
-                  : 'bg-black/50 hover:bg-black/70'
-              }`}
-              aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ scale: 1.1 }}
-              title={isFavorited ? "Remove from favorites" : "Add to favorites"}
-            >
-              {isLoadingFavorite ? (
-                <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-              ) : (
-                <HeartIcon className={`w-5 h-5 ${heartIconClasses}`} />
-              )}
-            </motion.button>
+            <>
+              <motion.button
+                onClick={handleFavoriteToggle}
+                disabled={isLoadingFavorite}
+                className={`absolute top-2 right-2 z-20 p-1.5 rounded-full transition-all duration-200 ease-in-out backdrop-blur-sm focus:outline-none ${
+                  isLoadingFavorite
+                    ? 'bg-gray-500/70 cursor-not-allowed'
+                    : isFavorited
+                    ? 'bg-red-600/70 hover:bg-red-500/80'
+                    : 'bg-black/50 hover:bg-black/70'
+                }`}
+                aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.1 }}
+                title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+              >
+                {isLoadingFavorite ? (
+                  <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+                ) : (
+                  <HeartIcon className={`w-5 h-5 ${heartIconClasses}`} />
+                )}
+              </motion.button>
+              
+              <motion.button
+                onClick={handleWatchlistToggle}
+                disabled={isLoadingWatchlist}
+                className={`absolute top-2 right-10 z-20 p-1.5 rounded-full transition-all duration-200 ease-in-out backdrop-blur-sm focus:outline-none ${
+                  isLoadingWatchlist
+                    ? 'bg-gray-500/70 cursor-not-allowed'
+                    : isInWatchlist
+                    ? 'bg-blue-600/70 hover:bg-blue-500/80'
+                    : 'bg-black/50 hover:bg-black/70'
+                }`}
+                aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.1 }}
+                title={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+              >
+                {isLoadingWatchlist ? (
+                  <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+                ) : (
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`w-5 h-5 ${isInWatchlist ? 'text-blue-300' : 'text-white hover:text-blue-300'}`}
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor" 
+                    strokeWidth={isInWatchlist ? 2.5 : 2}
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      d={isInWatchlist 
+                        ? "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" 
+                        : "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"} 
+                    />
+                  </svg>
+                )}
+              </motion.button>
+            </>
           )}
 
           {socialProof.friendsLiked > 0 && !simplifiedView && (

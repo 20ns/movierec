@@ -6,6 +6,7 @@ import {
   UserIcon, 
   AdjustmentsHorizontalIcon, 
   HeartIcon,
+  ClockIcon,
   Bars3Icon,
   XMarkIcon 
 } from '@heroicons/react/24/outline';
@@ -19,6 +20,8 @@ function Header({
   onPreferencesClick, // Changed from setShowQuestionnaire
   onFavoritesClick,   // Changed from setShowFavorites
   showFavorites,
+  onWatchlistClick,   // Added for watchlist feature
+  showWatchlist,      // Added for watchlist feature
   onSignout,
   onAccountClick,     // Changed from setShowAccountDetails
   hasBasicPreferencesOnly = false // New prop to indicate if user has only completed basic questions
@@ -63,6 +66,7 @@ function Header({
         if (onSearchClick) {
           // First close other panels if opening search
           if (!isVisible && showFavorites) onFavoritesClick(false);
+          if (!isVisible && showWatchlist) onWatchlistClick(false);
           if (!isVisible) onAccountClick(false); // Close account details if open
           if (!isVisible) onPreferencesClick(false); // Close preferences if open
           
@@ -74,6 +78,7 @@ function Header({
         if (onFavoritesClick) {
           // First close other panels if opening favorites
           if (!isVisible && showSearch) onSearchClick(false);
+          if (!isVisible && showWatchlist) onWatchlistClick(false);
           if (!isVisible) onAccountClick(false); // Close account details if open
           if (!isVisible) onPreferencesClick(false); // Close preferences if open
           
@@ -81,11 +86,24 @@ function Header({
           setTimeout(() => onFavoritesClick(isVisible), 50);
         }
         break;
+      case 'watchlist':
+        if (onWatchlistClick) {
+          // First close other panels if opening watchlist
+          if (!isVisible && showSearch) onSearchClick(false);
+          if (!isVisible && showFavorites) onFavoritesClick(false);
+          if (!isVisible) onAccountClick(false); // Close account details if open
+          if (!isVisible) onPreferencesClick(false); // Close preferences if open
+          
+          // Then toggle watchlist with a small delay
+          setTimeout(() => onWatchlistClick(isVisible), 50);
+        }
+        break;
       case 'preferences':
         if (onPreferencesClick) {
           // Close other panels before opening preferences
           if (showSearch) onSearchClick(false);
           if (showFavorites) onFavoritesClick(false);
+          if (showWatchlist) onWatchlistClick(false);
           if (onAccountClick) onAccountClick(false);
           
           // Then open preferences with a small delay
@@ -97,6 +115,7 @@ function Header({
           // Close other panels before opening account
           if (showSearch) onSearchClick(false);
           if (showFavorites) onFavoritesClick(false);
+          if (showWatchlist) onWatchlistClick(false);
           if (onPreferencesClick) onPreferencesClick(false);
           
           // Then open account with a small delay
@@ -240,6 +259,32 @@ function Header({
                   </motion.div>
                 )}
               </motion.button>
+              
+              {/* Watchlist button */}
+              <motion.button 
+                variants={iconButtonVariants}
+                initial="initial"
+                whileHover="hover"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handlePanelToggle('watchlist', !showWatchlist)}
+                onMouseEnter={() => setHoveredButton('watchlist')}
+                onMouseLeave={() => setHoveredButton(null)}
+                className={`relative p-2.5 rounded-full transition-colors duration-200 ${
+                  showWatchlist ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
+                }`}
+                title="View watchlist"
+              >
+                <ClockIcon className="w-5 h-5" />
+                {hoveredButton === 'watchlist' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap px-2 py-1 bg-gray-800 text-xs text-gray-200 rounded shadow-lg pointer-events-none"
+                  >
+                    Watchlist
+                  </motion.div>
+                )}
+              </motion.button>
             </>
           )}
 
@@ -347,6 +392,14 @@ function Header({
                   >
                     <HeartIcon className="w-5 h-5 mr-3" />
                     <span>Favorites</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => handlePanelToggle('watchlist', !showWatchlist)}
+                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+                  >
+                    <ClockIcon className="w-5 h-5 mr-3" />
+                    <span>Watchlist</span>
                   </button>
                   
                   <button 

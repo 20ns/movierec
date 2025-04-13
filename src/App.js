@@ -12,6 +12,7 @@ import PersonalizedRecommendations from './components/PersonalizedRecommendation
 import CategoryBrowser from './components/CategoryBrowser';
 import GenreResults from './components/GenreResults';
 import FavoritesSection from './components/FavoritesSection';
+import WatchlistSection from './components/WatchlistSection';
 import AccountDetailsModal from './components/AccountDetailsModal';
 import SearchBar from './components/SearchBar';
 import { SparklesIcon } from '@heroicons/react/24/solid';
@@ -46,6 +47,7 @@ function AppContent() {
   const [showSearch, setShowSearch] = useState(false);
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showWatchlist, setShowWatchlist] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [showPreferencesPromptBanner, setShowPreferencesPromptBanner] = useState(false);
   const [userPreferences, setUserPreferences] = useState(null);
@@ -372,8 +374,8 @@ function AppContent() {
                 </div>
               ))}
             </div>          </div>
-          
-          {/* Favorites Section Skeleton is now hidden during loading */}
+            
+            {/* Favorites Section Skeleton is now hidden during loading */}
         </div>
       );
     }
@@ -516,15 +518,37 @@ function AppContent() {
             />
           </motion.div>
         )}
-      </AnimatePresence>      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showWatchlist && isAuthenticated && (
+          <motion.div
+            className="fixed top-16 right-4 sm:right-10 z-50"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <WatchlistSection
+              currentUser={currentUser}
+              isAuthenticated={isAuthenticated}
+              onClose={() => setShowWatchlist(false)}
+              inHeader={true}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
           isAuthenticated={isAuthenticated}
           currentUser={currentUser}
           onSignout={handleSignout}
           onSearchClick={(isVisible) => setShowSearch(isVisible === undefined ? true : isVisible)}
           onPreferencesClick={(isVisible) => setShowQuestionnaireModal(isVisible === undefined ? true : isVisible)}
           onFavoritesClick={(isVisible) => setShowFavorites(isVisible === undefined ? true : isVisible)}
+          onWatchlistClick={(isVisible) => setShowWatchlist(isVisible === undefined ? true : isVisible)}
           onAccountClick={(isVisible) => setShowAccountDetails(isVisible === undefined ? true : isVisible)}
           showFavorites={showFavorites}
+          showWatchlist={showWatchlist}
           showSearch={showSearch}
           hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
         />

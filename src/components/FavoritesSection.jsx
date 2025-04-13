@@ -50,10 +50,14 @@ const MediaCardSkeleton = () => (
       }
     }}
   >
-    <div className="aspect-w-2 aspect-h-3 bg-gray-700" />
-    <div className="p-3">
+    <div className="h-[140px] bg-gray-700" />
+    <div className="p-3 space-y-2">
       <div className="w-3/4 h-5 bg-gray-700 rounded mb-2" />
       <div className="w-1/2 h-4 bg-gray-700 rounded" />
+      <div className="flex justify-between">
+        <div className="w-10 h-4 bg-gray-700 rounded" />
+        <div className="w-10 h-4 bg-gray-700 rounded" />
+      </div>
     </div>
   </motion.div>
 );
