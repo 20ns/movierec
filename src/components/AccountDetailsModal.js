@@ -18,6 +18,12 @@ function AccountDetailsModal({ currentUser, onClose }) {
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
   
+  // Account deletion states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletionPassword, setDeletionPassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
   // Close when clicking outside
   const handleBackdropClick = (e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
@@ -168,12 +174,39 @@ function AccountDetailsModal({ currentUser, onClose }) {
     setResetMode('request');
   }, [activeTab]);
 
-  return (
-    <motion.div
+  // Handle account deletion
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setDeleteError('');
+    setDeleteLoading(true);
+    
+    try {
+      // Get current authenticated user (verifies user is logged in)
+      const user = await Auth.currentAuthenticatedUser();
+      
+      // Attempt to delete the user account
+      await Auth.deleteUser();
+      
+      // Close modal and handle signout in parent component
+      onClose();
+      // Trigger custom event that App.js can listen for
+      document.dispatchEvent(new CustomEvent('account-deleted'));
+      
+    } catch (error) {
+      console.error('Delete account error:', error);
+      setDeleteError(
+        error.message || 'Failed to delete account. Please try again or contact support.'
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  return (    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       onClick={() => onClose()}
     >
       <motion.div
@@ -181,26 +214,23 @@ function AccountDetailsModal({ currentUser, onClose }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: "spring", bounce: 0.3 }}
-        className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         ref={modalRef}
-      >
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-800 flex justify-between items-center">
-          <h2 className="text-lg sm:text-xl font-semibold text-white">Account Details</h2>
+      >        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-white">Account Details</h2>
           <button 
             onClick={onClose} 
-            className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
+            className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-gray-700/50 transition-colors"
+            aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-        
-        {/* Tabs */}
+          {/* Tabs */}
         <div className="border-b border-gray-800">
-          <div className="flex -mb-px">
+          <div className="flex px-2">
             <button
               className={`px-4 py-3 font-medium text-sm ${activeTab === 'profile' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => setActiveTab('profile')}
@@ -223,7 +253,7 @@ function AccountDetailsModal({ currentUser, onClose }) {
         </div>
         
         {/* Content */}
-        <div className="p-4 sm:p-5">
+        <div className="overflow-y-auto custom-scrollbar px-6 py-5 flex-grow">
           {activeTab === 'profile' && (
             <div className="space-y-4 sm:space-y-6">
               <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
@@ -433,6 +463,58 @@ function AccountDetailsModal({ currentUser, onClose }) {
                   <li>Update your password regularly</li>
                 </ul>
               </div>
+              
+              {/* Delete Account Section */}
+              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-red-900/30 mt-8">
+                <h3 className="text-sm text-red-300 font-medium mb-2">Delete Account</h3>
+                <p className="text-gray-300 text-sm mb-4">
+                  This action is permanent and cannot be undone. All your data, including favorites, watchlist, and preferences will be permanently deleted.
+                </p>
+                
+                {deleteError && (
+                  <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-200 text-sm rounded">
+                    {deleteError}
+                  </div>
+                )}
+                
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full px-4 py-2 bg-red-700 hover:bg-red-800 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+                  >
+                    Delete Account
+                  </button>
+                ) : (
+                  <div className="border border-red-500/40 rounded-lg p-4 bg-red-900/20">
+                    <p className="text-white text-sm font-medium mb-4">
+                      Are you absolutely sure you want to delete your account?
+                    </p>
+                    
+                    <form onSubmit={handleDeleteAccount} className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-md"
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeleteError('');
+                          }}
+                          disabled={deleteLoading}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white text-sm font-medium rounded-md shadow-sm disabled:opacity-70"
+                          disabled={deleteLoading}
+                        >
+                          {deleteLoading ? 'Deleting...' : 'Confirm Delete'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           
@@ -458,12 +540,11 @@ function AccountDetailsModal({ currentUser, onClose }) {
             </div>
           )}
         </div>
-        
-        {/* Footer */}
-        <div className="bg-gray-800 px-5 py-4 flex justify-end">
+          {/* Footer */}
+        <div className="bg-gray-800/80 backdrop-blur-sm px-6 py-4 border-t border-gray-700/50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
           >
             Close
           </button>
