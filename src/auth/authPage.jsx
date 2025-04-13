@@ -38,8 +38,21 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
         attributes: { email },
       });
       setNeedsVerification(true);
+      setSuccess('Account created successfully. Please check your email for the verification code.');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      setError(err.message || 'Error signing up');
+      let errorMessage = 'Error signing up. Please try again.';
+      if (err.code === 'UsernameExistsException') {
+        errorMessage = 'An account with this email already exists. Please sign in or use a different email.';
+      } else if (err.code === 'InvalidPasswordException') {
+        errorMessage = 'Password must be at least 8 characters with uppercase, lowercase, and numbers.';
+      } else if (err.code === 'InvalidParameterException') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+      console.error('Sign up error:', err);
     } finally {
       setLoading(false);
     }
@@ -51,11 +64,41 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
     setError('');
     try {
       await Auth.confirmSignUp(email, verificationCode);
-      await Auth.signIn(email, password);
-      onSignupSuccess();
+      const user = await Auth.signIn(email, password);
+      onSignupSuccess(user);
       navigate('/onboarding');
     } catch (err) {
-      setError(err.message || 'Error verifying account');
+      let errorMessage = 'Error verifying account';
+      if (err.code === 'CodeMismatchException') {
+        errorMessage = 'Invalid verification code. Please try again.';
+      } else if (err.code === 'NotAuthorizedException') {
+        errorMessage = 'Incorrect email or password.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+      console.error('Verification error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await Auth.resendSignUp(email);
+      setSuccess('Verification code resent successfully.');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      let errorMessage = 'Error resending verification code';
+      if (err.code === 'LimitExceededException') {
+        errorMessage = 'Attempt limit exceeded. Please try again later.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -145,14 +188,6 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
     exit: { opacity: 0, scale: 0.98, transition: { duration: 0.2 } },
   };
 
-  const contentVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1, 
-      transition: { duration: 0.3, staggerChildren: 0.07, delayChildren: 0.1 },
-    },
-  };
-
   const itemVariants = {
     hidden: { y: 10, opacity: 0 },
     visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } },
@@ -166,7 +201,6 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
       className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-12"
     >
       <div className="w-full max-w-md">
-        {/* App Logo/Brand */}
         <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
@@ -181,7 +215,8 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
              isSigningUp ? 'Create Your Account' :
              needsVerification ? 'Verify Your Account' : 'Welcome Back'}
           </p>
-        </motion.div>        <motion.div
+        </motion.div>
+        <motion.div
           className="bg-gray-800 bg-opacity-70 shadow-lg rounded-xl p-8 border border-gray-700 min-h-[360px] w-full flex flex-col custom-scrollbar"
         >
           {error && (
@@ -509,7 +544,22 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
                     className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-400 bg-gray-700 text-gray-100 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Enter verification code"
                   />
-                  <p className="mt-2 text-sm text-gray-400">Please check your email for the verification code.</p>
+                </motion.div>
+                <motion.div variants={itemVariants}>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Please check your email (including spam folder) for the verification code.
+                  </p>
+                  <p className="mt-2 text-sm text-gray-400">
+                    Didn't receive the code?{' '}
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      disabled={loading}
+                      className="text-indigo-400 hover:text-indigo-300"
+                    >
+                      Resend code
+                    </button>
+                  </p>
                 </motion.div>
                 <motion.div variants={itemVariants} className="mt-6">
                   <button
@@ -612,19 +662,6 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
               </motion.form>
             )}
           </AnimatePresence>
-
-          {needsVerification && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="mt-6"
-            >
-              <p className="text-sm text-gray-400 text-center">
-                Didn't receive the code? Check your spam folder or contact support.
-              </p>
-            </motion.div>
-          )}
         </motion.div>
 
         <motion.div
