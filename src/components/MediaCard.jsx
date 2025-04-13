@@ -57,6 +57,7 @@ const MediaCard = ({
   initialIsFavorited = null,
   initialIsInWatchlist = null,
   fromWatchlist = false,
+  fromFavorites = false,
   isMiniCard = false
 }) => {
   const toast = useToast();
@@ -474,8 +475,23 @@ const MediaCard = ({
     }
     onClick?.(result);
   };
-
   const renderContent = () => {
+    // Remove metadata for items in watchlist or favorites
+    if (fromWatchlist || fromFavorites) {
+      return (
+        <div className="p-2 sm:p-3">
+          <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base" title={displayTitle}>
+            {displayTitle}
+          </h2>
+          <div className="flex items-center justify-start mt-1 sm:mt-2 text-xs sm:text-sm">
+            <span className="bg-indigo-100 text-indigo-800 px-1.5 sm:px-2 py-0.5 rounded text-xs">
+              {determinedMediaType === 'movie' ? 'Movie' : 'TV Show'}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    
     if (simplifiedView) {
       return (
         <div className="p-2 sm:p-3">

@@ -317,8 +317,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <div 
               ref={favoritesScrollRef}
               className="grid grid-cols-2 gap-3 pb-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar"
-            >              {userFavorites.map((item) => (
-                <MediaCard
+            >              {userFavorites.map((item) => (                <MediaCard
                   key={`favorite-${item.mediaId}-${item.mediaType}`}
                   result={{
                     id: item.mediaId,
@@ -336,6 +335,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   currentUser={currentUser}
                   isMiniCard={true}
                   initialIsFavorited={true}
+                  fromFavorites={true}
                   onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
                 />
               ))}
@@ -422,8 +422,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   ref={favoritesScrollRef}
                   className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 custom-scrollbar"
                 >
-                  {userFavorites.map((item) => (
-                    <MediaCard
+                  {userFavorites.map((item) => (                    <MediaCard
                       key={`favorite-${item.mediaId}-${item.mediaType}`}
                       result={{
                         id: item.mediaId,
@@ -439,6 +438,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                       currentUser={currentUser}
                       isMiniCard={false}
                       initialIsFavorited={true}
+                      fromFavorites={true}
                       onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
                     />
                   ))}
