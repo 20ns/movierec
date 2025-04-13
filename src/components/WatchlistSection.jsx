@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClockIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import MediaCard from './MediaCard';
+import { EventEmitter } from '../events';
 
 // Cache utilities for watchlist
 const WATCHLIST_CACHE_KEY = 'user_watchlist_cache';
@@ -150,12 +151,34 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     if (isOpen && isAuthenticated && currentUser?.signInUserSession) {
       fetchWatchlist();
+      
+      // Emit event to notify other components that watchlist is opened
+      if (inHeader) {
+        EventEmitter.emit('header-panel-opened', { panel: 'watchlist' });
+      }
     }
-  }, [isOpen, isAuthenticated, currentUser?.signInUserSession]);
+  }, [isOpen, isAuthenticated, currentUser?.signInUserSession, inHeader]);
+
+  // Listen for header panel opened events
+  useEffect(() => {
+    const handleHeaderPanelOpened = (data) => {
+      if (inHeader && isOpen && data.panel !== 'watchlist') {
+        // Close this panel if another is opened
+        handleClose();
+      }
+    };
+
+    // Subscribe to the header-panel-opened event
+    EventEmitter.on('header-panel-opened', handleHeaderPanelOpened);
+    
+    // Cleanup listener on unmount
+    return () => {
+      EventEmitter.off('header-panel-opened', handleHeaderPanelOpened);
+    };
+  }, [inHeader, isOpen]);
 
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
