@@ -8,6 +8,15 @@ import MediaCard from './MediaCard';
 const WATCHLIST_CACHE_KEY = 'user_watchlist_cache';
 const CACHE_EXPIRY_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
 
+// Function to clear watchlist cache for a user
+const clearWatchlistCache = (userId) => {
+  try {
+    localStorage.removeItem(`${WATCHLIST_CACHE_KEY}_${userId}`);
+  } catch (error) {
+    console.error('Error clearing watchlist cache:', error);
+  }
+};
+
 const getWatchlistFromCache = (userId) => {
   try {
     const cacheData = localStorage.getItem(`${WATCHLIST_CACHE_KEY}_${userId}`);
@@ -69,6 +78,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   const [error, setError] = useState(null);
   const panelRef = useRef(null);
   const watchlistScrollRef = useRef(null);
+  const lastFetchTimeRef = useRef(0);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -81,10 +91,17 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, inHeader]);
 
-  const fetchWatchlist = async () => {
+  const fetchWatchlist = async (forceRefresh = false) => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
       console.error('No access token available');
       setError('Authentication token missing');
+      return;
+    }
+  
+    // If not forcing refresh and we fetched recently (within last 5 seconds), don't fetch again
+    const now = Date.now();
+    if (!forceRefresh && now - lastFetchTimeRef.current < 5000) {
+      console.log('Skipping fetch - too soon since last fetch');
       return;
     }
   
@@ -93,7 +110,9 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     
     try {
       const userId = currentUser.username || currentUser.attributes?.sub;
-      const cachedWatchlist = getWatchlistFromCache(userId);
+      
+      // Only use cache if not forcing a refresh
+      const cachedWatchlist = !forceRefresh ? getWatchlistFromCache(userId) : null;
       
       if (cachedWatchlist) {
         console.log('Using cached watchlist data');
@@ -121,6 +140,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       const data = await response.json();
       const watchlist = data && data.items ? data.items : (Array.isArray(data) ? data : []);
       
+      lastFetchTimeRef.current = now;
       cacheWatchlist(userId, watchlist);
       setUserWatchlist(watchlist);
     } catch (err) {
@@ -137,6 +157,33 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     }
   }, [isOpen, isAuthenticated, currentUser?.signInUserSession]);
 
+  useEffect(() => {
+    const handleWatchlistUpdate = (event) => {
+      const { mediaId: updatedId, isInWatchlist: newStatus } = event.detail || {};
+      
+      // Handle the watchlist update event
+      if (newStatus) {
+        // Item was added to watchlist - force refresh to get the full details
+        fetchWatchlist(true);
+      } else if (!newStatus && updatedId) {
+        // Item was removed - we can just filter it out without a full refresh
+        setUserWatchlist(prev => prev.filter(item => item.mediaId !== updatedId));
+        
+        // Also update cache
+        if (currentUser) {
+          const userId = currentUser.username || currentUser.attributes?.sub;
+          const updatedWatchlist = userWatchlist.filter(item => item.mediaId !== updatedId);
+          cacheWatchlist(userId, updatedWatchlist);
+        }
+      }
+    };
+
+    document.addEventListener('watchlist-updated', handleWatchlistUpdate);
+    return () => {
+      document.removeEventListener('watchlist-updated', handleWatchlistUpdate);
+    };
+  }, [currentUser, userWatchlist]);
+
   const handleClose = () => {
     if (onClose) onClose();
     setIsOpen(false);
@@ -151,12 +198,13 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     const userId = currentUser.username || currentUser.attributes?.sub;
     
     if (!isInWatchlist) {
+      // Item is being removed from watchlist
       const updatedWatchlist = userWatchlist.filter(item => item.mediaId !== mediaId);
       setUserWatchlist(updatedWatchlist);
       cacheWatchlist(userId, updatedWatchlist);
       
       try {
-        await fetch(
+        const response = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist/${mediaId}`,
           {
             method: 'DELETE',
@@ -167,11 +215,21 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             credentials: 'include'
           }
         );
+        
+        if (!response.ok) {
+          throw new Error(`Failed to remove from watchlist: ${response.status}`);
+        }
+        
+        // Clear the cache to ensure fresh data on next fetch
+        clearWatchlistCache(userId);
       } catch (error) {
         console.error('Error removing from watchlist:', error);
+        // Restore the item in case of error
+        fetchWatchlist(true);
       }
     } else {
-      fetchWatchlist();
+      // Force fetch to update with the newly added item
+      fetchWatchlist(true);
     }
   };
 
@@ -192,7 +250,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <h2 className="text-lg font-bold text-white">Your Watchlist</h2>
             <div className="flex items-center space-x-2">
               <button
-                onClick={fetchWatchlist}
+                onClick={() => fetchWatchlist(true)}
                 className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
                 aria-label="Refresh watchlist"
               >
@@ -222,7 +280,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <div className="text-center py-6">
               <p className="text-red-400 mb-3">{error}</p>
               <button
-                onClick={fetchWatchlist}
+                onClick={() => fetchWatchlist(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
               >
                 Try Again
@@ -264,6 +322,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   currentUser={currentUser}
                   isMiniCard={true}
                   fromWatchlist={true}
+                  initialIsInWatchlist={true}
                   onWatchlistToggle={(mediaId) => handleWatchlistToggle(mediaId, false)}
                 />
               ))}
@@ -295,7 +354,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 <h2 className="text-xl font-bold text-white">Your Watchlist</h2>
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={fetchWatchlist}
+                    onClick={() => fetchWatchlist(true)}
                     className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
                     aria-label="Refresh watchlist"
                   >
@@ -325,7 +384,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 <div className="text-center py-8">
                   <p className="text-red-400 mb-4">{error}</p>
                   <button
-                    onClick={fetchWatchlist}
+                    onClick={() => fetchWatchlist(true)}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
                   >
                     Try Again
@@ -367,6 +426,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                       currentUser={currentUser}
                       isMiniCard={false}
                       fromWatchlist={true}
+                      initialIsInWatchlist={true}
                       onWatchlistToggle={(mediaId) => handleWatchlistToggle(mediaId, false)}
                     />
                   ))}

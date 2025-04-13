@@ -25,6 +25,7 @@ const FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 let globalWatchlistIds = new Set();
 let globalWatchlistFetched = false;
 let lastWatchlistFetchTime = 0;
+const WATCHLIST_FETCH_COOLDOWN = 30000; // 30 seconds cooldown
 
 // Simplified token extractor
 const extractToken = (user) => {
@@ -55,7 +56,8 @@ const MediaCard = ({
   highlightMatch = false,
   initialIsFavorited = null,
   initialIsInWatchlist = null,
-  fromWatchlist = false
+  fromWatchlist = false,
+  isMiniCard = false
 }) => {
   const toast = useToast();
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
@@ -168,7 +170,7 @@ const MediaCard = ({
 
       try {
         const now = Date.now();
-        if (globalWatchlistFetched && now - lastWatchlistFetchTime < FETCH_COOLDOWN) {
+        if (globalWatchlistFetched && now - lastWatchlistFetchTime < WATCHLIST_FETCH_COOLDOWN) {
           const isInList = globalWatchlistIds.has(mediaId);
           setIsInWatchlist(isInList);
           hasWatchlistFetchedRef.current = true;
@@ -356,8 +358,10 @@ const MediaCard = ({
   }, [isAuthenticated, currentUser, mediaId, isFavorited, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onFavoriteToggle]);
 
   const handleWatchlistToggle = useCallback(async (e) => {
-    e.stopPropagation();
-    e.preventDefault();
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
 
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for watchlist toggle");
@@ -405,9 +409,20 @@ const MediaCard = ({
 
       if (!response.ok) {
         setIsInWatchlist(previousState);
+        console.error(`Server error: ${response.status}`);
+        
+        // Try to get more error details
+        try {
+          const errorData = await response.json();
+          console.error("Error details:", errorData);
+        } catch (e) {
+          // Ignore if we can't parse the response
+        }
+        
         throw new Error(`Server error: ${response.status}`);
       }
 
+      // Update global cache immediately
       if (previousState) {
         globalWatchlistIds.delete(mediaId);
       } else {
@@ -427,10 +442,12 @@ const MediaCard = ({
         onWatchlistToggle(mediaId, !previousState);
       }
 
+      // Dispatch event to notify other components
       document.dispatchEvent(new CustomEvent('watchlist-updated', { 
         detail: { mediaId: mediaId, isInWatchlist: !previousState } 
       }));
 
+      // Reset fetch cooldown to force refresh on next fetch
       lastWatchlistFetchTime = 0;
     } catch (error) {
       console.error("Error updating watchlist:", error);
@@ -440,6 +457,7 @@ const MediaCard = ({
           'error'
         );
       }
+      setIsInWatchlist(previousState); // Revert UI state on error
     } finally {
       setIsLoadingWatchlist(false);
     }
