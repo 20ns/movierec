@@ -344,9 +344,8 @@ function AppContent() {
             <div className="flex justify-between items-center mb-4 h-8">
               <div className="bg-gray-700 rounded w-1/3"></div>
               <div className="bg-gray-700 rounded-full w-24"></div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
+            </div>            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
                 <div key={i} className="bg-gray-800 rounded-xl overflow-hidden shadow-lg h-full">
                   <div className="h-[160px] sm:h-[180px] md:h-[200px] bg-gray-700"></div>
                   <div className="p-3 space-y-2">

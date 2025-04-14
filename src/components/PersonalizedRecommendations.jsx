@@ -11,7 +11,7 @@ const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
 const RECOMMENDATIONS_CACHE_KEY_PREFIX = 'movieRec_recommendations_';
 const SESSION_RECS_LOADED_FLAG = 'movieRec_session_loaded';
 const MIN_RECOMMENDATION_COUNT = 3;
-const MAX_RECOMMENDATION_COUNT = 6;
+const MAX_RECOMMENDATION_COUNT = 3;
 const SHOWN_ITEMS_LIMIT = 150;
 const RETRY_DELAY = 1500;
 const MAX_RETRIES = 2;
@@ -682,8 +682,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      >      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[...Array(MIN_RECOMMENDATION_COUNT)].map((_, i) => (
             <div key={i} className="bg-gray-800 rounded-xl h-[350px] shadow-md overflow-hidden animate-pulse">
               <div className="h-3/5 bg-gray-700"></div>
@@ -697,17 +696,16 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         </div>
       </motion.div>
     );
-  } else if (showRecs) {
-    content = (
+  } else if (showRecs) {    content = (
       <motion.div
         key={`recommendations-${refreshCounter}-${dataSource}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
       >
-        {recommendations.map((item) => (
+        {recommendations.slice(0, MAX_RECOMMENDATION_COUNT).map((item) => (
           <motion.div
             key={item.id}
             variants={{
