@@ -153,9 +153,18 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       retryCountRef.current = 0;
       prevPreferencesRef.current = null;
       
+      // If this is a new login (not initial load), add a delay before setting userId
+      // to ensure AWS auth tokens are fully available
+      const delay = prevUserIdRef.current === null ? 100 : 2000;
+      console.log(`[PersonalRecs] Delaying user ID update by ${delay}ms to ensure auth is complete`);
+      
       setTimeout(() => {
         prevUserIdRef.current = currentUserId;
-      }, 100);
+        // If delay was for authentication, trigger a cache check
+        if (delay > 100) {
+          safeSetState({ cacheChecked: false });
+        }
+      }, delay);
     }
   }, [currentUser, safeSetState]);
 
@@ -537,18 +546,53 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       await fetchRecommendations(true);
     }, 100);
   }, [userId, isAuthenticated, contentTypeFilter, fetchRecommendations, safeSetState, state.refreshCounter]);
-
   // --- Initial Load and Preference Changes ---
   useEffect(() => {
     if (!isAuthenticated || !userId || !initialAppLoadComplete) return;
 
+    // Validate authentication token is actually available
+    const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+    
     console.log('[PersonalRecs] Checking for cached recommendations', {
       isAuthenticated,
       userId,
       initialAppLoadComplete,
       propHasCompletedQuestionnaire,
       cacheChecked,
+      hasToken: !!token,
     });
+
+    // If authenticated but no token yet, wait for token
+    if (isAuthenticated && !token) {
+      console.log('[PersonalRecs] Auth state is true but token not ready yet, delaying load');
+      safeSetState({ 
+        isLoading: false, 
+        isThinking: false,
+      });
+      
+      // Check again after a short delay
+      const tokenCheckTimer = setTimeout(() => {
+        safeSetState({ cacheChecked: false });
+      }, 1500);
+      
+      return () => clearTimeout(tokenCheckTimer);
+    }
+
+    // Set up loading timeout to prevent infinite loading
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    loadingTimeoutRef.current = setTimeout(() => {
+      if (isLoading && mountedRef.current) {
+        logMessage('Loading timeout reached, forcing exit from loading state');
+        safeSetState({ 
+          isLoading: false, 
+          isThinking: false, 
+          hasError: true, 
+          errorMessage: 'Loading recommendations timed out. Please try refreshing.',
+          dataSource: 'error'
+        });
+        isFetchingRef.current = false;
+      }
+    }, LOADING_TIMEOUT);
 
     const cached = getRecommendationsFromCache(userId, contentTypeFilter);
     if (cached) {
@@ -563,9 +607,18 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       dataLoadAttemptedRef.current = true;
     } else {
       safeSetState({ cacheChecked: true, isLoading: true, isThinking: true });
-      fetchRecommendations(false);
+      // Small delay to ensure AWS auth is fully ready before API calls
+      setTimeout(() => {
+        if (mountedRef.current) {
+          fetchRecommendations(false);
+        }
+      }, 500);
     }
-  }, [userId, isAuthenticated, initialAppLoadComplete, contentTypeFilter, cacheChecked, fetchRecommendations, safeSetState, propHasCompletedQuestionnaire]);
+
+    return () => {
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    };
+  }, [userId, isAuthenticated, initialAppLoadComplete, contentTypeFilter, cacheChecked, fetchRecommendations, safeSetState, propHasCompletedQuestionnaire, isLoading, currentUser]);
 
   useEffect(() => {
     if (!initialAppLoadComplete || !propHasCompletedQuestionnaire) return;
