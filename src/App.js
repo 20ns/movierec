@@ -340,41 +340,51 @@ function AppContent() {
     if (showPageLoading) {
       logApp('Render: Page Loading Skeleton');      return (
         <div className="space-y-12 animate-pulse">
+          {/* Personalized Recommendations skeleton */}
           <div className="mb-12 max-w-7xl mx-auto px-4">
-            <div className="flex justify-between items-center mb-4 h-8">
-              <div className="bg-gray-700 rounded w-1/3"></div>
-              <div className="bg-gray-700 rounded-full w-24"></div>
-            </div>            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="bg-gray-700 rounded h-4 sm:h-6 w-1/3"></div>
+              <div className="bg-gray-700 rounded-full h-4 sm:h-5 w-16 sm:w-24"></div>
+            </div>            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden shadow-lg h-full">
-                  <div className="h-[160px] sm:h-[180px] md:h-[200px] bg-gray-700"></div>
-                  <div className="p-3 space-y-2">
+                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden shadow-lg h-[350px]">
+                  <div className="h-3/5 bg-gray-700"></div>
+                  <div className="p-4 space-y-3">
                     <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-700 rounded w-1/2"></div>
                     <div className="h-4 bg-gray-700 rounded w-full"></div>
-                    <div className="h-4 bg-gray-700 rounded w-2/3"></div>
-                    <div className="flex justify-between pt-2">
-                      <div className="h-4 bg-gray-700 rounded w-16"></div>
-                      <div className="h-4 bg-gray-700 rounded w-12"></div>
-                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>          <div className="mb-12 max-w-7xl mx-auto px-4">
-            <div className="h-8 bg-gray-700 rounded w-1/4 mb-4"></div>
-            <div className="flex space-x-4 overflow-hidden">
+          </div>
+          
+          {/* Trending Section skeleton */}
+          <div className="mb-12 max-w-7xl mx-auto px-4">
+            <div className="h-4 sm:h-6 bg-gray-700 rounded w-1/4 mb-4"></div>
+            <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-2 px-2 hide-scrollbar">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden w-64 flex-shrink-0">
-                  <div className="h-[160px] sm:h-[180px] bg-gray-700"></div>
-                  <div className="p-2 space-y-2">
-                    <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden min-w-[140px] sm:min-w-[180px] md:min-w-[220px] flex-shrink-0 flex flex-col">
+                  <div className="h-[100px] sm:h-[130px] md:h-[150px] bg-gray-700"></div>
+                  <div className="p-2 sm:p-3 flex-grow flex flex-col">
+                    <div className="h-3 sm:h-4 bg-gray-700 rounded w-3/4 mb-1"></div>
+                    <div className="h-2 sm:h-3 bg-gray-700 rounded w-1/2 mb-1"></div>
+                    <div className="mt-auto h-2 sm:h-3 bg-gray-700 rounded w-1/3"></div>
                   </div>
                 </div>
               ))}
-            </div>          </div>
-            
-            {/* Favorites Section Skeleton is now hidden during loading */}
+            </div>
+          </div>
+          
+          {/* Category Browser skeleton */}
+          <div className="mb-12 max-w-7xl mx-auto px-4">
+            <div className="h-4 sm:h-6 bg-gray-700 rounded w-1/5 mb-4"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="aspect-[1.5/1] rounded-lg bg-gray-800 overflow-hidden"></div>
+              ))}
+            </div>
+          </div>
         </div>
       );
     }
