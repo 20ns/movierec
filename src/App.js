@@ -1,5 +1,3 @@
-// src/App.js
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuth from './auth/auth';
@@ -327,9 +325,22 @@ function AppContent() {
 
   // --- Navigation Handlers ---
   const handleSignInClick = useCallback(() => navigate('/auth'), [navigate]);
-
-  // --- Render Logic ---  // Modified to ensure it doesn't stay in loading state forever
-  const showPageLoading = !initialAppLoadComplete || (isAuthenticated && preferencesLoading && refreshCycleRef.current < 3);
+  // --- Render Logic ---  // Modified to ensure smooth transitions especially on mobile
+  const [minLoadTimeComplete, setMinLoadTimeComplete] = useState(false);
+  
+  // Effect to enforce minimum loading time to prevent flickering on mobile
+  useEffect(() => {
+    if (!initialAppLoadComplete) return;
+    
+    // Enforce a minimum loading time of 600ms to prevent layout flashing
+    const timer = setTimeout(() => {
+      setMinLoadTimeComplete(true);
+    }, 600);
+    
+    return () => clearTimeout(timer);
+  }, [initialAppLoadComplete]);
+  
+  const showPageLoading = !initialAppLoadComplete || !minLoadTimeComplete || (isAuthenticated && preferencesLoading && refreshCycleRef.current < 3);
 
   const renderMainContent = () => {
     if (!isAuthenticated && initialAppLoadComplete) {
@@ -338,21 +349,49 @@ function AppContent() {
     }
 
     if (showPageLoading) {
-      logApp('Render: Page Loading Skeleton');      return (
+      logApp('Render: Page Loading Skeleton');      
+      return (
         <div className="space-y-12 animate-pulse">
-          {/* Personalized Recommendations skeleton */}
+          {/* Personalized Recommendations skeleton */}          
           <div className="mb-12 max-w-7xl mx-auto px-4">
             <div className="flex justify-between items-center mb-4">
               <div className="bg-gray-700 rounded h-4 sm:h-6 w-1/3"></div>
               <div className="bg-gray-700 rounded-full h-4 sm:h-5 w-16 sm:w-24"></div>
-            </div>            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+            </div>            
+            <div className="w-full grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-gray-800 rounded-xl overflow-hidden shadow-lg h-[350px]">
-                  <div className="h-3/5 bg-gray-700"></div>
-                  <div className="p-4 space-y-3">
-                    <div className="h-5 bg-gray-700 rounded w-3/4"></div>
-                    <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-                    <div className="h-4 bg-gray-700 rounded w-full"></div>
+                <div
+                  key={i}
+                  className="group bg-transparent rounded-2xl overflow-hidden shadow-md relative flex flex-col h-full animate-pulse max-w-full"
+                >
+                  <div className="bg-white rounded-xl overflow-hidden shadow-lg transition-all duration-300 h-full">
+                    <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
+                      <div className="w-full h-full bg-gray-700"></div>
+                      <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-semibold text-white shadow-md bg-green-600/90 w-16"></div>
+                      <div className="absolute top-2 left-2 z-10 bg-black/60 text-white px-1.5 py-0.5 rounded-md text-xs font-medium backdrop-blur-sm shadow w-10"></div>
+                      <div className="absolute top-2 right-2 z-20 p-1.5 rounded-full backdrop-blur-sm bg-black/50 w-8 h-8"></div>
+                      <div className="absolute top-2 right-10 z-20 p-1.5 rounded-full backdrop-blur-sm bg-black/50 w-8 h-8"></div>
+                    </div>
+                    <div className="p-2 sm:p-3 flex flex-col flex-grow bg-white rounded-b-xl">
+                      <div className="h-4 sm:h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 sm:h-4 bg-gray-200 rounded w-full mb-1"></div>
+                      <div className="h-3 sm:h-4 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="border-t border-gray-100 pt-2 flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-amber-400 mr-1"></div>
+                          <div className="h-3 sm:h-4 bg-gray-200 rounded w-5"></div>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-gray-300 mr-1"></div>
+                          <div className="h-3 sm:h-4 bg-gray-200 rounded w-8"></div>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-gray-300 mr-1"></div>
+                          <div className="h-3 sm:h-4 bg-gray-200 rounded w-6"></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -393,13 +432,13 @@ function AppContent() {
       logApp('Render: Main Authenticated Content');
       return (
         <div className="space-y-12">
-          <AnimatePresence>
+          <AnimatePresence>            
             {showRecommendations && (
               <motion.div
                 key="personalized-recommendations"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
               >
                 <PersonalizedRecommendations
                   ref={personalizedRecommendationsRef}
@@ -437,7 +476,8 @@ function AppContent() {
 
   return (
     <>
-      <Bg />      <AnimatePresence>
+      <Bg />      
+      <AnimatePresence>
         {showPreferencesPromptBanner && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -503,13 +543,15 @@ function AppContent() {
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) setShowQuestionnaireModal(false);
             }}
-          >            <motion.div
+          >            
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="w-full max-w-2xl bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
-              onMouseDown={(e) => e.stopPropagation()}            >
+              onMouseDown={(e) => e.stopPropagation()}            
+            >
               <OnboardingQuestionnaire
                 currentUser={currentUser}
                 onComplete={handleQuestionnaireComplete}
@@ -530,7 +572,9 @@ function AppContent() {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence><AnimatePresence>
+      </AnimatePresence>
+      
+      <AnimatePresence>
         {showAccountDetails && isAuthenticated && (
           <AccountDetailsModal currentUser={currentUser} onClose={() => setShowAccountDetails(false)} />
         )}
@@ -572,7 +616,8 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
+      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        
+        <Header
           isAuthenticated={isAuthenticated}
           currentUser={currentUser}
           onSignout={handleSignout}
@@ -586,7 +631,9 @@ function AppContent() {
           showSearch={showSearch}
           hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
         />
-      )}<AnimatePresence>
+      )}
+      
+      <AnimatePresence>
         {showSearch && (
           <>
             {/* Backdrop overlay with click-away functionality */}
@@ -599,7 +646,7 @@ function AppContent() {
               className="fixed inset-0 z-30 bg-gradient-to-b from-gray-900/95 to-black/90 backdrop-blur-md"
               onClick={() => setShowSearch(false)}
             />
-              {/* Search container with improved animation - positioned below header */}
+            {/* Search container with improved animation - positioned below header */}
             <motion.div
               key="search-container"
               initial={{ opacity: 0, y: -20, scale: 0.98 }}
@@ -613,7 +660,8 @@ function AppContent() {
               }}              
               className="fixed inset-x-0 top-16 z-30 pt-4 px-4"
               onClick={(e) => e.stopPropagation()}
-            >              {/* Close button positioned for both desktop and mobile */}
+            >              
+              {/* Close button positioned for both desktop and mobile */}
               <div className="flex justify-end max-w-3xl mx-auto mb-3">
                 <button 
                   onClick={() => setShowSearch(false)}
