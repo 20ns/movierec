@@ -69,10 +69,21 @@ function Header({
     switch(panelName) {
       case 'search':
         if (onSearchClick) {
-          // Close other panels first
-          closeOtherPanels('search');
-          // Toggle search panel
-          onSearchClick(!showSearch);
+          // If isVisible is explicitly provided, use it
+          if (typeof isVisible !== 'undefined') {
+            // Close other panels first if opening
+            if (isVisible) {
+              closeOtherPanels('search');
+            }
+            onSearchClick(isVisible);
+          } else {
+            // Toggle based on current state
+            // Close other panels first if opening
+            if (!showSearch) {
+              closeOtherPanels('search');
+            }
+            onSearchClick(!showSearch);
+          }
         }
         break;
       case 'favorites':
@@ -351,10 +362,9 @@ function Header({
             transition={{ duration: 0.2 }}
             className="md:hidden absolute left-0 right-0 top-full mt-2 bg-gray-900 shadow-lg rounded-b-lg overflow-hidden z-50 border-t border-gray-800"
           >
-            <div className="px-4 py-3 space-y-3">
-              <button 
+            <div className="px-4 py-3 space-y-3">              <button 
                 onClick={() => handlePanelToggle('search', !showSearch)}
-                className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
+                className={`w-full flex items-center px-4 py-3 text-left ${showSearch ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800'} rounded-lg`}
               >
                 <SearchIcon className="w-5 h-5 mr-3" />
                 <span>Search</span>

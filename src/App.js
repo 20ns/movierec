@@ -589,8 +589,7 @@ function AppContent() {
               className="fixed inset-0 z-30 bg-gradient-to-b from-gray-900/95 to-black/90 backdrop-blur-md"
               onClick={() => setShowSearch(false)}
             />
-            
-            {/* Search container with improved animation */}
+              {/* Search container with improved animation - positioned below header */}
             <motion.div
               key="search-container"
               initial={{ opacity: 0, y: -20, scale: 0.98 }}
@@ -601,11 +600,24 @@ function AppContent() {
                 stiffness: 350, 
                 damping: 30,
                 delay: 0.05
-              }}              className="fixed inset-x-0 top-0 z-40 pt-24 px-4"
+              }}              
+              className="fixed inset-x-0 top-16 z-30 pt-4 px-4"
               onClick={(e) => e.stopPropagation()}
-            >
+            >              {/* Close button positioned for both desktop and mobile */}
+              <div className="flex justify-end max-w-3xl mx-auto mb-3">
+                <button 
+                  onClick={() => setShowSearch(false)}
+                  className="p-2 rounded-full bg-gray-800/90 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors shadow-lg"
+                  aria-label="Close search"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
               <motion.div 
-                className="max-w-3xl mx-auto"
+                className="max-w-3xl mx-auto relative"
                 transition={{ delay: 0.2, duration: 0.5 }}
               >
                 <SearchBar 
