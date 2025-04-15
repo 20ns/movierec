@@ -38,7 +38,7 @@ function AppContent() {
   } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { showToast } = useToast(); // Changed from addToast to showToast to match ToastManager.jsx
+  const { showToast } = useToast();
 
   // --- Component State ---
   const [selectedGenre, setSelectedGenre] = useState(null);
@@ -52,11 +52,9 @@ function AppContent() {
   const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [initialAppLoadComplete, setInitialAppLoadComplete] = useState(false);
-  // New state for recommendations visibility
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [justSignedIn, setJustSignedIn] = useState(false);
 
-  // Calculate if user has only completed basic preferences but not detailed ones
   const hasBasicPreferencesOnly = userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted;
 
   // --- Refs ---
@@ -64,8 +62,8 @@ function AppContent() {
   const prevPreferencesRef = useRef(null);
   const fetchingPreferencesRef = useRef(false);
   const prevUserIdRef = useRef(null);
-  const refreshCycleRef = useRef(0); // Track refresh cycles to prevent repeated refreshes
-  const processingAuthChangeRef = useRef(false); // Prevent concurrent auth processing
+  const refreshCycleRef = useRef(0);
+  const processingAuthChangeRef = useRef(false);
 
   // --- Effect: Mark Initial App Load Complete ---
   useEffect(() => {
@@ -87,7 +85,6 @@ function AppContent() {
   useEffect(() => {
     const currentUserId = currentUser?.attributes?.sub;
     if (prevUserIdRef.current !== currentUserId && currentUserId && !processingAuthChangeRef.current) {
-      // Set processing flag to prevent concurrent processing
       processingAuthChangeRef.current = true;
       
       logApp(`User changed from ${prevUserIdRef.current} to ${currentUserId}. Resetting state.`);
@@ -97,13 +94,11 @@ function AppContent() {
       prevPreferencesRef.current = null;
       prevUserIdRef.current = currentUserId;
       
-      // Set justSignedIn to true when user signs in
       if (!prevUserIdRef.current && currentUserId) {
         setJustSignedIn(true);
         setShowRecommendations(false);
       }
       
-      // Reset processing flag after a short delay
       setTimeout(() => {
         processingAuthChangeRef.current = false;
       }, 500);
@@ -115,15 +110,12 @@ function AppContent() {
     logApp('User signed in successfully', { userId: user.attributes?.sub });
     handleSigninSuccess(user, isNew);
     
-    // Force reset all recommendation-related state
     setJustSignedIn(true);
     setShowRecommendations(false);
     
-    // Force immediately start preference loading
     fetchingPreferencesRef.current = false;
     refreshCycleRef.current = 0;
     
-    // Force a new toast even if it's a re-render
     setTimeout(() => {
       showToast({
         title: 'Welcome back!',
@@ -136,7 +128,6 @@ function AppContent() {
 
   // --- Fetch User Preferences ---
   const fetchUserPreferences = useCallback(async () => {
-    // Track refresh cycles to prevent repeated refreshes
     refreshCycleRef.current++;
     const currentRefreshCycle = refreshCycleRef.current;
     
@@ -161,7 +152,6 @@ function AppContent() {
     setPreferencesLoading(true);
 
     try {
-      // If this is no longer the current refresh cycle, abort
       if (currentRefreshCycle !== refreshCycleRef.current) {
         logApp('Aborting outdated preferences fetch', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
         return;
@@ -174,7 +164,6 @@ function AppContent() {
         mode: 'cors',
       });
 
-      // Check if this is still the current refresh cycle
       if (currentRefreshCycle !== refreshCycleRef.current) {
         logApp('Aborting outdated preferences fetch response handling', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
         return;
@@ -212,21 +201,17 @@ function AppContent() {
       setUserPreferences(null);
       setHasCompletedQuestionnaire(false);
     } finally {
-      // Check if this is still the current refresh cycle
       if (currentRefreshCycle === refreshCycleRef.current) {
         setPreferencesLoading(false);
         fetchingPreferencesRef.current = false;
         logApp('Preferences fetch finished.', { cycle: currentRefreshCycle });
         
-        // After preferences fetch is complete, determine whether to show recommendations
         if (justSignedIn) {
-          // Short timeout to ensure DOM is ready 
           setTimeout(() => {
             setShowRecommendations(true);
             setJustSignedIn(false);
             logApp('Showing recommendations after sign-in and preferences fetch');
             
-            // Add toast notification
             showToast({
               title: 'Welcome back!',
               message: 'Your personalized recommendations are ready',
@@ -267,7 +252,6 @@ function AppContent() {
     
     setShowPreferencesPromptBanner(shouldShow);
     
-    // When user has no preferences, we still want to show the recommendations section
     if (shouldShow && justSignedIn) {
       setShowRecommendations(true);
       setJustSignedIn(false);
@@ -278,7 +262,6 @@ function AppContent() {
 
   // --- Effect: Show recommendations after app load ---
   useEffect(() => {
-    // Prevent this effect from triggering multiple times for the same state
     if (initialAppLoadComplete && isAuthenticated && !preferencesLoading && !justSignedIn && !showRecommendations) {
       logApp('Showing recommendations after app initialization');
       setShowRecommendations(true);
@@ -309,11 +292,9 @@ function AppContent() {
       navigate('/');
     }
     
-    // Add a small delay before showing recommendations after questionnaire completion
     setTimeout(() => {
       setShowRecommendations(true);
       
-      // Add toast notification
       showToast({
         title: 'Preferences updated!',
         message: 'Your recommendations have been refreshed',
@@ -325,14 +306,13 @@ function AppContent() {
 
   // --- Navigation Handlers ---
   const handleSignInClick = useCallback(() => navigate('/auth'), [navigate]);
-  // --- Render Logic ---  // Modified to ensure smooth transitions especially on mobile
+  
+  // --- Render Logic ---
   const [minLoadTimeComplete, setMinLoadTimeComplete] = useState(false);
   
-  // Effect to enforce minimum loading time to prevent flickering on mobile
   useEffect(() => {
     if (!initialAppLoadComplete) return;
     
-    // Enforce a minimum loading time of 600ms to prevent layout flashing
     const timer = setTimeout(() => {
       setMinLoadTimeComplete(true);
     }, 600);
@@ -356,38 +336,36 @@ function AppContent() {
           <div className="mb-12 max-w-7xl mx-auto px-4">
             <div className="flex justify-between items-center mb-4">
               <div className="bg-gray-700 rounded h-4 sm:h-6 w-1/3"></div>
-              <div className="bg-gray-700 rounded-full h-4 sm:h-5 w-16 sm:w-24"></div>
-            </div>            
-            <div className="w-full grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+              <div className="bg-gray-700 rounded-full h-4 sm:h-5 w-16 sm:w-24"></div>            </div>              <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
-                  className="group bg-transparent rounded-2xl overflow-hidden shadow-md relative flex flex-col h-full animate-pulse max-w-full"
+                  className="bg-transparent rounded-lg overflow-hidden relative flex flex-col h-full animate-pulse max-w-full mx-auto w-full max-w-[300px] sm:max-w-none"
                 >
-                  <div className="bg-white rounded-xl overflow-hidden shadow-lg transition-all duration-300 h-full">
-                    <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
+                  <div className="bg-white rounded-xl overflow-hidden transition-all duration-300 h-full">
+                    <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[180px] flex-shrink-0">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
                       <div className="w-full h-full bg-gray-700"></div>
-                      <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-semibold text-white shadow-md bg-green-600/90 w-16"></div>
-                      <div className="absolute top-2 left-2 z-10 bg-black/60 text-white px-1.5 py-0.5 rounded-md text-xs font-medium backdrop-blur-sm shadow w-10"></div>
-                      <div className="absolute top-2 right-2 z-20 p-1.5 rounded-full backdrop-blur-sm bg-black/50 w-8 h-8"></div>
-                      <div className="absolute top-2 right-10 z-20 p-1.5 rounded-full backdrop-blur-sm bg-black/50 w-8 h-8"></div>
+                      <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-semibold text-white bg-green-600/90 w-14"></div>
+                      <div className="absolute top-2 left-2 z-10 bg-black/60 text-white px-1.5 py-0.5 rounded-md text-[10px] font-medium w-10"></div>
+                      <div className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-black/50 w-7 h-7"></div>
+                      <div className="absolute top-2 right-10 z-20 p-1.5 rounded-full bg-black/50 w-7 h-7"></div>
                     </div>
                     <div className="p-2 sm:p-3 flex flex-col flex-grow bg-white rounded-b-xl">
-                      <div className="h-4 sm:h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 sm:h-4 bg-gray-200 rounded w-full mb-1"></div>
-                      <div className="h-3 sm:h-4 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="h-3 sm:h-4 md:h-5 bg-gray-200 rounded w-3/4 mb-1 sm:mb-2"></div>
+                      <div className="h-3 sm:h-4 bg-gray-200 rounded w-full mb-0.5 sm:mb-1"></div>
+                      <div className="h-3 sm:h-4 bg-gray-200 rounded w-full mb-2 sm:mb-3"></div>
                       <div className="border-t border-gray-100 pt-2 flex items-center justify-between">
                         <div className="flex items-center">
-                          <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-amber-400 mr-1"></div>
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-amber-400 mr-1"></div>
                           <div className="h-3 sm:h-4 bg-gray-200 rounded w-5"></div>
                         </div>
                         <div className="flex items-center">
-                          <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-gray-300 mr-1"></div>
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-300 mr-1"></div>
                           <div className="h-3 sm:h-4 bg-gray-200 rounded w-8"></div>
                         </div>
                         <div className="flex items-center">
-                          <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-gray-300 mr-1"></div>
+                          <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-300 mr-1"></div>
                           <div className="h-3 sm:h-4 bg-gray-200 rounded w-6"></div>
                         </div>
                       </div>
@@ -462,12 +440,10 @@ function AppContent() {
     return null;
   };
 
-  // Function to handle preference updates from onboarding questionnaire
   const handlePreferencesUpdated = useCallback((updatedPreferences) => {
     logApp('Preferences updated from questionnaire', updatedPreferences);
     setUserPreferences(updatedPreferences);
     
-    // Trigger recommendation refresh if reference is available
     if (personalizedRecommendationsRef.current) {
       logApp('Triggering recommendation refresh with updated preferences');
       personalizedRecommendationsRef.current.refreshRecommendations(updatedPreferences);
@@ -502,7 +478,6 @@ function AppContent() {
                 <button 
                   onClick={() => {
                     setShowPreferencesPromptBanner(false);
-                    // Remember that user has dismissed this prompt
                     try {
                       const userId = currentUser?.attributes?.sub;
                       if (userId) {
@@ -558,7 +533,6 @@ function AppContent() {
                 onSkip={() => setShowQuestionnaireModal(false)}
                 isModal={true}
                 onClose={() => {
-                  // When modal is closed with X button, save preferences and trigger recalculation
                   if (personalizedRecommendationsRef.current && userPreferences) {
                     personalizedRecommendationsRef.current.refreshRecommendations(userPreferences);
                   }
@@ -566,7 +540,6 @@ function AppContent() {
                 }}
                 existingPreferences={userPreferences}
                 onPreferencesUpdated={handlePreferencesUpdated}
-                // Skip basic questions when user has already completed them
                 skipBasicQuestions={hasBasicPreferencesOnly}
               />
             </motion.div>
@@ -636,7 +609,6 @@ function AppContent() {
       <AnimatePresence>
         {showSearch && (
           <>
-            {/* Backdrop overlay with click-away functionality */}
             <motion.div
               key="search-backdrop"
               initial={{ opacity: 0 }}
@@ -646,7 +618,6 @@ function AppContent() {
               className="fixed inset-0 z-30 bg-gradient-to-b from-gray-900/95 to-black/90 backdrop-blur-md"
               onClick={() => setShowSearch(false)}
             />
-            {/* Search container with improved animation - positioned below header */}
             <motion.div
               key="search-container"
               initial={{ opacity: 0, y: -20, scale: 0.98 }}
@@ -661,7 +632,6 @@ function AppContent() {
               className="fixed inset-x-0 top-16 z-30 pt-4 px-4"
               onClick={(e) => e.stopPropagation()}
             >              
-              {/* Close button positioned for both desktop and mobile */}
               <div className="flex justify-end max-w-3xl mx-auto mb-3">
                 <button 
                   onClick={() => setShowSearch(false)}
