@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ToastProvider, useToast } from './components/ToastManager';
 import LandingPage from './components/LandingPage';
 import AdUnit from './components/AdUnit';
+import AdScript from './components/AdScript';
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -413,13 +414,17 @@ function AppContent() {
               </motion.div>
             )}
           </AnimatePresence>
-          
-          {/* Ad unit between recommendations and trending - blends with content */}
-          {showRecommendations && isAuthenticated && (
-            <div className="pb-4 pt-2">
+            {/* Ad unit integrated with content between recommendations and trending */}
+          {showRecommendations && isAuthenticated && !showPageLoading && (
+            <div className="pt-2 pb-2">
               <AdUnit 
-                className="max-w-6xl bg-gray-900/30 backdrop-blur-sm rounded-xl overflow-hidden shadow-lg" 
-                style={{ minHeight: '90px' }}
+                className="max-w-6xl rounded-xl overflow-hidden" 
+                contentBefore={
+                  <div className="text-sm text-gray-300 font-medium px-1">
+                    <h3 className="text-base md:text-lg mb-1 text-white">Featured Content</h3>
+                    <p>Discover more entertainment options while we prepare your personalized trending list.</p>
+                  </div>
+                }
               />
             </div>
           )}
@@ -429,26 +434,40 @@ function AppContent() {
             isAuthenticated={isAuthenticated} 
             initialAppLoadComplete={initialAppLoadComplete}
           />
-          
-          {/* Ad unit between trending and categories - blends with content */}
-          {isAuthenticated && (
+            {/* Ad unit integrated with content between trending and categories */}
+          {isAuthenticated && !showPageLoading && (
             <div className="pb-4 pt-2">
               <AdUnit 
-                className="max-w-6xl bg-gray-900/30 backdrop-blur-sm rounded-xl overflow-hidden shadow-lg" 
-                style={{ minHeight: '90px' }}
+                className="max-w-6xl rounded-xl overflow-hidden" 
+                contentBefore={
+                  <div className="text-sm text-gray-300 font-medium px-1">
+                    <h3 className="text-base md:text-lg mb-1 text-white">Browse More</h3>
+                    <p>Explore carefully curated entertainment options while browsing our categories.</p>
+                  </div>
+                }
+                contentAfter={
+                  <div className="flex justify-end px-1">
+                    <span className="text-xs text-gray-400">Recommended based on your interests</span>
+                  </div>
+                }
               />
             </div>
           )}
           
           <CategoryBrowser onCategorySelect={setSelectedGenre} />
           {selectedGenre && <GenreResults genreId={selectedGenre} currentUser={currentUser} />}
-          
-          {/* Ad unit after genre results when they're shown */}
-          {selectedGenre && isAuthenticated && (
+            {/* Ad unit integrated with content after genre results */}
+          {selectedGenre && isAuthenticated && !showPageLoading && (
             <div className="pt-6 pb-8">
               <AdUnit 
-                className="max-w-6xl bg-gray-900/30 backdrop-blur-sm rounded-xl overflow-hidden shadow-lg" 
-                style={{ minHeight: '90px' }}
+                className="max-w-6xl rounded-xl overflow-hidden" 
+                contentBefore={
+                  <div className="text-sm text-gray-300 font-medium px-1">
+                    <h3 className="text-base md:text-lg mb-1 text-white">Similar Content You Might Enjoy</h3>
+                    <p>Based on your interest in this genre, here are some additional recommendations.</p>
+                  </div>
+                }
+                minContentRatio={0.2}
               />
             </div>
           )}
@@ -722,6 +741,7 @@ function App() {
     <ToastProvider>
       <BrowserRouter>
         <AppContent />
+        <AdScript />
       </BrowserRouter>
     </ToastProvider>
   );
