@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import MediaCard from './MediaCard';
 import { ArrowPathIcon, LightBulbIcon, ExclamationCircleIcon, FilmIcon, TvIcon, VideoCameraIcon } from '@heroicons/react/24/solid';
+import { fetchCachedMedia, shouldRefreshCache } from '../services/mediaCache';
 
 // --- Constants ---
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -337,7 +338,19 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         const hasPrefs = prefs.favoriteGenres?.length > 0;
         const hasFavs = favorites.length > 0;
 
-        if (hasPrefs || hasFavs) {
+        // First try fetching from DynamoDB cache if not forcing refresh
+        if (!forceRefresh) {
+          const cacheResult = await fetchFromDynamoDBCache(contentTypeFilter, favoriteIds, shownItemsHistory);
+          if (cacheResult.success) {
+            fetchedRecs = cacheResult.recommendations;
+            finalDataSource = cacheResult.dataSource;
+            finalReason = cacheResult.reason;
+            fetchSuccessful = true;
+          }
+        }
+
+        // If DynamoDB cache didn't have results, proceed with existing TMDB fetching logic
+        if (!fetchSuccessful && (hasPrefs || hasFavs)) {
           const apiKey = process.env.REACT_APP_TMDB_API_KEY;
           if (!apiKey) throw new Error('TMDB API Key missing');
 
@@ -631,6 +644,53 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     prevPreferencesRef.current = currentPrefs;
   }, [propUserPreferences, initialAppLoadComplete, propHasCompletedQuestionnaire, handleRefresh, safeSetState]);
 
+  // --- DynamoDB Cache Check ---
+  const fetchFromDynamoDBCache = useCallback(async (contentTypeFilter, favoriteIds, shownItemsHistory) => {
+    logMessage('Attempting to fetch from DynamoDB cache');
+    try {
+      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      if (!token) {
+        logMessage('No auth token available for DynamoDB cache fetch');
+        return { success: false };
+      }
+
+      // Convert contentTypeFilter to the format expected by the Lambda
+      const mediaType = contentTypeFilter === 'both' 
+        ? 'both' 
+        : contentTypeFilter === 'movies' ? 'movie' : 'tv';
+      
+      // Prepare exclude IDs - combine shown history and favorites
+      const excludeIds = [...Array.from(shownItemsHistory || []), ...Array.from(favoriteIds || [])];
+      
+      // Fetch from DynamoDB cache
+      const cacheResult = await fetchCachedMedia({
+        mediaType,
+        limit: MAX_RECOMMENDATION_COUNT,
+        excludeIds,
+        token
+      });
+
+      if (cacheResult.items && cacheResult.items.length > 0) {
+        logMessage(`Successfully fetched ${cacheResult.items.length} items from DynamoDB cache`);
+        return {
+          success: true,
+          recommendations: cacheResult.items.map(item => ({
+            ...item,
+            score: Math.round((item.vote_average / 10) * 100)
+          })),
+          dataSource: 'dynamo_cache',
+          reason: 'Daily trending content'
+        };
+      }
+      
+      logMessage('No results found in DynamoDB cache, will try TMDB API');
+      return { success: false };
+    } catch (error) {
+      logError('Error fetching from DynamoDB cache', error);
+      return { success: false };
+    }
+  }, [currentUser, logMessage]);
+
   // --- Expose methods for parent components to call ---
   useImperativeHandle(ref, () => ({
     refreshRecommendations: (updatedPrefs = null) => {
@@ -767,13 +827,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     );
   } else {
     content = <div key="fallback" className="min-h-[200px]"></div>;
-  }
-  let title = "Recommendations";
+  }  let title = "Recommendations";
   if (dataSource === 'error') title = "Error Loading";
   else if (dataSource === 'both') title = 'For You';
   else if (dataSource === 'preferences') title = 'Based on Your Taste';
   else if (dataSource === 'favorites') title = 'Inspired by Your Favorites';
   else if (dataSource === 'generic') title = 'Trending Now';
+  else if (dataSource === 'dynamo_cache') title = 'Trending & Popular';
   else if (dataSource === 'supplementary' || dataSource === 'mixed') title = 'Popular Picks';
 
   return (
