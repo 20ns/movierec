@@ -419,12 +419,6 @@ function AppContent() {
             <div className="pt-2 pb-2">
               <AdUnit 
                 className="max-w-6xl rounded-xl overflow-hidden" 
-                contentBefore={
-                  <div className="text-sm text-gray-300 font-medium px-1">
-                    <h3 className="text-base md:text-lg mb-1 text-white">Featured Content</h3>
-                    <p>Discover more entertainment options while we prepare your personalized trending list.</p>
-                  </div>
-                }
               />
             </div>
           )}
@@ -439,17 +433,6 @@ function AppContent() {
             <div className="pb-4 pt-2">
               <AdUnit 
                 className="max-w-6xl rounded-xl overflow-hidden" 
-                contentBefore={
-                  <div className="text-sm text-gray-300 font-medium px-1">
-                    <h3 className="text-base md:text-lg mb-1 text-white">Browse More</h3>
-                    <p>Explore carefully curated entertainment options while browsing our categories.</p>
-                  </div>
-                }
-                contentAfter={
-                  <div className="flex justify-end px-1">
-                    <span className="text-xs text-gray-400">Recommended based on your interests</span>
-                  </div>
-                }
               />
             </div>
           )}
