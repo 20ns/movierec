@@ -151,8 +151,11 @@ function Header({
           transition={{ type: "spring", stiffness: 400, damping: 10 }}
           className="flex-shrink-0"
         >
-          <Link to="/" className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
-            MovieRec
+          <Link to="/" className="flex items-center">
+            <img src="/logo.png" alt="MovieRec Logo" className="h-8 mr-2" />
+            <span className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
+              MovieRec
+            </span>
           </Link>
         </motion.div>
 

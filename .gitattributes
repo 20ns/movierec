@@ -1,12 +1,12 @@
 # Set default behavior to automatically normalize line endings
 * text=auto
 
-# JavaScript and related files - on Windows, using auto is better than forcing LF
-*.js text
-*.jsx text
-*.json text
-*.css text
-*.html text
+# JavaScript and related files - explicitly set line ending behavior
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
 
 # Denote all files that are truly binary and should not be modified
 *.png binary
