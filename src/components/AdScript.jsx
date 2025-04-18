@@ -38,7 +38,6 @@ const AdScript = () => {
     
     return () => clearTimeout(timer);
   }, []);
-
   // Only inject the script when content is ready
   useEffect(() => {
     if (contentReady && typeof window !== 'undefined') {
@@ -49,9 +48,11 @@ const AdScript = () => {
       script.dataset.adClient = 'ca-pub-5077058434275861';
       
       // Only add the script if it doesn't exist yet
-      if (!document.querySelector('script[src*="pagead2.googlesyndication.com"]')) {
+      if (!document.querySelector('script[src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]')) {
         document.head.appendChild(script);
-        console.log('AdSense script loaded after content check');
+        console.log('AdSense: Script added to document head');
+      } else {
+        console.log('AdSense: Script already exists in document');
       }
     }
   }, [contentReady]);
