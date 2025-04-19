@@ -6,56 +6,95 @@ import React, { useEffect, useState } from 'react';
  */
 const AdScript = () => {
   const [contentReady, setContentReady] = useState(false);
+  const [visibleForDuration, setVisibleForDuration] = useState(false);
 
   useEffect(() => {
     // Check if the page has meaningful content before loading AdSense
     const checkContent = () => {
-      const contentElements = document.querySelectorAll('p, h1, h2, h3, h4, h5, article, section');
-      const hasContent = contentElements.length > 5;
+      // Enhanced content detection - look for meaningful content elements
+      const paragraphs = document.querySelectorAll('p');
+      const headings = document.querySelectorAll('h1, h2, h3, h4, h5');
+      const contentContainers = document.querySelectorAll('article, section, .content-container');
+      const mediaItems = document.querySelectorAll('img[src]:not([src=""]), video');
       
-      // For safety, also check total text content
-      const textContent = document.body.textContent || '';
-      const hasEnoughText = textContent.length > 1500;
+      // Require more content elements than before
+      const hasEnoughElements = 
+        paragraphs.length >= 3 && 
+        (headings.length + contentContainers.length) >= 2;
       
-      return hasContent && hasEnoughText;
+      // Look for app-specific content containers and meaningful text
+      const mainContent = document.querySelector('#root') || document.body;
+      const textContent = mainContent ? mainContent.innerText : '';
+      const hasEnoughText = textContent.trim().length > 1500; // Keep this higher for global script
+      
+      // Check if scrollable content exists (indicates substantial content)
+      const hasScrollableContent = document.body.scrollHeight > window.innerHeight * 1.5;
+      
+      // Check if at least some media is loaded
+      const hasMedia = mediaItems.length > 0;
+      
+      // Combined check - need to meet multiple criteria
+      return (hasEnoughElements && hasEnoughText) || 
+             (hasScrollableContent && hasEnoughText) || 
+             (hasEnoughElements && hasMedia && textContent.length > 1000);
     };
 
-    // Wait for content to be properly rendered
-    const timer = setTimeout(() => {
+    // Initial wait for content
+    const initialTimer = setTimeout(() => {
       if (checkContent()) {
         setContentReady(true);
+        
+        // After content is detected, wait additional time to ensure it's visible
+        const visibilityTimer = setTimeout(() => {
+          setVisibleForDuration(true);
+        }, 2500);
+        
+        return () => clearTimeout(visibilityTimer);
       } else {
-        // Recheck after a short delay if content isn't ready yet
+        // If content not ready, check again after a delay
         const recheckTimer = setTimeout(() => {
           if (checkContent()) {
             setContentReady(true);
+            
+            // Same additional wait for visibility
+            const visibilityTimer = setTimeout(() => {
+              setVisibleForDuration(true);
+            }, 2500);
+            
+            return () => clearTimeout(visibilityTimer);
           }
-        }, 2000);
+        }, 3000);
         
         return () => clearTimeout(recheckTimer);
       }
-    }, 1000);
+    }, 1500); // Initial longer wait for page to fully render
     
-    return () => clearTimeout(timer);
+    return () => clearTimeout(initialTimer);
   }, []);
-  // Only inject the script when content is ready
+
+  // Only inject the script when content is ready and has been visible long enough
   useEffect(() => {
-    if (contentReady && typeof window !== 'undefined') {
-      const script = document.createElement('script');
-      script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      script.dataset.adClient = 'ca-pub-5077058434275861';
+    if (contentReady && visibleForDuration && typeof window !== 'undefined') {
+      // Add a final delay to ensure content is properly rendered
+      const scriptTimer = setTimeout(() => {
+        const script = document.createElement('script');
+        script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        script.dataset.adClient = 'ca-pub-5077058434275861';
+        
+        // Only add the script if it doesn't exist yet
+        if (!document.querySelector('script[src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]')) {
+          document.head.appendChild(script);
+          console.log('AdSense: Script added to document head after content verified');
+        } else {
+          console.log('AdSense: Script already exists in document');
+        }
+      }, 1000);
       
-      // Only add the script if it doesn't exist yet
-      if (!document.querySelector('script[src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]')) {
-        document.head.appendChild(script);
-        console.log('AdSense: Script added to document head');
-      } else {
-        console.log('AdSense: Script already exists in document');
-      }
+      return () => clearTimeout(scriptTimer);
     }
-  }, [contentReady]);
+  }, [contentReady, visibleForDuration]);
 
   // This component doesn't render anything visible
   return null;

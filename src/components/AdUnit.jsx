@@ -5,92 +5,108 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
   const [adLoaded, setAdLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [contentReady, setContentReady] = useState(false);
+  const [visibleForDuration, setVisibleForDuration] = useState(false);
+  const timeoutRef = useRef(null);
 
   useEffect(() => {
     // Function to check if the page has sufficient content
     const checkContent = () => {
-      // Use a more robust selector that looks for actual content sections
-      // This matches the same approach used in AdScript.jsx for consistency
-      const contentElements = document.querySelectorAll('p, h1, h2, h3, h4, h5, article, section');
-      const hasContent = contentElements.length > 3;
+      // Enhanced content detection - look for meaningful content elements
+      const paragraphs = document.querySelectorAll('p');
+      const headings = document.querySelectorAll('h1, h2, h3, h4, h5');
+      const contentContainers = document.querySelectorAll('article, section, .content-container');
+      const mediaItems = document.querySelectorAll('img[src]:not([src=""]), video');
       
-      // Look for app-specific content containers
+      // Require more content elements than before
+      const hasEnoughElements = 
+        paragraphs.length >= 3 && 
+        (headings.length + contentContainers.length) >= 2;
+      
+      // Look for app-specific content containers and meaningful text
       const mainContent = document.querySelector('#root') || document.body;
-      const hasEnoughText = mainContent && mainContent.innerText.trim().length > 500;
+      const textContent = mainContent ? mainContent.innerText : '';
+      const hasEnoughText = textContent.trim().length > 1000; // Increased from 500
       
-      if (hasContent && hasEnoughText) {
-        if (!contentReady) { // Only update state if it changes
-            console.log('AdSense: Sufficient content detected.');
-            setContentReady(true);
+      // Check if scrollable content exists (indicates substantial content)
+      const hasScrollableContent = document.body.scrollHeight > window.innerHeight * 1.5;
+      
+      // Check if at least some media is loaded
+      const hasMedia = mediaItems.length > 0;
+      
+      // Combined check - need to meet multiple criteria
+      if ((hasEnoughElements && hasEnoughText) || (hasScrollableContent && hasEnoughText) || (hasEnoughElements && hasMedia && textContent.length > 800)) {
+        if (!contentReady) {
+          console.log('AdSense: Sufficient content detected - starting visibility timer');
+          setContentReady(true);
+          
+          // Start timer to ensure content has been visible for a few seconds
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            setVisibleForDuration(true);
+          }, 2000); // Wait 2 seconds after content is detected
         }
       } else {
-        if (contentReady) { // Only update state if it changes
-            console.warn('AdSense: Insufficient content detected. Ad loading paused.');
-            setContentReady(false); // Set back to false if content becomes insufficient
-        } else if (!contentReady && !hasError) { // Log initial warning only once
-            console.warn('AdSense: Initial check - Insufficient content. Waiting for content.');
+        if (contentReady) {
+          console.warn('AdSense: Content became insufficient after being detected');
+          setContentReady(false);
+          setVisibleForDuration(false);
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
         }
       }
     };
 
-    // Check content immediately when the component mounts.
+    // Check content immediately when the component mounts
     checkContent();
 
-    // Optional: Check periodically in case content loads dynamically after initial mount.
-    // Adjust interval as needed, be mindful of performance.
-    const intervalId = setInterval(checkContent, 3000); // Check every 3 seconds
+    // Check periodically in case content loads dynamically
+    const intervalId = setInterval(checkContent, 2000);
 
-    // Cleanup function: clear interval when component unmounts
+    // Cleanup function
     return () => {
       clearInterval(intervalId);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-    // Dependency array includes contentReady to potentially re-evaluate if needed,
-    // though the interval handles periodic checks.
-  }, [contentReady, hasError]); // Rerun if contentReady state changes or error occurs
+  }, [contentReady]);
 
   useEffect(() => {
-    // Load the ad only if content is ready, in browser, ad ref exists, and AdSense script is loaded
+    // Load the ad only when content is ready AND it's been visible for the minimum duration
     if (
       contentReady &&
+      visibleForDuration &&
       typeof window !== 'undefined' &&
       adRef.current &&
       window.adsbygoogle &&
-      !adLoaded // Attempt to load only if not already loaded/attempted
+      !adLoaded
     ) {
       try {
-        console.log("AdSense: Content ready, attempting to push ad.");
+        console.log("AdSense: Content ready and visible, pushing ad");
         (window.adsbygoogle = window.adsbygoogle || []).push({});
-        setAdLoaded(true); // Mark as loaded/attempted
+        setAdLoaded(true);
       } catch (error) {
         console.error('AdSense: Error pushing ad:', error);
         setHasError(true);
       }
-    } else if (!contentReady && adLoaded) {
-        // If content becomes insufficient after ad was loaded, reset adLoaded?
-        // AdSense might handle this, but good to be aware. Resetting might cause layout shifts.
-        // setAdLoaded(false);
-        console.log("AdSense: Content became insufficient after ad load attempt.");
-    } else if (!contentReady) {
-        console.log("AdSense: Content not ready, ad push skipped.");
     }
-  }, [contentReady, adLoaded]); // Rerun when contentReady changes or adLoaded changes
+  }, [contentReady, visibleForDuration, adLoaded]);
 
-  // Don’t render the ad container if there’s an error or content isn’t ready
+  // Don't render anything until content is ready AND visible for minimum duration
+  if (!contentReady || !visibleForDuration) {
+    console.log("AdSense: Not rendering ad container - waiting for content stability");
+    return null;
+  }
+
   if (hasError) {
-      console.log("AdSense: Ad container not rendered due to error.");
-      return null;
+    console.log("AdSense: Not rendering due to error");
+    return null;
   }
 
-  if (!contentReady) {
-      console.log("AdSense: Ad container not rendered because content is not ready.");
-      // Return null to prevent rendering the ad slot when content is insufficient
-      return null;
-  }
-
-  // Render the ad unit only if content is ready and no error occurred
-  console.log("AdSense: Rendering ad container.");
+  // Only render the ad once content is verified and has been visible for the minimum time
+  console.log("AdSense: Rendering ad container");
   return (
-    <div className={`ad-container ${adLoaded ? '' : 'min-h-0'} ${className}`} style={style}>
+    <div className={`ad-container mx-auto ${adLoaded ? '' : 'min-h-0'} ${className}`} style={style}>
       {contentBefore && <div className="ad-content-before mb-4">{contentBefore}</div>}
       <ins
         className="adsbygoogle"
@@ -99,10 +115,10 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
           overflow: 'hidden',
           borderRadius: '0.5rem',
           margin: '0 auto',
-          minHeight: '90px', // Enable minHeight to prevent layout shifts
-          backgroundColor: 'transparent', // Ensures ad blends with your site's theme
-          transition: 'opacity 0.3s ease', // Smooth fade-in for better UX
-          opacity: adLoaded ? 1 : 0.4 // Subtle visual cue for loading state
+          minHeight: '90px',
+          backgroundColor: 'transparent',
+          transition: 'opacity 0.3s ease',
+          opacity: adLoaded ? 1 : 0.4
         }}
         data-ad-client="ca-pub-5077058434275861"
         data-ad-slot="1623198112"

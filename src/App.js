@@ -32,6 +32,30 @@ const logError = (message, error) => {
   console.error(`[App.js] ${message}`, error);
 };
 
+// Add this new helper function near the top of the file
+const checkContentReadyForAds = () => {
+  // At least 3 paragraphs
+  const paragraphs = document.querySelectorAll('p');
+  // At least 2 headings or content containers
+  const headings = document.querySelectorAll('h1, h2, h3, h4, h5');
+  const contentContainers = document.querySelectorAll('article, section, .content-container');
+  // At least 1 media item
+  const mediaItems = document.querySelectorAll('img[src]:not([src=""]), video');
+  
+  const hasEnoughElements = 
+    paragraphs.length >= 3 && 
+    (headings.length + contentContainers.length) >= 2;
+  
+  const mainContent = document.querySelector('#root') || document.body;
+  const hasEnoughText = mainContent && mainContent.innerText.trim().length > 1000;
+  
+  const hasScrollableContent = document.body.scrollHeight > window.innerHeight * 1.5;
+  
+  return (hasEnoughElements && hasEnoughText) || 
+         (hasScrollableContent && hasEnoughText) || 
+         (hasEnoughElements && mediaItems.length > 0 && mainContent.innerText.trim().length > 800);
+};
+
 function AppContent() {
   const {
     isAuthenticated,
@@ -414,11 +438,13 @@ function AppContent() {
               </motion.div>
             )}
           </AnimatePresence>
-            {/* Ad unit integrated with content between recommendations and trending */}
+          
+          {/* Ad unit with stronger conditions */}
           {showRecommendations && isAuthenticated && !showPageLoading && (
             <div className="pt-2 pb-2">
               <AdUnit 
-                className="max-w-6xl rounded-xl overflow-hidden" 
+                className="max-w-6xl mx-auto rounded-xl overflow-hidden" 
+                contentBefore={<div className="text-sm text-gray-400 text-center mb-2">Recommendations sponsored by our partners</div>}
               />
             </div>
           )}
@@ -428,33 +454,34 @@ function AppContent() {
             isAuthenticated={isAuthenticated} 
             initialAppLoadComplete={initialAppLoadComplete}
           />
-            {/* Ad unit integrated with content between trending and categories */}
+          
+          {/* Second ad also with stronger conditions */}
           {isAuthenticated && !showPageLoading && (
             <div className="pb-4 pt-2">
               <AdUnit 
-                className="max-w-6xl rounded-xl overflow-hidden" 
+                className="max-w-6xl mx-auto rounded-xl overflow-hidden" 
+                contentBefore={<div className="text-sm text-gray-400 text-center mb-2">Discover more content</div>}
               />
             </div>
           )}
           
           <CategoryBrowser onCategorySelect={setSelectedGenre} />
           {selectedGenre && <GenreResults genreId={selectedGenre} currentUser={currentUser} />}
-            {/* Ad unit integrated with content after genre results */}
+          
+          {/* Third ad with enhanced context */}
           {selectedGenre && isAuthenticated && !showPageLoading && (
             <div className="pt-6 pb-8">
               <AdUnit 
-                className="max-w-6xl rounded-xl overflow-hidden" 
+                className="max-w-6xl mx-auto rounded-xl overflow-hidden" 
                 contentBefore={
-                  <div className="text-sm text-gray-300 font-medium px-1">
+                  <div className="text-sm text-gray-300 font-medium px-1 mb-3">
                     <h3 className="text-base md:text-lg mb-1 text-white">Similar Content You Might Enjoy</h3>
                     <p>Based on your interest in this genre, here are some additional recommendations.</p>
                   </div>
                 }
-                minContentRatio={0.2}
               />
             </div>
           )}
-          
         </div>
       );
     }
