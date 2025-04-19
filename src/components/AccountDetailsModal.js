@@ -202,6 +202,33 @@ function AccountDetailsModal({ currentUser, onClose }) {
     }
   };
 
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    // Store the original scroll position and body styles
+    const scrollY = window.scrollY;
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalTop = document.body.style.top;
+    const originalWidth = document.body.style.width;
+    
+    // Apply fixed positioning to body to prevent scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    
+    // Re-enable scrolling and restore position when component unmounts
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.width = originalWidth;
+      
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   return (    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
