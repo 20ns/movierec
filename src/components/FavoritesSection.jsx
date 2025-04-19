@@ -59,11 +59,11 @@ const MediaCardSkeleton = () => (
       }
     }}
   >
-    <div className="h-[140px] bg-gray-700" />
+    <div className="aspect-[2/3] bg-gray-700" /> {/* Fixed aspect ratio for poster */}
     <div className="p-3 space-y-2">
       <div className="w-3/4 h-5 bg-gray-700 rounded mb-2" />
       <div className="w-1/2 h-4 bg-gray-700 rounded" />
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center mt-1">
         <div className="w-10 h-4 bg-gray-700 rounded" />
         <div className="w-10 h-4 bg-gray-700 rounded" />
       </div>
@@ -261,14 +261,14 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         <div className="p-3 sm:p-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-bold text-white">Your Favorites</h2>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => fetchFavorites(true)}
-                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
-                aria-label="Refresh favorites"
-              >
-                <ArrowPathIcon className="h-5 w-5" />
-              </button>
+            <div className="flex items-center space-x-2">                <button
+                  onClick={() => fetchFavorites(true)}
+                  className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Refresh favorites"
+                  disabled={isLoading}
+                >
+                  <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
               <button
                 onClick={handleClose}
                 className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
@@ -279,15 +279,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 </svg>
               </button>
             </div>
-          </div>
-
-          {isLoading && (
-            <div className="grid grid-cols-2 gap-3 pb-2">
-              {[...Array(4)].map((_, i) => (
-                <MediaCardSkeleton key={i} />
-              ))}
-            </div>
-          )}
+          </div>              {isLoading && userFavorites.length === 0 && (
+                <div className="grid grid-cols-2 gap-3 pb-2">
+                  {[...Array(4)].map((_, i) => (
+                    <MediaCardSkeleton key={i} />
+                  ))}
+                </div>
+              )}
 
           {error && (
             <div className="text-center py-6">
@@ -365,13 +363,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Your Favorites</h2>
-                <div className="flex items-center space-x-2">
-                  <button
+                <div className="flex items-center space-x-2">                  <button
                     onClick={() => fetchFavorites(true)}
-                    className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
+                    className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Refresh favorites"
+                    disabled={isLoading}
                   >
-                    <ArrowPathIcon className="h-6 w-6" />
+                    <ArrowPathIcon className={`h-6 w-6 ${isLoading ? 'animate-spin' : ''}`} />
                   </button>
                   <button
                     onClick={handleClose}
@@ -383,11 +381,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                     </svg>
                   </button>
                 </div>
-              </div>
-
-              {isLoading && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {[...Array(8)].map((_, i) => (
+              </div>              {isLoading && userFavorites.length === 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {[...Array(10)].map((_, i) => (
                     <MediaCardSkeleton key={i} />
                   ))}
                 </div>
