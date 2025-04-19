@@ -172,9 +172,8 @@ const SearchIcon = React.memo(({ isLoading, searchMode }) => {
         duration: isLoading ? 1.5 : 0 
       }}
       title={searchMode === 'direct' ? "Search for exact titles" : "Smart search for movies or shows"}
-    >
-      {isLoading ? (
-        <ArrowPathIcon className="w-5 h-5 sm:w-5 sm:h-5 animate-spin" />
+    >      {isLoading ? (
+        <ArrowPathIcon className="w-5 h-5 sm:w-5 sm:h-5" />
       ) : searchMode === 'direct' ? (
         <DocumentTextIcon className="w-5 h-5 sm:w-5 sm:h-5" />
       ) : (
