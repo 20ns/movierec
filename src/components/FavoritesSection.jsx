@@ -1,7 +1,7 @@
 // FavoritesSection.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HeartIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { HeartIcon, ArrowPathIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
 import MediaCard from './MediaCard';
 
 // Cache utilities for favorites
@@ -74,7 +74,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   const [userFavorites, setUserFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sortOption, setSortOption] = useState('dateAdded'); // Default sort
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const panelRef = useRef(null);
+  const sortMenuRef = useRef(null);
   const favoritesScrollRef = useRef(null);
   const lastFetchTimeRef = useRef(0);
 
@@ -195,6 +198,42 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     };
   }, [currentUser, userFavorites]);
 
+  // Close sort menu when clicking outside
+  useEffect(() => {
+    function handleClickOutsideSort(event) {
+      if (showSortMenu && sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
+        setShowSortMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutsideSort);
+    return () => document.removeEventListener('mousedown', handleClickOutsideSort);
+  }, [showSortMenu]);
+
+  // Sort favorites based on current sort option
+  const sortedFavorites = React.useMemo(() => {
+    if (!userFavorites.length) return [];
+    
+    const favorites = [...userFavorites]; // Create a copy to avoid mutating original
+    
+    switch (sortOption) {
+      case 'alphabetical':
+        return favorites.sort((a, b) => a.title.localeCompare(b.title));
+      case 'rating':
+        return favorites.sort((a, b) => b.voteAverage - a.voteAverage);
+      case 'dateAdded':
+      default:
+        // Assuming most recently added is first in the array from API
+        return favorites;
+    }
+  }, [userFavorites, sortOption]);
+
+  // Item animation variants for micro-interactions
+  const itemAnimationVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1, transition: { type: "spring", duration: 0.5 } },
+    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.2 } }
+  };
+
   const handleClose = () => {
     if (onClose) onClose();
     setIsOpen(false);
@@ -254,19 +293,65 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1, transition: { duration: 0.15, ease: "easeOut" } }}
         exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1, ease: "easeIn" } }}
-        className="absolute top-16 right-0 bg-gray-800 rounded-lg shadow-xl overflow-hidden border border-gray-700 w-72 sm:w-80 md:w-96 max-w-[90vw] z-50"
+        className="absolute top-16 right-0 bg-gray-800 rounded-lg shadow-xl overflow-visible border border-gray-700 w-72 sm:w-80 md:w-96 max-w-[90vw] z-50"
       >
         <div className="p-3 sm:p-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-bold text-white">Your Favorites</h2>
-            <div className="flex items-center space-x-2">                <button
-                  onClick={() => fetchFavorites(true)}
-                  className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Refresh favorites"
-                  disabled={isLoading}
+            <div className="flex items-center space-x-2">
+              {/* Sort button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSortMenu(!showSortMenu)}
+                  className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
+                  aria-label="Sort favorites"
                 >
-                  <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <ArrowsUpDownIcon className="h-5 w-5" />
                 </button>
+                
+                {/* Sort dropdown menu */}
+                <AnimatePresence>
+                  {showSortMenu && (
+                    <motion.div
+                      ref={sortMenuRef}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg border border-gray-700 z-50"
+                    >
+                      <div className="py-1">
+                        <button
+                          onClick={() => { setSortOption('dateAdded'); setShowSortMenu(false); }}
+                          className={`block w-full text-left px-4 py-2 text-sm ${sortOption === 'dateAdded' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                          Date Added (Default)
+                        </button>
+                        <button
+                          onClick={() => { setSortOption('alphabetical'); setShowSortMenu(false); }}
+                          className={`block w-full text-left px-4 py-2 text-sm ${sortOption === 'alphabetical' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                          Alphabetical (A-Z)
+                        </button>
+                        <button
+                          onClick={() => { setSortOption('rating'); setShowSortMenu(false); }}
+                          className={`block w-full text-left px-4 py-2 text-sm ${sortOption === 'rating' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                          Rating (High to Low)
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              <button
+                onClick={() => fetchFavorites(true)}
+                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Refresh favorites"
+                disabled={isLoading}
+              >
+                <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
               <button
                 onClick={handleClose}
                 className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-700 transition-colors"
@@ -277,7 +362,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                 </svg>
               </button>
             </div>
-          </div>              {isLoading && userFavorites.length === 0 && (
+          </div>
+          
+          {isLoading && userFavorites.length === 0 && (
                 <div className="grid grid-cols-2 gap-3 pb-2">
                   {[...Array(4)].map((_, i) => (
                     <MediaCardSkeleton key={i} isMini />       // pass isMini here
@@ -313,28 +400,40 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             <div 
               ref={favoritesScrollRef}
               className="grid grid-cols-2 gap-3 pb-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar"
-            >              {userFavorites.map((item) => (                <MediaCard
-                  key={`favorite-${item.mediaId}-${item.mediaType}`}
-                  result={{
-                    id: item.mediaId,
-                    media_type: item.mediaType,
-                    title: item.title,
-                    name: item.title,
-                    poster_path: item.posterPath,
-                    backdrop_path: item.backdropPath,
-                    vote_average: item.voteAverage || 0,
-                    popularity: item.popularity || 0,
-                    release_date: item.releaseDate,
-                    first_air_date: item.releaseDate,
-                    genre_ids: item.genreIds || []
-                  }}
-                  currentUser={currentUser}
-                  isMiniCard={true}
-                  initialIsFavorited={true}
-                  fromFavorites={true}
-                  onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
-                />
-              ))}
+            >
+              <AnimatePresence initial={false}>
+                {sortedFavorites.map((item) => (
+                  <motion.div
+                    key={`favorite-${item.mediaId}-${item.mediaType}`}
+                    variants={itemAnimationVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    layout
+                  >
+                    <MediaCard
+                      result={{
+                        id: item.mediaId,
+                        media_type: item.mediaType,
+                        title: item.title,
+                        name: item.title,
+                        poster_path: item.posterPath,
+                        backdrop_path: item.backdropPath,
+                        vote_average: item.voteAverage || 0,
+                        popularity: item.popularity || 0,
+                        release_date: item.releaseDate,
+                        first_air_date: item.releaseDate,
+                        genre_ids: item.genreIds || []
+                      }}
+                      currentUser={currentUser}
+                      isMiniCard={true}
+                      initialIsFavorited={true}
+                      fromFavorites={true}
+                      onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </div>
@@ -356,12 +455,61 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-gray-900 rounded-xl border border-gray-700 shadow-2xl w-full max-w-4xl overflow-hidden relative"
+            className="bg-gray-900 rounded-xl border border-gray-700 shadow-2xl w-full max-w-4xl overflow-visible relative"
           >
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Your Favorites</h2>
-                <div className="flex items-center space-x-2">                  <button
+                <div className="flex items-center space-x-2">
+                  {/* Sort control for fullscreen mode */}
+                  <div className="relative mr-2">
+                    <button
+                      onClick={() => setShowSortMenu(!showSortMenu)}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-full transition-colors"
+                    >
+                      <ArrowsUpDownIcon className="h-4 w-4" />
+                      <span className="text-sm">
+                        {sortOption === 'dateAdded' && 'Date Added'}
+                        {sortOption === 'alphabetical' && 'A-Z'}
+                        {sortOption === 'rating' && 'Rating'}
+                      </span>
+                    </button>
+                    
+                    <AnimatePresence>
+                      {showSortMenu && (
+                        <motion.div
+                          ref={sortMenuRef}
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg border border-gray-700 z-50"
+                        >
+                          <div className="py-1">
+                            <button
+                              onClick={() => { setSortOption('dateAdded'); setShowSortMenu(false); }}
+                              className={`block w-full text-left px-4 py-2 text-sm ${sortOption === 'dateAdded' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                            >
+                              Date Added (Default)
+                            </button>
+                            <button
+                              onClick={() => { setSortOption('alphabetical'); setShowSortMenu(false); }}
+                              className={`block w-full text-left px-4 py-2 text-sm ${sortOption === 'alphabetical' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                            >
+                              Alphabetical (A-Z)
+                            </button>
+                            <button
+                              onClick={() => { setSortOption('rating'); setShowSortMenu(false); }}
+                              className={`block w-full text-left px-4 py-2 text-sm ${sortOption === 'rating' ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                            >
+                              Rating (High to Low)
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  
+                  <button
                     onClick={() => fetchFavorites(true)}
                     className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Refresh favorites"
@@ -379,7 +527,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                     </svg>
                   </button>
                 </div>
-              </div>              {isLoading && userFavorites.length === 0 && (
+              </div>
+              
+              {isLoading && userFavorites.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {[...Array(10)].map((_, i) => (
                     <MediaCardSkeleton key={i} />            // default isMini=false
@@ -416,26 +566,37 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                   ref={favoritesScrollRef}
                   className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 custom-scrollbar"
                 >
-                  {userFavorites.map((item) => (                    <MediaCard
-                      key={`favorite-${item.mediaId}-${item.mediaType}`}
-                      result={{
-                        id: item.mediaId,
-                        media_type: item.mediaType,
-                        title: item.title,
-                        name: item.title,
-                        poster_path: item.posterPath,
-                        backdrop_path: item.backdropPath,
-                        vote_average: item.voteAverage || 0,
-                        release_date: item.releaseDate,
-                        first_air_date: item.releaseDate,
-                      }}
-                      currentUser={currentUser}
-                      isMiniCard={false}
-                      initialIsFavorited={true}
-                      fromFavorites={true}
-                      onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
-                    />
-                  ))}
+                  <AnimatePresence initial={false}>
+                    {sortedFavorites.map((item) => (
+                      <motion.div
+                        key={`favorite-${item.mediaId}-${item.mediaType}`}
+                        variants={itemAnimationVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        layout
+                      >
+                        <MediaCard
+                          result={{
+                            id: item.mediaId,
+                            media_type: item.mediaType,
+                            title: item.title,
+                            name: item.title,
+                            poster_path: item.posterPath,
+                            backdrop_path: item.backdropPath,
+                            vote_average: item.voteAverage || 0,
+                            release_date: item.releaseDate,
+                            first_air_date: item.releaseDate,
+                          }}
+                          currentUser={currentUser}
+                          isMiniCard={false}
+                          initialIsFavorited={true}
+                          fromFavorites={true}
+                          onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
             </div>
