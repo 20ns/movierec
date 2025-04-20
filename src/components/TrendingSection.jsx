@@ -7,6 +7,7 @@ const TrendingSection = ({ currentUser }) => {
   const [trendingContent, setTrendingContent] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeWindow, setTimeWindow] = useState('day'); // 'day' or 'week'
+  const [activeFilter, setActiveFilter] = useState('day'); // Track active filter
 
   useEffect(() => {
     const fetchTrendingContent = async () => {
@@ -46,21 +47,39 @@ const TrendingSection = ({ currentUser }) => {
         <div className="flex space-x-2">
           <button
             className={`px-3 py-1 rounded-full text-sm font-medium ${
-              timeWindow === 'day'
+              activeFilter === 'day'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
-            onClick={() => setTimeWindow('day')}
+            onClick={() => {
+              // Toggle: if already active, remove filter, otherwise set it
+              if (activeFilter === 'day') {
+                setActiveFilter(null);
+                setTimeWindow('day'); // Default to day when no filter is active
+              } else {
+                setActiveFilter('day');
+                setTimeWindow('day');
+              }
+            }}
           >
             Today
           </button>
           <button
             className={`px-3 py-1 rounded-full text-sm font-medium ${
-              timeWindow === 'week'
+              activeFilter === 'week'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
-            onClick={() => setTimeWindow('week')}
+            onClick={() => {
+              // Toggle: if already active, remove filter, otherwise set it
+              if (activeFilter === 'week') {
+                setActiveFilter(null);
+                setTimeWindow('day'); // Default to day when no filter is active
+              } else {
+                setActiveFilter('week');
+                setTimeWindow('week');
+              }
+            }}
           >
             This Week
           </button>
