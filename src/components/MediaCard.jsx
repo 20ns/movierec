@@ -77,13 +77,64 @@ const MediaCard = ({
   const mediaId = id?.toString();
   const displayTitle = title || name || 'Untitled';
   const year = extractYear(release_date || first_air_date);
-  const rating = vote_average ? Math.round(vote_average * 10) / 10 : 0;
+  
+  // Ensure vote_average is properly converted to a number
+  let numericVoteAverage = 0;
+  if (vote_average !== undefined && vote_average !== null) {
+    numericVoteAverage = typeof vote_average === 'string' ? parseFloat(vote_average) : Number(vote_average);
+  }
+  const rating = numericVoteAverage ? Math.round(numericVoteAverage * 10) / 10 : 0;
+  
+  // For live rating from TMDb when displayed in favorites/watchlist
+  const [liveRating, setLiveRating] = useState(rating);
+  const [isLoadingRating, setIsLoadingRating] = useState(false);
+  
+  // Debug logging for rating calculation
+  if (fromFavorites || fromWatchlist) {
+    console.log(`MediaCard Debug [${displayTitle}]:`, { 
+      vote_average, 
+      numericVoteAverage,
+      rating, 
+      liveRating,
+      fromFavorites, 
+      fromWatchlist 
+    });
+  }
   const displayScore = score ?? (vote_average ? Math.round(vote_average * 10) : null);
   const displayPopularity = Math.round(popularity) || 'N/A';
   const determinedMediaType = media_type || (release_date ? 'movie' : 'tv');
   const posterUrl = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/placeholder.png';
   const socialProof = getSocialProof(result);
 
+  useEffect(() => {
+    // Fetch live rating from TMDb when showing in favorites/watchlist and no rating is available
+    const fetchRatingFromTMDb = async () => {
+      if (!mediaId || rating > 0 || !fromFavorites && !fromWatchlist) return;
+      
+      setIsLoadingRating(true);
+      try {
+        const mediaTypeForApi = determinedMediaType === 'movie' ? 'movie' : 'tv';
+        const response = await fetch(
+          `https://api.themoviedb.org/3/${mediaTypeForApi}/${mediaId}?api_key=${process.env.REACT_APP_TMDB_API_KEY}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.vote_average) {
+            const fetchedRating = Math.round(data.vote_average * 10) / 10;
+            setLiveRating(fetchedRating);
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching rating for ${displayTitle}:`, error);
+      } finally {
+        setIsLoadingRating(false);
+      }
+    };
+    
+    fetchRatingFromTMDb();
+  }, [mediaId, rating, fromFavorites, fromWatchlist, determinedMediaType, displayTitle]);
+  
   useEffect(() => {
     if (hasFetchedRef.current || initialIsFavorited !== null) {
       if (initialIsFavorited !== null) setIsFavorited(initialIsFavorited);
@@ -476,17 +527,29 @@ const MediaCard = ({
     onClick?.(result);
   };
   const renderContent = () => {
-    // Remove metadata for items in watchlist or favorites
+    // For items in watchlist or favorites, show the rating if available
+    // or show a placeholder rating indicator
     if (fromWatchlist || fromFavorites) {
       return (
         <div className="p-2 sm:p-3">
           <h2 className="font-semibold text-gray-800 truncate text-sm sm:text-base" title={displayTitle}>
             {displayTitle}
           </h2>
-          <div className="flex items-center justify-start mt-1 sm:mt-2 text-xs sm:text-sm">
+          <div className="flex items-center justify-between mt-1 sm:mt-2 text-xs sm:text-sm">
             <span className="bg-indigo-100 text-indigo-800 px-1.5 sm:px-2 py-0.5 rounded text-xs">
               {determinedMediaType === 'movie' ? 'Movie' : 'TV Show'}
             </span>
+            {/* Always show rating for favorites/watchlist items */}
+            <div className="flex items-center">
+              <StarIcon className="w-3 h-3 text-amber-500 mr-0.5"/>
+              {isLoadingRating ? (
+                <span className="text-gray-700 animate-pulse">•••</span>
+              ) : (
+                <span className="text-gray-700">
+                  {liveRating > 0 ? liveRating : (rating > 0 ? rating : '–')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       );

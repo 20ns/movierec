@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon, ArrowPathIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
 import MediaCard from './MediaCard';
+import { enrichItemsWithTmdbData } from '../services/tmdbEnricher';
 
 // Cache utilities for favorites
 const FAVORITES_CACHE_KEY = 'user_favorites_cache';
@@ -139,15 +140,14 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
       const data = await response.json();
       const favorites = data && data.items ? data.items : (Array.isArray(data) ? data : []);
-      
-      // Process favorites items to ensure metadata is properly formatted
+        // Process favorites items to ensure metadata is properly formatted
       const processedFavorites = favorites.map(item => ({
         ...item,
         // Ensure required fields have default values if missing
         mediaType: item.mediaType || 'movie',
         posterPath: item.posterPath || null,
         backdropPath: item.backdropPath || null,
-        voteAverage: item.voteAverage || 0,
+        voteAverage: item.voteAverage || item.vote_average || 0,
         popularity: item.popularity || 0,
         releaseDate: item.releaseDate || null,
         // Handle any other fields that might be missing
@@ -410,8 +410,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                     animate="visible"
                     exit="exit"
                     layout
-                  >
-                    <MediaCard
+                  >                    <MediaCard
                       result={{
                         id: item.mediaId,
                         media_type: item.mediaType,
@@ -419,7 +418,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                         name: item.title,
                         poster_path: item.posterPath,
                         backdrop_path: item.backdropPath,
-                        vote_average: item.voteAverage || 0,
+                        vote_average: parseFloat(item.voteAverage) || 0,
                         popularity: item.popularity || 0,
                         release_date: item.releaseDate,
                         first_air_date: item.releaseDate,
@@ -431,6 +430,13 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                       fromFavorites={true}
                       onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
                     />
+                    {/* Debug logging */}
+                    {console.log('FavoritesSection Debug (Header):', { 
+                      mediaId: item.mediaId, 
+                      title: item.title, 
+                      voteAverage: item.voteAverage,
+                      parsedVoteAverage: parseFloat(item.voteAverage) || 0
+                    })}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -575,8 +581,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                         animate="visible"
                         exit="exit"
                         layout
-                      >
-                        <MediaCard
+                      >                        <MediaCard
                           result={{
                             id: item.mediaId,
                             media_type: item.mediaType,
@@ -584,7 +589,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                             name: item.title,
                             poster_path: item.posterPath,
                             backdrop_path: item.backdropPath,
-                            vote_average: item.voteAverage || 0,
+                            vote_average: parseFloat(item.voteAverage) || 0,
                             release_date: item.releaseDate,
                             first_air_date: item.releaseDate,
                           }}

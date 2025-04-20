@@ -108,7 +108,8 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       backdrop_path: item.backdropPath || item.backdrop_path || null,
       release_date: item.releaseDate || item.firstAirDate || item.release_date || item.first_air_date || null,
       first_air_date: item.firstAirDate || item.releaseDate || item.first_air_date || item.release_date || null,
-      vote_average: typeof item.voteAverage === 'number' ? item.voteAverage : (typeof item.vote_average === 'number' ? item.vote_average : 0),
+      vote_average: typeof item.voteAverage === 'number' ? parseFloat(item.voteAverage) : 
+                 (typeof item.vote_average === 'number' ? parseFloat(item.vote_average) : 0),
       popularity: typeof item.popularity === 'number' ? item.popularity : 0,
       genre_ids: Array.isArray(item.genreIds) ? item.genreIds :
                  (item.genres && Array.isArray(item.genres) ? item.genres.map(g => g?.id).filter(id => id != null) :
@@ -495,8 +496,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                     animate="visible"
                     exit="exit"
                     layout
-                  >
-                    <MediaCard
+                  >                    <MediaCard
                         result={mappedResultItem}
                         currentUser={currentUser}
                         isMiniCard={true}
@@ -504,6 +504,12 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                         initialIsInWatchlist={true}
                         onWatchlistToggle={() => handleWatchlistToggle(mappedResultItem.id, false)}
                     />
+                    {/* Debug logging */}
+                    {console.log('WatchlistSection Debug (Header):', { 
+                      id: mappedResultItem.id, 
+                      title: mappedResultItem.title || mappedResultItem.name, 
+                      vote_average: mappedResultItem.vote_average
+                    })}
                   </motion.div>
                 ))}
               </AnimatePresence>
