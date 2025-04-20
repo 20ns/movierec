@@ -47,19 +47,17 @@ const cacheFavorites = (userId, favorites) => {
 };
 
 // Loading skeleton for media cards
-const MediaCardSkeleton = () => (
+const MediaCardSkeleton = ({ isMini = false }) => (
   <motion.div 
-    className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-md"
+    className={`bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-md 
+                ${isMini ? 'w-32' : 'w-full'}`}             // match mini card width when in header
     initial={{ opacity: 0.6 }}
     animate={{ 
       opacity: [0.6, 0.8, 0.6],
-      transition: { 
-        repeat: Infinity, 
-        duration: 1.5 
-      }
+      transition: { repeat: Infinity, duration: 1.5 }
     }}
   >
-    <div className="aspect-[2/3] bg-gray-700" /> {/* Fixed aspect ratio for poster */}
+    <div className="aspect-[2/3] bg-gray-700" />       {/* same poster aspect ratio */}
     <div className="p-3 space-y-2">
       <div className="w-3/4 h-5 bg-gray-700 rounded mb-2" />
       <div className="w-1/2 h-4 bg-gray-700 rounded" />
@@ -251,8 +249,8 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   // Header mode render
   if (inHeader) {
-    return (      <motion.div
-        ref={panelRef}
+    return (
+      <motion.div ref={panelRef}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1, transition: { duration: 0.15, ease: "easeOut" } }}
         exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1, ease: "easeIn" } }}
@@ -282,7 +280,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
           </div>              {isLoading && userFavorites.length === 0 && (
                 <div className="grid grid-cols-2 gap-3 pb-2">
                   {[...Array(4)].map((_, i) => (
-                    <MediaCardSkeleton key={i} />
+                    <MediaCardSkeleton key={i} isMini />       // pass isMini here
                   ))}
                 </div>
               )}
@@ -384,7 +382,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
               </div>              {isLoading && userFavorites.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {[...Array(10)].map((_, i) => (
-                    <MediaCardSkeleton key={i} />
+                    <MediaCardSkeleton key={i} />            // default isMini=false
                   ))}
                 </div>
               )}
