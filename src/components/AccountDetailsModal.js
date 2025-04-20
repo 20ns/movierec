@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Auth } from 'aws-amplify';
@@ -25,11 +25,11 @@ function AccountDetailsModal({ currentUser, onClose }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   
   // Close when clicking outside
-  const handleBackdropClick = (e) => {
+  const handleBackdropClick = useCallback((e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
       onClose();
     }
-  };
+  }, [onClose]);
   
   // Format date to be more readable
   const formatDate = (dateString) => {
@@ -44,17 +44,27 @@ function AccountDetailsModal({ currentUser, onClose }) {
     });
   };
 
-  // Get user creation date from a more reliable source
-  const creationDate = currentUser?.attributes?.email_verified_at || 
-                      currentUser?.attributes?.created || 
-                      currentUser?.signInUserSession?.idToken?.payload?.auth_time;
-  
+  // memoize user‐derived values
+  const creationDate = useMemo(() => {
+    return currentUser?.attributes?.email_verified_at ||
+           currentUser?.attributes?.created ||
+           currentUser?.signInUserSession?.idToken?.payload?.auth_time;
+  }, [currentUser]);
+
   // Format user id for display
-  const userId = currentUser?.attributes?.sub || 
-                currentUser?.username || 
-                currentUser?.signInUserSession?.idToken?.payload?.sub || 
-                'N/A';
-  
+  const userId = useMemo(() => {
+    return currentUser?.attributes?.sub ||
+           currentUser?.username ||
+           currentUser?.signInUserSession?.idToken?.payload?.sub ||
+           'N/A';
+  }, [currentUser]);
+
+  // only reformat when the date changes
+  const formattedCreationDate = useMemo(
+    () => formatDate(creationDate),
+    [creationDate]
+  );
+
   // Pre-fill email from user info
   useEffect(() => {
     if (currentUser?.attributes?.email) {
@@ -229,11 +239,17 @@ function AccountDetailsModal({ currentUser, onClose }) {
     };
   }, []);
 
-  return (    <motion.div
+  // memoize tab switch handler
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+  }, []);
+
+  return (
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
       onClick={() => onClose()}
     >
       <motion.div
@@ -241,38 +257,52 @@ function AccountDetailsModal({ currentUser, onClose }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: "spring", bounce: 0.3 }}
-        className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col border border-gray-800/50"
         onClick={(e) => e.stopPropagation()}
         ref={modalRef}
-      >        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-white">Account Details</h2>
+      >
+        {/* Header */}
+        <div className="px-6 py-4 bg-gradient-to-r from-gray-800/50 to-gray-900/50 border-b border-gray-800/80 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-indigo-400">Account Details</h2>
           <button 
             onClick={onClose} 
-            className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-gray-700/50 transition-colors"
+            className="text-gray-400 hover:text-white p-1.5 rounded-full hover:bg-purple-500/20 transition-all duration-200"
             aria-label="Close"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-          {/* Tabs */}
-        <div className="border-b border-gray-800">
+        
+        {/* Tabs */}
+        <div className="border-b border-gray-800/80 bg-gray-900/40">
           <div className="flex px-2">
             <button
-              className={`px-4 py-3 font-medium text-sm ${activeTab === 'profile' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => setActiveTab('profile')}
+              className={`px-4 py-3 font-medium text-sm transition-all duration-200 ${
+                activeTab === 'profile' 
+                  ? 'border-b-2 border-purple-500 text-purple-300' 
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-purple-500/10'
+              }`}
+              onClick={() => handleTabChange('profile')}
             >
               Profile
             </button>
             <button
-              className={`px-4 py-3 font-medium text-sm ${activeTab === 'security' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => setActiveTab('security')}
+              className={`px-4 py-3 font-medium text-sm transition-all duration-200 ${
+                activeTab === 'security' 
+                  ? 'border-b-2 border-purple-500 text-purple-300' 
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-purple-500/10'
+              }`}
+              onClick={() => handleTabChange('security')}
             >
               Security
             </button>
             <button
-              className={`px-4 py-3 font-medium text-sm ${activeTab === 'preferences' ? 'border-b-2 border-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => setActiveTab('preferences')}
+              className={`px-4 py-3 font-medium text-sm transition-all duration-200 ${
+                activeTab === 'preferences' 
+                  ? 'border-b-2 border-purple-500 text-purple-300' 
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-purple-500/10'
+              }`}
+              onClick={() => handleTabChange('preferences')}
             >
               Preferences
             </button>
@@ -280,18 +310,20 @@ function AccountDetailsModal({ currentUser, onClose }) {
         </div>
         
         {/* Content */}
-        <div className="overflow-y-auto custom-scrollbar px-6 py-5 flex-grow">
+        <div className="overflow-y-auto custom-scrollbar px-6 py-5 flex-grow bg-gradient-to-b from-gray-900/80 to-gray-900">
           {activeTab === 'profile' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
-                <h3 className="text-xs sm:text-sm text-gray-400 mb-2">Email</h3>
+              <div className="bg-gray-800/30 hover:bg-gray-800/40 transition-colors duration-200 rounded-lg p-3 sm:p-4 border border-gray-700/30 shadow-sm">
+                <h3 className="text-xs sm:text-sm text-purple-300 mb-2 font-medium">Email</h3>
                 <p className="text-base sm:text-lg text-white break-all">{currentUser?.attributes?.email || currentUser?.signInUserSession?.idToken?.payload?.email || 'N/A'}</p>
               </div>
               
-              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
-                <h3 className="text-xs sm:text-sm text-gray-400 mb-2">Account Status</h3>
+              <div className="bg-gray-800/30 hover:bg-gray-800/40 transition-colors duration-200 rounded-lg p-3 sm:p-4 border border-gray-700/30 shadow-sm">
+                <h3 className="text-xs sm:text-sm text-purple-300 mb-2 font-medium">Account Status</h3>
                 <div className="flex items-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full relative">
+                    <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75" style={{animationDuration: '2s'}}></div>
+                  </div>
                   <p className="ml-2 text-base text-white">Active</p>
                 </div>
               </div>
@@ -300,22 +332,22 @@ function AccountDetailsModal({ currentUser, onClose }) {
           
           {activeTab === 'security' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
-                <h3 className="text-sm text-gray-300 font-medium mb-2">Change Password</h3>
+              <div className="bg-gray-800/30 hover:bg-gray-800/40 transition-colors duration-200 rounded-lg p-3 sm:p-4 border border-gray-700/30 shadow-sm">
+                <h3 className="text-sm text-purple-300 font-medium mb-2">Change Password</h3>
                 <p className="text-gray-400 text-sm mb-3">
                   Update your password while logged in.
                 </p>
                 
                 <button
                   onClick={() => setResetMode('change')}
-                  className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-medium rounded-md shadow-sm transition-all duration-200 transform hover:translate-y-[-1px]"
                 >
                   Change Password
                 </button>
               </div>
               
-              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700/50">
-                <h3 className="text-sm text-gray-300 font-medium mb-2">Forgot Password</h3>
+              <div className="bg-gray-800/30 hover:bg-gray-800/40 transition-colors duration-200 rounded-lg p-3 sm:p-4 border border-gray-700/30 shadow-sm">
+                <h3 className="text-sm text-purple-300 font-medium mb-2">Forgot Password</h3>
                 <p className="text-gray-400 text-sm mb-3">
                   {resetMode === 'request' 
                     ? 'Request a password reset code sent to your email.' 
@@ -559,7 +591,7 @@ function AccountDetailsModal({ currentUser, onClose }) {
                     // Delay slightly to prevent visual conflicts between modals
                     setTimeout(() => document.dispatchEvent(new CustomEvent('open-preferences')), 100);
                   }}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+                  className="px-6 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 text-sm shadow-md hover:shadow-lg transform hover:translate-y-[-1px]"
                 >
                   Edit Preferences
                 </button>
@@ -567,11 +599,12 @@ function AccountDetailsModal({ currentUser, onClose }) {
             </div>
           )}
         </div>
-          {/* Footer */}
-        <div className="bg-gray-800/80 backdrop-blur-sm px-6 py-4 border-t border-gray-700/50 flex justify-end">
+        
+        {/* Footer */}
+        <div className="bg-gradient-to-r from-gray-800/40 to-gray-900/40 backdrop-blur-sm px-6 py-4 border-t border-gray-700/30 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white rounded-md text-sm font-medium transition-all duration-200 shadow-sm"
           >
             Close
           </button>
