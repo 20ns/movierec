@@ -361,7 +361,7 @@ function AppContent() {
   const renderMainContent = () => {
     if (!isAuthenticated && initialAppLoadComplete) {
       logApp('Render: Landing Page');
-      return <LandingPage onSignInClick={handleSignInClick} />;
+      return <LandingPage onSignInClick={handleSignInClick} onSignUpClick={handleSignUpClick} />;
     }
 
     if (showPageLoading) {

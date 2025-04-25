@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilmIcon as FilmOutlineIcon } from '@heroicons/react/24/outline';
 import { FilmIcon, SparklesIcon, ArrowRightIcon, UserGroupIcon, LightBulbIcon, ShieldCheckIcon, AdjustmentsHorizontalIcon, HeartIcon, ClockIcon, RocketLaunchIcon, StarIcon } from '@heroicons/react/24/solid';
 
-const LandingPage = ({ onSignInClick }) => {
+const LandingPage = ({ onSignInClick, onSignUpClick }) => {
   // Track current testimonial for mobile slider
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const testimonials = [
@@ -93,7 +93,7 @@ const LandingPage = ({ onSignInClick }) => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4 mb-2">
             <motion.button
-              onClick={onSignInClick}
+              onClick={onSignUpClick}
               className="group bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3.5 rounded-lg font-medium text-lg flex items-center justify-center space-x-2 transform transition-all duration-300 shadow-lg shadow-indigo-900/30 w-full sm:w-auto" 
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
@@ -212,7 +212,7 @@ const LandingPage = ({ onSignInClick }) => {
         </div>
         
         <div className="flex flex-wrap justify-center sm:justify-end gap-4 md:gap-6">
-          {[
+          {[ 
             { label: "Personalized", value: "100%", icon: <AdjustmentsHorizontalIcon className="h-4 w-4 text-indigo-400 mr-1" /> },
             { label: "Setup Time", value: "2 Min", icon: <ClockIcon className="h-4 w-4 text-purple-400 mr-1" /> },
             { label: "Privacy-Focused", value: "Always", icon: <ShieldCheckIcon className="h-4 w-4 text-blue-400 mr-1" /> }
@@ -223,7 +223,7 @@ const LandingPage = ({ onSignInClick }) => {
               </p>
               <p className="text-xs text-gray-400">{feature.label}</p>
             </div>
-          ))}
+          ))} 
         </div>
       </motion.div>
 
@@ -245,7 +245,7 @@ const LandingPage = ({ onSignInClick }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
-          {[
+          {[ 
             {
               icon: <AdjustmentsHorizontalIcon className="h-8 w-8 text-white" />,
               color: "from-blue-600 to-cyan-600",
@@ -284,7 +284,7 @@ const LandingPage = ({ onSignInClick }) => {
                 </p>
               </div>
             </motion.div>
-          ))}
+          ))} 
         </div>
       </motion.div>
 
@@ -314,7 +314,7 @@ const LandingPage = ({ onSignInClick }) => {
                 variants={containerVariants}
                 className="space-y-4"
               >
-                {[
+                {[ 
                   { 
                     icon: "🎯", 
                     title: "Be Authentic", 
@@ -343,7 +343,7 @@ const LandingPage = ({ onSignInClick }) => {
                       <p className="text-gray-300 text-sm md:text-base">{tip.text}</p>
                     </div>
                   </motion.li>
-                ))}
+                ))} 
               </motion.ul>
               
               <motion.div 
@@ -351,7 +351,7 @@ const LandingPage = ({ onSignInClick }) => {
                 className="mt-8 inline-block"
               >
                 <button 
-                  onClick={onSignInClick}
+                  onClick={onSignUpClick}
                   className="text-indigo-300 hover:text-indigo-200 font-medium flex items-center space-x-2 group"
                 >
                   <span>Create your taste profile</span>
@@ -379,7 +379,7 @@ const LandingPage = ({ onSignInClick }) => {
                     <div className="flex flex-wrap gap-2">
                       {["Sci-Fi", "Psychological Thriller", "Dark Comedy", "Neo-Noir"].map(genre => (
                         <span key={genre} className="px-2.5 py-1 bg-indigo-900/70 rounded-full text-xs text-indigo-200 font-medium">{genre}</span>
-                      ))}
+                      ))} 
                     </div>
                   </div>
                   
@@ -391,7 +391,7 @@ const LandingPage = ({ onSignInClick }) => {
                     <div className="flex flex-wrap gap-2">
                       {["Mind-bending", "Atmospheric", "Thought-provoking", "Tense"].map(mood => (
                         <span key={mood} className="px-2.5 py-1 bg-purple-900/70 rounded-full text-xs text-purple-200 font-medium">{mood}</span>
-                      ))}
+                      ))} 
                     </div>
                   </div>
                   
@@ -527,20 +527,20 @@ const LandingPage = ({ onSignInClick }) => {
               <div className="mb-4 flex">
                 {[...Array(5)].map((_, i) => (
                   <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
-                ))}
+                ))} 
               </div>
               
               <p className="text-gray-300 text-sm md:text-base flex-grow">"{testimonial.text}"</p>
               
               <a 
                 href="#" 
-                onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+                onClick={(e) => { e.preventDefault(); onSignUpClick(); }}
                 className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center justify-center"
               >
                 Experience it yourself <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </a>
             </motion.div>
-          ))}
+          ))} 
         </div>
 
         {/* Mobile Experience Slider */}
@@ -569,14 +569,14 @@ const LandingPage = ({ onSignInClick }) => {
                   <div className="mb-4 flex">
                     {[...Array(5)].map((_, i) => (
                       <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
-                    ))}
+                    ))} 
                   </div>
                   
                   <p className="text-gray-300 text-base">{testimonials[activeTestimonial].text}</p>
                   
                   <a 
                     href="#" 
-                    onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+                    onClick={(e) => { e.preventDefault(); onSignUpClick(); }}
                     className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center justify-center"
                   >
                     Experience it yourself <ArrowRightIcon className="w-4 h-4 ml-1" />
@@ -592,14 +592,14 @@ const LandingPage = ({ onSignInClick }) => {
                     className={`w-2 h-2 rounded-full transition-colors ${idx === activeTestimonial ? 'bg-indigo-500' : 'bg-gray-600'}`}
                     aria-label={`View experience ${idx + 1}`}
                   />
-                ))}
+                ))} 
               </div>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Update all CTA buttons to be more link-like */}
+      {/* Final CTA */}
       <motion.div
         className="bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden shadow-2xl border border-indigo-800/50"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -658,7 +658,7 @@ const LandingPage = ({ onSignInClick }) => {
           >
             <a 
               href="#" 
-              onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+              onClick={(e) => { e.preventDefault(); onSignUpClick(); }}
               className="bg-white text-indigo-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-indigo-50 transition-colors shadow-xl group inline-block"
             >
               <motion.span 
