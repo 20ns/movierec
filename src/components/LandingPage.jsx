@@ -8,25 +8,25 @@ const LandingPage = ({ onSignInClick }) => {
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const testimonials = [
     {
-      name: "Early Access",
+      name: "Personalized",
       avatar: "1",
-      role: "What You Can Expect",
+      role: "The Experience",
       color: "bg-gradient-to-br from-pink-600 to-rose-500",
-      text: "Discover amazing films you would've never found scrolling endlessly through streaming services."
+      text: "Discover films that match your unique taste profile, not just what's trending or popular."
     },
     {
-      name: "Personalized",
+      name: "Intelligent",
       avatar: "2",
-      role: "How It Will Feel",
+      role: "The Technology",
       color: "bg-gradient-to-br from-indigo-600 to-blue-500",
-      text: "Like having a friend who knows your taste perfectly and only suggests movies you'll love."
+      text: "Our algorithm learns from your preferences to suggest movies that align with your specific tastes."
     },
     {
       name: "Time-Saving",
       avatar: "3",
-      role: "The Difference",
+      role: "The Benefit",
       color: "bg-gradient-to-br from-teal-600 to-emerald-500",
-      text: "Spend less time choosing what to watch and more time enjoying great films that match your taste."
+      text: "Stop wasting time browsing through endless options. Find movies you'll actually enjoy watching."
     }
   ];
 
@@ -72,22 +72,22 @@ const LandingPage = ({ onSignInClick }) => {
           transition={{ delay: 0.2 }}
         >
           <div className="inline-block px-3 py-1.5 mb-4 md:mb-6 text-xs font-semibold text-indigo-100 bg-gradient-to-r from-indigo-900 to-purple-900 rounded-full shadow-sm">
-            <span className="animate-pulse inline-block h-2 w-2 rounded-full bg-indigo-400 mr-2"></span>
-            Coming Soon - Early Access Available
+            <span className="inline-block h-2 w-2 rounded-full bg-indigo-400 mr-2"></span>
+            Film Recommendations Done Right
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-            Stop Watching <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400">Disappointing Films</span> Forever
+            Find Movies You'll <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400">Actually Love</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-300 mb-6 max-w-lg mx-auto md:mx-0"> 
-            Our AI learns your specific taste to recommend only movies you'll genuinely enjoy — save time and never waste an evening on the wrong film again.
+            Our intelligent algorithm learns your taste to recommend films you'll genuinely enjoy — never waste another evening on the wrong movie.
           </p>
 
           <div className="flex flex-wrap items-center justify-center md:justify-start space-x-1 sm:space-x-2 mb-8">
             <div className="flex items-center">
-              <RocketLaunchIcon className="h-5 w-5 text-indigo-400 mr-2" />
-              <p className="text-sm md:text-base"><span className="font-semibold text-indigo-300">Be among the first</span> <span className="text-gray-400">to experience personalized movie recommendations</span></p>
+              <LightBulbIcon className="h-5 w-5 text-indigo-400 mr-2" />
+              <p className="text-sm md:text-base"><span className="font-semibold text-indigo-300">Smart recommendations</span> <span className="text-gray-400">based on your unique preferences</span></p>
             </div>
           </div>
 
@@ -98,18 +98,12 @@ const LandingPage = ({ onSignInClick }) => {
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >
-              <span>Join Early Access</span>
+              <span>Get Started</span>
               <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </motion.button>
             <div className="flex items-center space-x-2">
               <ClockIcon className="h-4 w-4 text-indigo-400" />
               <p className="text-xs text-gray-400">2-minute setup • No credit card</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-center md:justify-start mt-6 text-xs">
-            <div className="px-2 py-1 bg-indigo-900/40 rounded-md text-indigo-300">
-              <span className="font-medium">Limited Early Access</span> - Sign up now to reserve your spot
             </div>
           </div>
         </motion.div>
@@ -203,7 +197,7 @@ const LandingPage = ({ onSignInClick }) => {
         </motion.div>
       </div>
 
-      {/* Enhanced Value Proposition Bar (replaced social proof) */}
+      {/* Value Proposition Bar */}
       <motion.div
         className="flex flex-col sm:flex-row flex-wrap justify-between items-center gap-4 sm:gap-8 mb-16 md:mb-24 py-6 px-6 md:px-8 bg-gradient-to-r from-gray-900/80 to-gray-800/80 rounded-xl text-center sm:text-left backdrop-blur-sm shadow-xl border border-gray-700/50"
         initial={{ opacity: 0, y: 20 }}
@@ -213,15 +207,15 @@ const LandingPage = ({ onSignInClick }) => {
         <div className="flex items-center gap-3">
           <SparklesIcon className="h-6 w-6 text-indigo-400" />
           <p className="text-sm sm:text-base text-white font-medium">
-            Revolutionary AI-powered movie recommendation platform
+            AI-powered film recommendations tailored to your taste
           </p>
         </div>
         
         <div className="flex flex-wrap justify-center sm:justify-end gap-4 md:gap-6">
           {[
-            { label: "Movie Database", value: "Extensive", icon: <FilmIcon className="h-4 w-4 text-indigo-400 mr-1" /> },
-            { label: "Time Saving", value: "Significant", icon: <ClockIcon className="h-4 w-4 text-purple-400 mr-1" /> },
-            { label: "Personalization", value: "Advanced", icon: <AdjustmentsHorizontalIcon className="h-4 w-4 text-blue-400 mr-1" /> }
+            { label: "Personalized", value: "100%", icon: <AdjustmentsHorizontalIcon className="h-4 w-4 text-indigo-400 mr-1" /> },
+            { label: "Setup Time", value: "2 Min", icon: <ClockIcon className="h-4 w-4 text-purple-400 mr-1" /> },
+            { label: "Privacy-Focused", value: "Always", icon: <ShieldCheckIcon className="h-4 w-4 text-blue-400 mr-1" /> }
           ].map((feature, index) => (
             <div key={index} className="text-center">
               <p className="text-sm sm:text-base font-bold text-white flex items-center justify-center">
@@ -233,7 +227,7 @@ const LandingPage = ({ onSignInClick }) => {
         </div>
       </motion.div>
 
-      {/* How It Works - Enhanced with more visual appeal */}
+      {/* How It Works */}
       <motion.div
         className="mb-24"
         initial="hidden"
@@ -246,30 +240,29 @@ const LandingPage = ({ onSignInClick }) => {
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">How</span> It Works
           </h2>
           <p className="text-gray-300 max-w-2xl mx-auto text-base md:text-lg">
-            Three simple steps to transform your watching experience
+            Three simple steps to transform your movie-watching experience
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
           {[
-
             {
               icon: <AdjustmentsHorizontalIcon className="h-8 w-8 text-white" />,
               color: "from-blue-600 to-cyan-600",
-              title: "1. Share Your Taste",
-              description: "Quick questions about what you love, hate, and want to discover."
-            },
-            {
-              icon: <LightBulbIcon className="h-8 w-8 text-white" />,
-              color: "from-purple-600 to-pink-600",
-              title: "2. AI Works Its Magic",
-              description: "Our algorithm finds perfect matches based on your unique taste profile."
+              title: "1. Set Your Preferences",
+              description: "Tell us what you enjoy watching. The more specific, the better your recommendations."
             },
             {
               icon: <HeartIcon className="h-8 w-8 text-white" />,
+              color: "from-purple-600 to-pink-600",
+              title: "2. Add Favorites",
+              description: "Mark films you've loved in the past so our algorithm can learn your taste patterns."
+            },
+            {
+              icon: <FilmIcon className="h-8 w-8 text-white" />,
               color: "from-rose-600 to-red-600",
-              title: "3. Love What You Watch",
-              description: "Discover films that resonate with you personally, not just what's trending."
+              title: "3. Get Recommendations",
+              description: "Receive personalized film suggestions that match your unique preferences."
             }
           ].map((step, index) => (
             <motion.div
@@ -289,18 +282,13 @@ const LandingPage = ({ onSignInClick }) => {
                 <p className="text-white/90 flex-grow">
                   {step.description}
                 </p>
-                <div className="mt-6 opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium text-white flex justify-center">
-                  <span className="flex items-center">
-                    Learn more <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </div>
               </div>
             </motion.div>
           ))}
         </div>
       </motion.div>
 
-      {/* Expanded Preferences Guide - More visual */}
+      {/* Preferences Guide */}
       <motion.div
         className="mb-24 rounded-2xl overflow-hidden relative"
         initial="hidden"
@@ -315,11 +303,11 @@ const LandingPage = ({ onSignInClick }) => {
           <div className="flex flex-col lg:flex-row gap-8 md:gap-12 items-center">
             <div className="flex-1">
               <motion.h2 variants={itemVariants} className="text-2xl md:text-3xl font-bold text-white mb-6">
-                Get Perfect Recommendations <span className="block text-sm font-normal text-indigo-300 mt-1">The More We Know, The Better We Match</span>
+                Thoughtful Recommendations <span className="block text-sm font-normal text-indigo-300 mt-1">The More You Share, The Better We Match</span>
               </motion.h2>
               
               <motion.p variants={itemVariants} className="text-gray-300 mb-8 text-base md:text-lg">
-                Our AI needs your honest preferences to work its magic. Here's how to get recommendations that feel hand-picked just for you:
+                Our algorithm needs your honest preferences to work effectively. Here's how to get recommendations that truly reflect your taste:
               </motion.p>
 
               <motion.ul
@@ -327,26 +315,25 @@ const LandingPage = ({ onSignInClick }) => {
                 className="space-y-4"
               >
                 {[
-
                   { 
                     icon: "🎯", 
                     title: "Be Authentic", 
-                    text: "Tell us what you truly enjoy, not what you think sounds impressive" 
+                    text: "Share your genuine preferences rather than what you think you should like" 
                   },
                   { 
                     icon: "🔎", 
                     title: "Be Specific", 
-                    text: "The details matter - include eras, moods and storytelling styles you love" 
+                    text: "Include details about genres, directors, and storytelling styles you enjoy" 
                   },
                   { 
                     icon: "⚖️", 
-                    title: "Include Variety", 
-                    text: "Mix mainstream favorites with guilty pleasures for balanced results" 
+                    title: "Be Comprehensive", 
+                    text: "Add both mainstream favorites and lesser-known films you've enjoyed" 
                   },
                   { 
                     icon: "🔄", 
                     title: "Keep Updating", 
-                    text: "Rate what you watch to continuously improve your recommendations" 
+                    text: "Rate films after watching to continuously refine your recommendations" 
                   },
                 ].map((tip, index) => (
                   <motion.li key={index} variants={itemVariants} className="flex items-start">
@@ -367,7 +354,7 @@ const LandingPage = ({ onSignInClick }) => {
                   onClick={onSignInClick}
                   className="text-indigo-300 hover:text-indigo-200 font-medium flex items-center space-x-2 group"
                 >
-                  <span>Create your taste profile now</span>
+                  <span>Create your taste profile</span>
                   <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
               </motion.div>
@@ -380,7 +367,7 @@ const LandingPage = ({ onSignInClick }) => {
               <div className="bg-gray-900/90 backdrop-blur-sm p-6 rounded-xl border border-indigo-900/50 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">Your Taste Profile</h3>
-                  <span className="text-xs font-medium px-2 py-1 bg-indigo-900/50 rounded-full text-indigo-300">Premium</span>
+                  <span className="text-xs font-medium px-2 py-1 bg-indigo-900/50 rounded-full text-indigo-300">Personalized</span>
                 </div>
                 
                 <div className="space-y-4">
@@ -436,7 +423,7 @@ const LandingPage = ({ onSignInClick }) => {
         </div>
       </motion.div>
 
-      {/* Features Section - More benefit-focused */}
+      {/* Features Section */}
       <motion.div
         className="mb-24"
         initial="hidden"
@@ -446,10 +433,10 @@ const LandingPage = ({ onSignInClick }) => {
       >
         <div className="text-center mb-12 md:mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Why</span> You'll Love Us
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Key</span> Benefits
           </h2>
           <p className="text-gray-300 max-w-2xl mx-auto text-base md:text-lg">
-            Discover what sets our recommendations apart from the rest
+            What makes our recommendation system different
           </p>
         </div>
         
@@ -462,9 +449,9 @@ const LandingPage = ({ onSignInClick }) => {
             <div className="bg-gradient-to-br from-indigo-600 to-blue-600 w-14 h-14 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
               <SparklesIcon className="h-7 w-7 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3 group-hover:text-indigo-300 transition-colors">Beyond Algorithms</h3>
+            <h3 className="text-xl font-bold text-white mb-3 group-hover:text-indigo-300 transition-colors">Intelligent Matching</h3>
             <p className="text-gray-300 text-sm md:text-base group-hover:text-gray-200 transition-colors">
-              Our AI understands the <span className="font-medium text-indigo-300">emotional impact</span> you're looking for, not just basic genre matching. It's like having a film expert who knows you personally.
+              Our algorithm looks beyond basic genres to understand the <span className="font-medium text-indigo-300">emotional elements</span> and storytelling patterns that resonate with you personally.
             </p>
           </motion.div>
 
@@ -478,7 +465,7 @@ const LandingPage = ({ onSignInClick }) => {
             </div>
             <h3 className="text-xl font-bold text-white mb-3 group-hover:text-purple-300 transition-colors">Discover Hidden Gems</h3>
             <p className="text-gray-300 text-sm md:text-base group-hover:text-gray-200 transition-colors">
-              Unearth <span className="font-medium text-purple-300">exceptional films</span> that perfectly match your taste but never made it to the mainstream algorithms. No more scrolling past the same recommendations.
+              Find <span className="font-medium text-purple-300">exceptional films</span> that match your taste but don't typically appear in mainstream recommendations or popularity-based lists.
             </p>
           </motion.div>
 
@@ -490,15 +477,15 @@ const LandingPage = ({ onSignInClick }) => {
             <div className="bg-gradient-to-br from-blue-600 to-cyan-600 w-14 h-14 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
               <ShieldCheckIcon className="h-7 w-7 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-300 transition-colors">Private & Transparent</h3>
+            <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-300 transition-colors">Privacy-Focused</h3>
             <p className="text-gray-300 text-sm md:text-base group-hover:text-gray-200 transition-colors">
-              Your data is <span className="font-medium text-blue-300">never sold</span> or shared. We clearly explain why each film is recommended, so you understand the match—not a black box algorithm.
+              Your preference data is <span className="font-medium text-blue-300">used only for recommendations</span>. We explain why each film is suggested, giving you transparency and control.
             </p>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Modified Testimonials - Now Early Access Preview */}
+      {/* Experience Overview */}
       <motion.div
         className="mb-24 relative"
         initial="hidden"
@@ -509,12 +496,12 @@ const LandingPage = ({ onSignInClick }) => {
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 to-purple-900/20 rounded-3xl transform scale-95 blur-3xl -z-10"></div>
         
         <motion.div variants={itemVariants} className="text-center mb-12">
-          <span className="block text-sm font-medium text-indigo-400 mb-2">WHAT TO EXPECT</span>
+          <span className="block text-sm font-medium text-indigo-400 mb-2">THE EXPERIENCE</span>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            The Experience
+            What to Expect
           </h2>
           <p className="text-gray-300 max-w-2xl mx-auto text-base">
-            Here's what you can look forward to as an early user
+            Here's what you'll gain when you use our platform
           </p>
         </motion.div>
 
@@ -546,10 +533,6 @@ const LandingPage = ({ onSignInClick }) => {
               </div>
               
               <p className="text-gray-300 text-sm md:text-base flex-grow">"{testimonial.text}"</p>
-              
-              <div className="mt-4 pt-4 border-t border-gray-700/50 text-xs text-indigo-300">
-                Get early access today
-              </div>
             </motion.div>
           ))}
         </div>
@@ -604,7 +587,7 @@ const LandingPage = ({ onSignInClick }) => {
         </div>
       </motion.div>
 
-      {/* Enhanced CTA Section - Modified for early access */}
+      {/* CTA Section */}
       <motion.div
         className="bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden shadow-2xl border border-indigo-800/50"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -647,14 +630,11 @@ const LandingPage = ({ onSignInClick }) => {
             whileInView={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <span className="inline-block px-3 py-1 text-xs font-semibold text-white bg-white/10 rounded-full mb-4">
-              <RocketLaunchIcon className="h-4 w-4 inline mr-1" /> Early Access Launch
-            </span>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-              Your Perfect Movie Night is <span className="text-indigo-300">Waiting</span>
+              Find Movies You'll <span className="text-indigo-300">Actually Enjoy</span>
             </h2>
             <p className="text-lg text-indigo-100 mb-8 max-w-2xl mx-auto">
-              No more wasted evenings on disappointing films. Be one of the first to experience our personalized recommendation engine.
+              Stop wasting evenings on disappointing films. Create your personal taste profile and start getting recommendations that match your preferences.
             </p>
           </motion.div>
           
@@ -670,28 +650,19 @@ const LandingPage = ({ onSignInClick }) => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              Get Early Access
-              <span className="block text-xs font-normal text-indigo-600 mt-1">2-minute setup • Priority access</span>
+              Start Finding Better Movies
+              <span className="block text-xs font-normal text-indigo-600 mt-1">Takes just 2 minutes to set up</span>
             </motion.button>
             
             <div className="px-4 py-2 bg-white/10 rounded-lg">
               <div className="flex items-center justify-center">
-                <LightBulbIcon className="h-5 w-5 text-yellow-400 mr-2" />
+                <ShieldCheckIcon className="h-5 w-5 text-blue-400 mr-2" />
                 <div className="text-sm text-white">
-                  <span className="font-medium">Limited spots available</span> for beta testers
+                  <span className="font-medium">Privacy focused</span> recommendations
                 </div>
               </div>
             </div>
           </motion.div>
-          
-          <motion.p 
-            className="mt-6 text-sm text-indigo-200/80"
-            initial={{ y: 20, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.6 }}
-          >
-            Early users will receive exclusive features and priority support
-          </motion.p>
         </div>
       </motion.div>
     </motion.div>
