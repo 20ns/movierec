@@ -352,7 +352,8 @@ function AppContent() {
   }, [currentUser, fetchUserPreferences, location.pathname, navigate, showToast]);
 
   // --- Navigation Handlers ---
-  const handleSignInClick = useCallback(() => navigate('/auth'), [navigate]);
+  const handleSignInClick = useCallback(() => navigate('/signin'), [navigate]);
+  const handleSignUpClick = useCallback(() => navigate('/signup'), [navigate]);
 
   // --- Render Logic ---  // Modified to ensure it doesn't stay in loading state forever
   const showPageLoading = !initialAppLoadComplete || (isAuthenticated && preferencesLoading && refreshCycleRef.current < 3);
@@ -639,7 +640,11 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {location.pathname !== '/onboarding' && location.pathname !== '/auth' && (        <Header
+      {location.pathname !== '/onboarding' && 
+       location.pathname !== '/auth' && 
+       location.pathname !== '/signup' && 
+       location.pathname !== '/signin' && (
+        <Header
           isAuthenticated={isAuthenticated}
           currentUser={currentUser}
           onSignout={handleSignout}
@@ -714,6 +719,26 @@ function AppContent() {
             element={
               !isAuthenticated && initialAppLoadComplete ? (
                 <AuthPage onSignupSuccess={handleCustomSigninSuccess} onSigninSuccess={handleCustomSigninSuccess} />
+              ) : isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : null
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              !isAuthenticated && initialAppLoadComplete ? (
+                <AuthPage onSignupSuccess={handleCustomSigninSuccess} onSigninSuccess={handleCustomSigninSuccess} initialMode="signup" />
+              ) : isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : null
+            }
+          />
+          <Route
+            path="/signin"
+            element={
+              !isAuthenticated && initialAppLoadComplete ? (
+                <AuthPage onSignupSuccess={handleCustomSigninSuccess} onSigninSuccess={handleCustomSigninSuccess} initialMode="signin" />
               ) : isAuthenticated ? (
                 <Navigate to="/" replace />
               ) : null

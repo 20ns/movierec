@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Auth } from 'aws-amplify';
 import { motion, AnimatePresence } from 'framer-motion';
 
-function AuthPage({ onSignupSuccess, onSigninSuccess }) {
-  const [isSigningUp, setIsSigningUp] = useState(false);
+function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) {
+  const [isSigningUp, setIsSigningUp] = useState(initialMode === 'signup');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +22,16 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Update the mode when the route changes
+  useEffect(() => {
+    if (location.pathname === '/signup') {
+      setIsSigningUp(true);
+    } else if (location.pathname === '/signin') {
+      setIsSigningUp(false);
+    }
+  }, [location.pathname]);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -492,7 +502,8 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
                         </svg>
                       ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                          <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
                         </svg>
                       )}
                     </button>
@@ -510,7 +521,10 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
                 <motion.div variants={itemVariants} className="mt-4 text-center">
                   <button
                     type="button"
-                    onClick={() => setIsSigningUp(false)}
+                    onClick={() => {
+                      setIsSigningUp(false);
+                      navigate('/signin');
+                    }}
                     className="text-sm text-indigo-400 hover:text-indigo-300 focus:outline-none"
                   >
                     Already have an account? Sign in
@@ -635,7 +649,8 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
                         </svg>
                       ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                          <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
                         </svg>
                       )}
                     </button>
@@ -653,7 +668,10 @@ function AuthPage({ onSignupSuccess, onSigninSuccess }) {
                 <motion.div variants={itemVariants} className="mt-4 text-center">
                   <button
                     type="button"
-                    onClick={() => setIsSigningUp(true)}
+                    onClick={() => {
+                      setIsSigningUp(true);
+                      navigate('/signup');
+                    }}
                     className="text-sm text-indigo-400 hover:text-indigo-300 focus:outline-none"
                   >
                     Don't have an account? Sign up
