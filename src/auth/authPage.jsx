@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Auth } from 'aws-amplify';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -217,8 +217,10 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
-            MovieRec
+          <h1 className="text-4xl font-bold">
+            <Link to="/" className="bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400 hover:from-purple-600 hover:to-indigo-500 transition-colors">
+              MovieRec
+            </Link>
           </h1>
           <p className="mt-2 text-gray-300">
             {isForgotPassword ? (resetCodeSent ? 'Reset Your Password' : 'Forgot Password') :
@@ -425,7 +427,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
               >
                 <motion.div className="mb-4" variants={itemVariants}>
                   <h3 className="text-xl font-bold text-white mb-1">Create Your Account</h3>
-                  <p className="text-sm text-gray-400">Join MovieRec to get personalized recommendations</p>
+                  <p className="text-sm text-gray-400">Join <Link to="/" className="text-indigo-400 hover:text-indigo-300 transition-colors">MovieRec</Link> to get personalized recommendations</p>
                 </motion.div>
                 <motion.div variants={itemVariants}>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-300">Email Address</label>
