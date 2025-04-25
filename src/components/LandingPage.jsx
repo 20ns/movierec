@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FilmIcon, SparklesIcon, ArrowRightIcon, UserGroupIcon, LightBulbIcon, ShieldCheckIcon, AdjustmentsHorizontalIcon, HeartIcon, ClockIcon, RocketLaunchIcon } from '@heroicons/react/24/solid';
-import { StarIcon, FilmIcon as FilmOutlineIcon } from '@heroicons/react/24/outline';
+import { FilmIcon as FilmOutlineIcon } from '@heroicons/react/24/outline';
+import { FilmIcon, SparklesIcon, ArrowRightIcon, UserGroupIcon, LightBulbIcon, ShieldCheckIcon, AdjustmentsHorizontalIcon, HeartIcon, ClockIcon, RocketLaunchIcon, StarIcon } from '@heroicons/react/24/solid';
 
 const LandingPage = ({ onSignInClick }) => {
   // Track current testimonial for mobile slider
@@ -524,15 +524,21 @@ const LandingPage = ({ onSignInClick }) => {
                 </div>
               </div>
               
-              <div className="mb-4">
-                <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
+              <div className="mb-4 flex">
+                {[...Array(5)].map((_, i) => (
+                  <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
+                ))}
               </div>
               
               <p className="text-gray-300 text-sm md:text-base flex-grow">"{testimonial.text}"</p>
+              
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+                className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center justify-center"
+              >
+                Experience it yourself <ArrowRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+              </a>
             </motion.div>
           ))}
         </div>
@@ -560,15 +566,21 @@ const LandingPage = ({ onSignInClick }) => {
                     </div>
                   </div>
                   
-                  <div className="mb-4">
-                    <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                    <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                    <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                    <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
-                    <StarIcon className="inline-block h-5 w-5 text-indigo-400" />
+                  <div className="mb-4 flex">
+                    {[...Array(5)].map((_, i) => (
+                      <StarIcon key={i} className="h-5 w-5 text-yellow-400" />
+                    ))}
                   </div>
                   
                   <p className="text-gray-300 text-base">{testimonials[activeTestimonial].text}</p>
+                  
+                  <a 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+                    className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center justify-center"
+                  >
+                    Experience it yourself <ArrowRightIcon className="w-4 h-4 ml-1" />
+                  </a>
                 </motion.div>
               </AnimatePresence>
               
@@ -587,7 +599,7 @@ const LandingPage = ({ onSignInClick }) => {
         </div>
       </motion.div>
 
-      {/* CTA Section */}
+      {/* Update all CTA buttons to be more link-like */}
       <motion.div
         className="bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden shadow-2xl border border-indigo-800/50"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -644,15 +656,21 @@ const LandingPage = ({ onSignInClick }) => {
             whileInView={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            <motion.button
-              onClick={onSignInClick}
-              className="bg-white text-indigo-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-indigo-50 transition-colors shadow-xl group"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
+            <a 
+              href="#" 
+              onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+              className="bg-white text-indigo-700 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-indigo-50 transition-colors shadow-xl group inline-block"
             >
-              Start Finding Better Movies
+              <motion.span 
+                className="inline-flex items-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Start Finding Better Movies
+                <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </motion.span>
               <span className="block text-xs font-normal text-indigo-600 mt-1">Takes just 2 minutes to set up</span>
-            </motion.button>
+            </a>
             
             <div className="px-4 py-2 bg-white/10 rounded-lg">
               <div className="flex items-center justify-center">
@@ -663,6 +681,21 @@ const LandingPage = ({ onSignInClick }) => {
               </div>
             </div>
           </motion.div>
+          
+          <motion.p 
+            className="mt-4 text-sm text-indigo-200"
+            initial={{ y: 20, opacity: 0 }}
+            whileInView={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            Already have an account? <a 
+              href="#" 
+              onClick={(e) => { e.preventDefault(); onSignInClick(); }}
+              className="text-white underline hover:text-indigo-300 transition-colors"
+            >
+              Sign in here
+            </a>
+          </motion.p>
         </div>
       </motion.div>
     </motion.div>
