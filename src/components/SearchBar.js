@@ -1,4 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, {
+  useState, useMemo, useEffect, useRef,
+  useCallback, lazy, Suspense
+} from 'react';
+import throttle from 'lodash.throttle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiltersSection } from './FiltersSection';
 import { SearchInput } from './SearchInput';
@@ -17,7 +21,8 @@ import {
   ChevronDownIcon
 } from '@heroicons/react/24/solid';
 import { formatQueryIntentSummary } from './SearchBarUtils';
-import MediaCard from './MediaCard';
+
+const LazyMediaCard = lazy(() => import('./MediaCard'));
 
 export const SearchBar = ({ currentUser }) => {
   // State management
@@ -52,9 +57,27 @@ export const SearchBar = ({ currentUser }) => {
 
   // Add ref to track if initial URL search is being performed
   const isInitialUrlSearch = useRef(false);
+
+  // Effect to lock/unlock body scroll when search results are expanded/collapsed
+  useEffect(() => {
+    const body = document.body;
+    // Lock body scroll when search is expanded and has results or is loading
+    if (isExpanded && (hasSearched || isLoading)) {
+      const originalOverflow = body.style.overflow;
+      body.style.overflow = 'hidden';
+      
+      // Cleanup function to restore original overflow style
+      return () => {
+        body.style.overflow = originalOverflow || ''; // Restore or set to default
+      };
+    } else {
+      // Ensure body scroll is enabled if conditions are not met
+      body.style.overflow = ''; 
+    }
+  }, [isExpanded, hasSearched, isLoading]); // Re-run effect when these states change
   
   // Function to handle search with URL update
-  const handleSearchWithUrlUpdate = (e) => {
+  const handleSearchWithUrlUpdate = useCallback((e) => {
     e?.preventDefault();
     
     // Auto-expand search interface when search is performed
@@ -81,14 +104,14 @@ export const SearchBar = ({ currentUser }) => {
     } else {
       isInitialUrlSearch.current = false;
     }
-  };
+  }, [query, activeFilters, handleSearch]);
   
   // Function to handle result click with redirect
-  const handleResultClickWithRedirect = (item) => {
+  const handleResultClickWithRedirect = useCallback((item) => {
     handleResultClick(item);
     // Short delay before redirect
-    setTimeout(() => window.location.href = '/', 100);
-  };
+    setTimeout(() => { window.location.href = '/'; }, 100);
+  }, [handleResultClick]);
   
   // Read URL parameters on component mount
   useEffect(() => {
@@ -147,36 +170,34 @@ export const SearchBar = ({ currentUser }) => {
   }, [filteredResults, currentPage]);
 
   // Page change handler
-  const handlePageChange = (pageNum) => {
+  const handlePageChange = useCallback((pageNum) => {
     setCurrentPage(pageNum);
-    // Scroll back to top of results
-    document.querySelector('.search-results-container')?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
-  };
-
-  // Scroll tracking for showing the back-to-top button
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 500) {
-        setShowBackToTop(true);
-      } else {
-        setShowBackToTop(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Scroll back to top of results container, not the whole window
+    const resultsContainer = document.querySelector('.search-results-container');
+    if (resultsContainer) {
+      resultsContainer.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
   }, []);
 
-  // Scroll to top function
-  const scrollToTop = () => {
+  // Scroll tracking for showing the back-to-top button (within the main window)
+  useEffect(() => {
+    const onScroll = throttle(() => {
+      setShowBackToTop(window.scrollY > 500);
+    }, 200);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Scroll to top function (for the main window)
+  const scrollToTop = useCallback(() => {
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
     });
-  };
+  }, []);
 
   // Extract query intent from results
   const queryIntent = useMemo(() => {
@@ -240,90 +261,51 @@ export const SearchBar = ({ currentUser }) => {
   }, [displayedResults, queryIntent, exactMatches, isDirectSearch]);
 
   // Updated pagination controls with improved design
-  const PaginationControls = () => {
+  const PaginationControls = React.memo(({ totalPages, currentPage, onPageChange }) => {
     if (totalPages <= 1) return null;
     
     return (
-      <div className="flex justify-center my-4 sm:my-6">
-        <nav className="inline-flex rounded-md shadow-lg -space-x-px" aria-label="Pagination">
+      <div className="flex justify-center my-2 sm:my-3">
+        <nav className="inline-flex rounded-lg bg-gray-800 overflow-hidden shadow-lg" aria-label="Pagination">
           <button
-            onClick={() => handlePageChange(currentPage - 1)}
+            onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`relative inline-flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-l-md border 
-              ${currentPage === 1 
-                ? 'border-gray-700 bg-gray-800/70 text-gray-500 cursor-not-allowed' 
-                : 'border-gray-600 bg-gray-700/80 text-gray-300 hover:bg-indigo-600/70 hover:text-white transition-all'
-              }`}
+            className="px-4 py-2 bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50"
           >
-            <span className="sr-only sm:not-sr-only">Previous</span>
-            <span className="sm:hidden">&laquo;</span>
+            &laquo;
           </button>
-          
-          {/* Page numbers with animation */}
-          <div className="flex overflow-hidden">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
-              // On narrow screens, only show current page, first, last, and adjacent pages
-              const isNarrowScreen = window.innerWidth < 480;
-              const showOnNarrow = 
-                pageNum === 1 || 
-                pageNum === totalPages || 
-                Math.abs(pageNum - currentPage) <= 1;
-              
-              if (isNarrowScreen && !showOnNarrow) {
-                // Show ellipsis for skipped pages on narrow screens
-                if (pageNum === 2 || pageNum === totalPages - 1) {
-                  return (
-                    <span key={`ellipsis-${pageNum}`} className="relative inline-flex items-center px-3 py-2 border border-gray-600 bg-gray-700/80 text-gray-400">
-                      ...
-                    </span>
-                  );
-                }
-                return null;
-              }
-              
-              return (
-                <motion.button
-                  key={pageNum}
-                  onClick={() => handlePageChange(pageNum)}
-                  className={`relative inline-flex items-center px-3 py-1.5 sm:py-2.5 border
-                    ${pageNum === currentPage
-                      ? 'bg-indigo-600/90 text-white border-indigo-500 shadow-md shadow-indigo-500/30'
-                      : 'bg-gray-700/80 text-gray-300 border-gray-600 hover:bg-indigo-500/70 hover:text-white transition-all'
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {pageNum}
-                </motion.button>
-              );
-            })}
-          </div>
-          
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`relative inline-flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-r-md border 
-              ${currentPage === totalPages
-                ? 'border-gray-700 bg-gray-800/70 text-gray-500 cursor-not-allowed'
-                : 'border-gray-600 bg-gray-700/80 text-gray-300 hover:bg-indigo-600/70 hover:text-white transition-all'
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+            <button
+              key={pageNum}
+              onClick={() => onPageChange(pageNum)}
+              className={`px-4 py-2 text-sm ${
+                pageNum === currentPage
+                  ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                  : 'bg-gray-700 text-gray-300 hover:bg-indigo-500 hover:text-white'
               }`}
+            >
+              {pageNum}
+            </button>
+          ))}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50"
           >
-            <span className="sr-only sm:not-sr-only">Next</span>
-            <span className="sm:hidden">&raquo;</span>
+            &raquo;
           </button>
         </nav>
       </div>
     );
-  };
+  });
 
   // Add debugging effect
   useEffect(() => {
     console.log("Current search results:", filteredResults);
     console.log("Search error state:", error);
     
-    // Debug MediaCard import
-    console.log("MediaCard component available:", typeof MediaCard);
+    // Debug MediaCard import - Ensure MediaCard is correctly imported if LazyMediaCard fails
+    // console.log("LazyMediaCard component available:", typeof LazyMediaCard); 
   }, [filteredResults, error]);
 
   // Create error boundary component
@@ -379,8 +361,9 @@ export const SearchBar = ({ currentUser }) => {
             animate={{ opacity: 1 }}
             className="w-full max-w-7xl mb-8"
           >
+            {/* Skeleton Loader */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
+              {[...Array(RESULTS_PER_PAGE)].map((_, i) => ( // Use RESULTS_PER_PAGE for skeleton count
                 <div key={i} className="bg-gray-800 rounded-xl overflow-hidden h-[350px] shadow-lg animate-pulse">
                   <div className="h-[180px] bg-gray-700"></div>
                   <div className="p-4 space-y-3">
@@ -398,9 +381,14 @@ export const SearchBar = ({ currentUser }) => {
           </motion.div>
         );
       }
-        // Rest of your render code with all the sections
+        // Main results rendering logic
       return (
-        <div className="search-results-container w-full max-h-[80vh] overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'thin' }}>
+        // Apply custom scrollbar styles here if needed, or rely on global styles
+        <div 
+          className="search-results-container w-full max-h-[calc(100vh-250px)] sm:max-h-[calc(100vh-280px)] overflow-y-auto overscroll-contain custom-scrollbar" 
+          // Adjusted max-h calculation to leave space for search bar, padding, etc.
+          // Added custom-scrollbar class if specific styling is desired for this container
+        >
           {/* Exact Match Section */}
           {exactMatches.length > 0 && hasSearched && (
             <motion.div
@@ -420,13 +408,14 @@ export const SearchBar = ({ currentUser }) => {
                     whileHover={{ scale: 1.03 }}
                     transition={{ type: "spring", stiffness: 400, damping: 17 }}
                   >
-                    <MediaCard
-                      result={item}
-                      currentUser={currentUser}
-                      onClick={() => handleResultClickWithRedirect(item)}
-                      promptLogin={() => {}}
-                      highlightMatch={true}
-                    />
+                    <Suspense fallback={<div className="bg-gray-800 animate-pulse h-[350px] rounded-xl" />}>
+                      <LazyMediaCard
+                        result={item}
+                        currentUser={currentUser}
+                        onClick={() => handleResultClickWithRedirect(item)}
+                        highlightMatch={true}
+                      />
+                    </Suspense>
                   </motion.div>
                 ))}
               </div>
@@ -452,16 +441,21 @@ export const SearchBar = ({ currentUser }) => {
                     whileHover={{ scale: 1.03 }}
                     transition={{ type: "spring", stiffness: 400, damping: 17 }}
                   >
-                    <MediaCard
-                      result={item}
-                      currentUser={currentUser}
-                      onClick={() => handleResultClickWithRedirect(item)}
-                      promptLogin={() => {}}
-                    />
+                    <Suspense fallback={<div className="bg-gray-800 animate-pulse h-[350px] rounded-xl" />}>
+                      <LazyMediaCard
+                        result={item}
+                        currentUser={currentUser}
+                        onClick={() => handleResultClickWithRedirect(item)}
+                      />
+                    </Suspense>
                   </motion.div>
                 ))}
               </div>
-              <PaginationControls />
+              <PaginationControls
+                totalPages={totalPages}
+                currentPage={currentPage}
+                onPageChange={handlePageChange}
+              />
             </motion.div>
           )}
 
@@ -520,13 +514,14 @@ export const SearchBar = ({ currentUser }) => {
                           whileHover={{ scale: 1.03 }}
                           transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
-                          <MediaCard
-                            result={item}
-                            currentUser={currentUser}
-                            onClick={() => handleResultClickWithRedirect(item)}
-                            promptLogin={() => {}}
-                            highlightMatch={item.isReferenceMedia}
-                          />
+                          <Suspense fallback={<div className="bg-gray-800 animate-pulse h-[350px] rounded-xl" />}>
+                            <LazyMediaCard
+                              result={item}
+                              currentUser={currentUser}
+                              onClick={() => handleResultClickWithRedirect(item)}
+                              highlightMatch={item.isReferenceMedia}
+                            />
+                          </Suspense>
                         </motion.div>
                       ))}
                     </div>
@@ -534,8 +529,9 @@ export const SearchBar = ({ currentUser }) => {
                 </motion.div>
               )}
 
-              {/* Main Results Section with pagination */}
-              {groupedResults.main && groupedResults.main.length > 0 && (
+              {/* Main Results Section (Smart Search - Non-Similar) with pagination */}
+              {/* Check if main results exist AND are not part of similarTo */}
+              {groupedResults.main && groupedResults.main.length > 0 && !queryIntent?.referenceName && ( 
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -545,12 +541,41 @@ export const SearchBar = ({ currentUser }) => {
                   <MediaResults
                     hasSearched={hasSearched}
                     isLoading={isLoading}
-                    displayedResults={currentResults}
+                    // Pass the paginated slice of the 'main' group
+                    displayedResults={currentResults} // Use paginated results
                     handleResultClick={handleResultClickWithRedirect}
                     currentUser={currentUser}
                   />
-                  <PaginationControls />
+                  <PaginationControls
+                    totalPages={totalPages} // Ensure totalPages reflects the 'main' group length
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                  />
                 </motion.div>
+              )}
+              
+              {/* Handle case where search returned results, but they were all exact/similar */}
+              {!isLoading && hasSearched && filteredResults.length > 0 && groupedResults.main?.length === 0 && !isDirectSearch && !queryIntent?.referenceName && exactMatches.length === 0 && (
+                 <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-6 text-center border border-gray-700/50 mt-6"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-200 mb-2">No further results</h3>
+                    <p className="text-gray-300">All relevant results are shown above.</p>
+                 </motion.div>
+              )}
+
+              {/* Handle No Results Found case properly */}
+              {!isLoading && hasSearched && filteredResults.length === 0 && (
+                 <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-6 text-center border border-gray-700/50 mt-6"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-200 mb-2">No Results Found</h3>
+                    <p className="text-gray-300">Try adjusting your search query or filters.</p>
+                 </motion.div>
               )}
             </>
           )}
@@ -566,42 +591,20 @@ export const SearchBar = ({ currentUser }) => {
   return (
     <div 
       ref={searchContainerRef}
-      className={`w-full max-w-screen-2xl mx-auto px-3 sm:px-6 relative flex flex-col items-center justify-start 
-        ${isExpanded ? 'pt-8 sm:pt-12 pb-20' : 'pt-12 sm:pt-16 md:pt-24 pb-16'}`}
+      // Further reduced top/bottom padding to move UI upward
+      className="w-full max-w-screen-2xl mx-auto px-3 sm:px-6 flex flex-col items-center justify-start pt-0 sm:pt-1 pb-1" // Consistent padding
     >
       {/* Floating Search Bar */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`relative w-full max-w-2xl ${isExpanded ? 'mb-6' : 'mb-4'} z-10`}
+        className={`relative w-full max-w-2xl mb-6 z-20`} // Ensure search bar is above results container
       >
         <div className={`relative bg-gray-900/50 backdrop-blur-lg rounded-2xl ${isExpanded ? 'p-3 sm:p-4' : 'p-1.5 sm:p-2.5'} 
           border border-gray-700/50 shadow-xl transition-all duration-300`}>
           
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mb-3"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-gray-200 font-medium px-2">Search Movies & Shows</h2>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setIsExpanded(false)}
-                    className="text-gray-400 hover:text-white p-1 rounded-full"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </motion.button>
-                </div>
-                <div className="border-b border-gray-700/50 mb-3"></div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* ... AnimatePresence for header ... */}
           
           {/* Search Input - Enhanced */}
           <div className="w-full">
@@ -715,44 +718,51 @@ export const SearchBar = ({ currentUser }) => {
                 </AnimatePresence>
               </motion.div>
             )}
-          </AnimatePresence>
+          </AnimatePresence
+          >
         </div>
       </motion.div>
       
-      {/* Direct Search Indicator */}
-      {isDirectSearch && hasSearched && !isLoading && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-4 p-2.5 rounded-xl bg-blue-900/30 backdrop-blur-sm border border-blue-800/50 text-blue-200 flex items-center shadow-lg"
-        >
-          <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-400 flex-shrink-0" />
-          <p className="text-xs sm:text-sm font-medium truncate">
-            Direct Title Search: {query}
-            {filteredResults.length > 0 && ` (${filteredResults.length} results found)`}
-          </p>
-        </motion.div>
-      )}
+      {/* Indicators Container - Positioned between search bar and results */}
+      <div className="w-full max-w-4xl mb-4 space-y-3 z-10"> 
+        {/* Direct Search Indicator */}
+        {isDirectSearch && hasSearched && !isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-4xl mb-4 p-2.5 rounded-xl bg-blue-900/30 backdrop-blur-sm border border-blue-800/50 text-blue-200 flex items-center shadow-lg"
+          >
+            <DocumentDuplicateIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-400 flex-shrink-0" />
+            <p className="text-xs sm:text-sm font-medium truncate">
+              Direct Title Search: {query}
+              {filteredResults.length > 0 && ` (${filteredResults.length} results found)`}
+            </p>
+          </motion.div>
+        )}
 
-      {/* Search Intent Display */}
-      {intentSummary && hasSearched && !isLoading && !isDirectSearch && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-4xl mb-4 p-2.5 rounded-xl bg-indigo-900/30 backdrop-blur-sm border border-indigo-800/50 text-indigo-200 flex items-center shadow-lg"
-        >
-          <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-indigo-400 flex-shrink-0" />
-          <p className="text-xs sm:text-sm font-medium truncate">{intentSummary}</p>
-        </motion.div>
-      )}
+        {/* Search Intent Display */}
+        {intentSummary && hasSearched && !isLoading && !isDirectSearch && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-4xl mb-4 p-2.5 rounded-xl bg-indigo-900/30 backdrop-blur-sm border border-indigo-800/50 text-indigo-200 flex items-center shadow-lg"
+          >
+            <SparklesIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-indigo-400 flex-shrink-0" />
+            <p className="text-xs sm:text-sm font-medium truncate">{intentSummary}</p>
+          </motion.div>
+        )}
+      </div>
       
       {/* Error Messages */}
       <ErrorMessage error={error} isVisible={isErrorVisible} />
 
-      {/* Render Results with Error Boundary */}
-      <div className={`w-full transition-all duration-300 ${isExpanded ? 'opacity-100' : 'opacity-75'}`}>
-        {renderResultsSection()}
-      </div>
+      {/* Render Results Section - Positioned below indicators */}
+      {/* Conditionally render results container only when needed */}
+      {(isExpanded && (hasSearched || isLoading)) && (
+        <div className={`w-full max-w-7xl transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          {renderResultsSection()}
+        </div>
+      )}
       
       {/* Back to Top Button */}
       <AnimatePresence>
