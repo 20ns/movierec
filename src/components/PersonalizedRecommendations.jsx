@@ -407,22 +407,27 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
 
           const url = `https://api.themoviedb.org/3/discover/${mediaType}`;
-          let page = 1;
           const maxPages = 5;
-          let allItems = [];
-          while (allItems.length < MAX_RECOMMENDATION_COUNT && page <= maxPages) {
-            const response = await axios.get(url, { params: { ...params, page } });
-            const newItems = response.data.results
-              .filter((item) => item.poster_path && item.overview && !favoriteIds.has(item.id?.toString()) && !shownItemsHistory.has(item.id))
-              .map((item) => ({
-                ...item,
-                media_type: mediaType,
-                score: calculateSimilarity(item, genresToUse, prefs.moodPreferences),
-              }));
-            allItems = [...allItems, ...newItems];
-            page++;
-          }
-          fetchedRecs = allItems.sort((a, b) => b.score - a.score).slice(0, MAX_RECOMMENDATION_COUNT);
+          const pages = Array.from({ length: maxPages }, (_, i) => i + 1);
+          const responses = await Promise.all(
+            pages.map((p) => axios.get(url, { params: { ...params, page: p } }))
+          );
+          const allItems = responses
+            .flatMap((r) => r.data.results)
+            .filter((item) =>
+              item.poster_path &&
+              item.overview &&
+              !favoriteIds.has(item.id?.toString()) &&
+              !shownItemsHistory.has(item.id)
+            )
+            .map((item) => ({
+              ...item,
+              media_type: mediaType,
+              score: calculateSimilarity(item, genresToUse, prefs.moodPreferences),
+            }));
+          fetchedRecs = allItems
+            .sort((a, b) => b.score - a.score)
+            .slice(0, MAX_RECOMMENDATION_COUNT);
 
           if (fetchedRecs.length > 0) {
             finalDataSource = hasPrefs && hasFavs ? 'both' : hasPrefs ? 'preferences' : 'favorites';
@@ -509,20 +514,44 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     ]
   );
 
-  // --- Similarity Scoring ---
+  // --- Improved Similarity Scoring ---
   const calculateSimilarity = (item, genresToUse, moodPrefs) => {
-    let score = item.vote_average * 10;
-    if (genresToUse.length > 0) {
-      const itemGenres = item.genre_ids || [];
-      genresToUse.forEach((g) => {
-        if (itemGenres.includes(g.id)) score += 20 * g.weight;
-      });
-    }
-    if (moodPrefs?.length > 0) {
-      const keywords = moodPrefs.flatMap((m) => moodToKeywords(m));
-      if (keywords.some((k) => item.overview?.toLowerCase().includes(k))) score += 15;
-    }
-    return Math.min(score, 100);
+    // normalize rating (0–25)
+    const ratingScore = item.vote_average ? (item.vote_average / 10) * 25 : 0;
+
+    // popularity boost with diminishing returns (0–25)
+    const popScore = item.popularity
+      ? (Math.log10(item.popularity + 1) / Math.log10(1000)) * 25
+      : 0;
+
+    // recency bonus: newer releases up to 10 yrs old (0–20)
+    const releaseTime = item.release_date
+      ? new Date(item.release_date).getTime()
+      : 0;
+    const yearsOld = (Date.now() - releaseTime) / (1000 * 60 * 60 * 24 * 365);
+    const recencyScore = yearsOld < 10
+      ? ((10 - yearsOld) / 10) * 20
+      : 0;
+
+    // genre match: weight each preferred genre (0– genresToUse.length*10)
+    const genreScore = genresToUse.reduce(
+      (sum, g) => sum + (item.genre_ids.includes(g.id) ? g.weight * 10 : 0),
+      0
+    );
+
+    // mood keyword hits: +5 per match
+    const keywords = (moodPrefs || []).flatMap(moodToKeywords);
+    const moodScore = keywords.reduce(
+      (sum, kw) =>
+        item.overview?.toLowerCase().includes(kw) ? sum + 5 : sum,
+      0
+    );
+
+    // cap at 100
+    return Math.min(
+      Math.round(ratingScore + popScore + recencyScore + genreScore + moodScore),
+      100
+    );
   };
 
   // --- Mood to Keywords Mapping ---
