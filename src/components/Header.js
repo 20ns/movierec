@@ -165,12 +165,38 @@ function Header({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="p-2 rounded-full text-gray-300 hover:bg-gray-800/70 hover:text-white"
+            className={`p-2.5 rounded-full transition-all duration-300 ${
+              showMobileMenu 
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30' 
+                : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
+            }`}
+            aria-label="Toggle menu"
           >
-            {showMobileMenu ? 
-              <XMarkIcon className="w-6 h-6" /> : 
-              <Bars3Icon className="w-6 h-6" />
-            }
+            <div className="relative w-6 h-6 flex items-center justify-center">
+              <AnimatePresence initial={false} mode="wait">
+                {showMobileMenu ? (
+                  <motion.div
+                    key="close"
+                    initial={{ opacity: 0, rotate: -90 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 90 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="menu"
+                    initial={{ opacity: 0, rotate: 90 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: -90 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Bars3Icon className="w-6 h-6" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.button>
         </div>
 
@@ -358,79 +384,163 @@ function Header({
       {/* Mobile menu overlay */}
       <AnimatePresence>
         {showMobileMenu && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="md:hidden absolute left-0 right-0 top-full mt-2 bg-gray-900 shadow-lg rounded-b-lg overflow-hidden z-50 border-t border-gray-800"
-          >
-            <div className="px-4 py-3 space-y-3">              <button 
-                onClick={() => handlePanelToggle('search', !showSearch)}
-                className={`w-full flex items-center px-4 py-3 text-left ${showSearch ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800'} rounded-lg`}
-              >
-                <SearchIcon className="w-5 h-5 mr-3" />
-                <span>Search</span>
-              </button>
-              
-              {isAuthenticated && (
-                <>
-                  <button 
-                    onClick={() => handlePanelToggle('preferences')}
-                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
-                  >
-                    <AdjustmentsHorizontalIcon className="w-5 h-5 mr-3" />
-                    <span>Preferences</span>
-                  </button>
+          <>
+            {/* Backdrop with blur effect */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+              onClick={() => setShowMobileMenu(false)}
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ 
+                duration: 0.3,
+                ease: "easeOut"
+              }}
+              className="md:hidden absolute left-2 right-2 top-full mt-2 bg-gray-900/95 backdrop-blur-sm shadow-xl rounded-xl overflow-hidden z-50 border border-gray-800/50"
+            >
+              <div className="p-4">
+                {/* User info section - show when authenticated */}
+                {isAuthenticated && (
+                  <div className="mb-4 pb-4 border-b border-gray-800/80">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 rounded-full">
+                        <UserIcon className="w-6 h-6 text-purple-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                          {currentUser?.attributes?.email || 'User'}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Logged in
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Menu items with staggered animation */}
+                <motion.div className="space-y-2">
+                  {[
+                    {
+                      name: 'Search',
+                      icon: <SearchIcon className="w-5 h-5" />,
+                      onClick: () => handlePanelToggle('search', !showSearch),
+                      active: showSearch,
+                      show: true
+                    },
+                    {
+                      name: 'Preferences',
+                      icon: <AdjustmentsHorizontalIcon className="w-5 h-5" />,
+                      onClick: () => handlePanelToggle('preferences'),
+                      active: false,
+                      show: isAuthenticated
+                    },
+                    {
+                      name: 'Favorites',
+                      icon: <HeartIcon className="w-5 h-5" />,
+                      onClick: () => handlePanelToggle('favorites', !showFavorites),
+                      active: showFavorites,
+                      show: isAuthenticated
+                    },
+                    {
+                      name: 'Watchlist',
+                      icon: <ClockIcon className="w-5 h-5" />,
+                      onClick: () => handlePanelToggle('watchlist', !showWatchlist),
+                      active: showWatchlist,
+                      show: isAuthenticated
+                    },
+                    {
+                      name: 'Account Settings',
+                      icon: <UserIcon className="w-5 h-5" />,
+                      onClick: () => handlePanelToggle('account'),
+                      active: false,
+                      show: isAuthenticated
+                    }
+                  ].map((item, index) => (
+                    item.show && (
+                      <motion.div
+                        key={item.name}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ 
+                          delay: index * 0.05,
+                          duration: 0.2
+                        }}
+                      >
+                        <button 
+                          onClick={item.onClick}
+                          className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-all duration-200 ${
+                            item.active 
+                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' 
+                              : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
+                          }`}
+                        >
+                          <div className="mr-3">
+                            {item.icon}
+                          </div>
+                          <span>{item.name}</span>
+                        </button>
+                      </motion.div>
+                    )
+                  ))}
                   
-                  <button 
-                    onClick={() => handlePanelToggle('favorites', !showFavorites)}
-                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
-                  >
-                    <HeartIcon className="w-5 h-5 mr-3" />
-                    <span>Favorites</span>
-                  </button>
+                  {/* Sign out button for authenticated users */}
+                  {isAuthenticated && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ 
+                        delay: 0.25,
+                        duration: 0.2
+                      }}
+                    >
+                      <div className="pt-2 mt-2 border-t border-gray-800/80">
+                        <button 
+                          onClick={() => {
+                            if (onSignout) onSignout();
+                            setShowMobileMenu(false);
+                          }}
+                          className="w-full flex items-center px-4 py-3 text-left text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-all duration-200"
+                        >
+                          <span>Sign out</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
                   
-                  <button 
-                    onClick={() => handlePanelToggle('watchlist', !showWatchlist)}
-                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
-                  >
-                    <ClockIcon className="w-5 h-5 mr-3" />
-                    <span>Watchlist</span>
-                  </button>
-                  
-                  <button 
-                    onClick={() => handlePanelToggle('account')}
-                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
-                  >
-                    <UserIcon className="w-5 h-5 mr-3" />
-                    <span>Account</span>
-                  </button>
-                  
-                  <button 
-                    onClick={() => {
-                      if (onSignout) onSignout();
-                      setShowMobileMenu(false);
-                    }}
-                    className="w-full flex items-center px-4 py-3 text-left text-gray-300 hover:bg-gray-800 rounded-lg"
-                  >
-                    <span>Sign out</span>
-                  </button>
-                </>
-              )}
-                {!isAuthenticated && (
-                <Link 
-                  to="/auth"
-                  onClick={() => setShowMobileMenu(false)}
-                  className="block w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-center text-white rounded-lg"
-                >
-                  Sign In
-                </Link>
-              )}
-            </div>
-          </motion.div>
+                  {/* Sign in button for non-authenticated users */}
+                  {!isAuthenticated && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ 
+                        delay: 0.1,
+                        duration: 0.2
+                      }}
+                    >
+                      <Link 
+                        to="/auth"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-center text-white rounded-lg font-medium shadow-md transition-all duration-200"
+                      >
+                        Sign In
+                      </Link>
+                    </motion.div>
+                  )}
+                </motion.div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
+      
       {/* Favorites panel is now rendered from App.js */}
     </motion.header>
   );
