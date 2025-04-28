@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -12,50 +12,53 @@ import {
 } from '@heroicons/react/24/outline';
 import FavoritesSection from './FavoritesSection';
 
-function Header({ 
+// Animation variants defined outside component to prevent recreation on each render
+const iconButtonVariants = {
+  initial: { scale: 1 },
+  hover: { scale: 1.1, transition: { type: "spring", stiffness: 400, damping: 10 } }
+};
+
+const dropdownVariants = {
+  hidden: { opacity: 0, y: -5, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: { 
+      type: "spring", 
+      stiffness: 500, 
+      damping: 30 
+    } 
+  },
+  exit: { 
+    opacity: 0,
+    y: -5,
+    scale: 0.95,
+    transition: { duration: 0.2 } 
+  }
+};
+
+// Memoized component to prevent unnecessary renders
+const Header = memo(function Header({ 
   currentUser, 
   isAuthenticated, 
-  onSearchClick,  // Changed from setShowSearch
+  onSearchClick,
   showSearch, 
-  onPreferencesClick, // Changed from setShowQuestionnaire
-  onFavoritesClick,   // Changed from setShowFavorites
+  onPreferencesClick,
+  onFavoritesClick,
   showFavorites,
-  onWatchlistClick,   // Added for watchlist feature
-  showWatchlist,      // Added for watchlist feature
+  onWatchlistClick,
+  showWatchlist,
   onSignout,
-  onAccountClick,     // Changed from setShowAccountDetails
-  hasBasicPreferencesOnly = false // New prop to indicate if user has only completed basic questions
+  onAccountClick,
+  hasBasicPreferencesOnly = false
 }) {
   const [hoveredButton, setHoveredButton] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  // Animation variants
-  const iconButtonVariants = {
-    initial: { scale: 1 },
-    hover: { scale: 1.1, transition: { type: "spring", stiffness: 400, damping: 10 } }
-  };
-  
-  const dropdownVariants = {
-    hidden: { opacity: 0, y: -5, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      scale: 1,
-      transition: { 
-        type: "spring", 
-        stiffness: 500, 
-        damping: 30 
-      } 
-    },
-    exit: { 
-      opacity: 0,
-      y: -5,
-      scale: 0.95,
-      transition: { duration: 0.2 } 
-    }
-  };  // Handler function to ensure only one panel is open at a time
-  const handlePanelToggle = (panelName, isVisible) => {
+  // Handle panel toggling with useCallback to prevent recreation on each render
+  const handlePanelToggle = useCallback((panelName, isVisible) => {
     // Close user dropdown whenever a panel is opened
     setShowUserDropdown(false);
     
@@ -69,16 +72,12 @@ function Header({
     switch(panelName) {
       case 'search':
         if (onSearchClick) {
-          // If isVisible is explicitly provided, use it
           if (typeof isVisible !== 'undefined') {
-            // Close other panels first if opening
             if (isVisible) {
               closeOtherPanels('search');
             }
             onSearchClick(isVisible);
           } else {
-            // Toggle based on current state
-            // Close other panels first if opening
             if (!showSearch) {
               closeOtherPanels('search');
             }
@@ -88,32 +87,25 @@ function Header({
         break;
       case 'favorites':
         if (onFavoritesClick) {
-          // Close other panels first
           closeOtherPanels('favorites');
-          // Toggle favorites panel
           onFavoritesClick(!showFavorites);
         }
         break;
       case 'watchlist':
         if (onWatchlistClick) {
-          // Close other panels first
           closeOtherPanels('watchlist');
-          // Toggle watchlist panel
-          onWatchlistClick(!showWatchlist);        }
+          onWatchlistClick(!showWatchlist);
+        }
         break;
       case 'preferences':
         if (onPreferencesClick) {
-          // Close other panels before opening preferences
           closeOtherPanels('preferences');
-          // Open preferences
           onPreferencesClick();
         }
         break;
       case 'account':
         if (onAccountClick) {
-          // Close other panels before opening account
           closeOtherPanels('account');
-          // Open account
           onAccountClick();
         }
         break;
@@ -125,18 +117,86 @@ function Header({
     if (showMobileMenu) {
       setShowMobileMenu(false);
     }
-  };
+  }, [showSearch, showFavorites, showWatchlist, showMobileMenu, onSearchClick, onFavoritesClick, onWatchlistClick, onPreferencesClick, onAccountClick]);
 
-  // Listen for the custom event to close dropdown when a modal opens
+  // Use useCallback for event handlers
+  const handleUserDropdownToggle = useCallback(() => {
+    setShowUserDropdown(prev => !prev);
+  }, []);
+
+  const handleMobileMenuToggle = useCallback(() => {
+    setShowMobileMenu(prev => !prev);
+  }, []);
+
+  const handleSignOut = useCallback(() => {
+    if (onSignout) {
+      onSignout();
+      setShowUserDropdown(false);
+      setShowMobileMenu(false);
+    }
+  }, [onSignout]);
+
+  // Handle modal opening (using passive event listener for better performance)
   useEffect(() => {
     const handleModalOpen = () => {
       setShowUserDropdown(false);
       setShowMobileMenu(false);
     };
     
-    document.addEventListener('modal-opened', handleModalOpen);
+    document.addEventListener('modal-opened', handleModalOpen, { passive: true });
     return () => document.removeEventListener('modal-opened', handleModalOpen);
   }, []);
+
+  // Close dropdowns on window resize (helps with mobile orientation changes)
+  useEffect(() => {
+    const handleResize = () => {
+      setShowUserDropdown(false);
+      setShowMobileMenu(false);
+    };
+    
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Memoize menu items to prevent recreation on each render
+  const mobileMenuItems = useMemo(() => [
+    {
+      name: 'Search',
+      icon: <SearchIcon className="w-5 h-5" />,
+      onClick: () => handlePanelToggle('search', !showSearch),
+      active: showSearch,
+      show: true
+    },
+    {
+      name: 'Preferences',
+      icon: <AdjustmentsHorizontalIcon className="w-5 h-5" />,
+      onClick: () => handlePanelToggle('preferences'),
+      active: false,
+      show: isAuthenticated
+    },
+    {
+      name: 'Favorites',
+      icon: <HeartIcon className="w-5 h-5" />,
+      onClick: () => handlePanelToggle('favorites', !showFavorites),
+      active: showFavorites,
+      show: isAuthenticated
+    },
+    {
+      name: 'Watchlist',
+      icon: <ClockIcon className="w-5 h-5" />,
+      onClick: () => handlePanelToggle('watchlist', !showWatchlist),
+      active: showWatchlist,
+      show: isAuthenticated
+    },
+    {
+      name: 'Account Settings',
+      icon: <UserIcon className="w-5 h-5" />,
+      onClick: () => handlePanelToggle('account'),
+      active: false,
+      show: isAuthenticated
+    }
+  ], [isAuthenticated, showSearch, showFavorites, showWatchlist, handlePanelToggle]);
+  
   return (
     <motion.header 
       initial={{ y: -20, opacity: 0 }}
@@ -152,7 +212,14 @@ function Header({
           className="flex-shrink-0"
         >
           <Link to="/" className="flex items-center">
-            <img src="/logo.png" alt="MovieRec Logo" className="h-8 mr-2" />
+            <img 
+              src="/logo.png" 
+              alt="MovieRec Logo" 
+              className="h-8 mr-2" 
+              width="32" 
+              height="32" 
+              loading="eager" 
+            />
             <span className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-indigo-400">
               MovieRec
             </span>
@@ -164,13 +231,15 @@ function Header({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            onClick={handleMobileMenuToggle}
             className={`p-2.5 rounded-full transition-all duration-300 ${
               showMobileMenu 
                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/30' 
                 : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
             }`}
             aria-label="Toggle menu"
+            aria-expanded={showMobileMenu}
+            aria-controls="mobile-menu"
           >
             <div className="relative w-6 h-6 flex items-center justify-center">
               <AnimatePresence initial={false} mode="wait">
@@ -215,6 +284,8 @@ function Header({
               showSearch ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
             }`}
             title="Search movies"
+            aria-label="Search movies"
+            aria-pressed={showSearch}
           >
             <SearchIcon className="w-5 h-5" />
             {hoveredButton === 'search' && (
@@ -230,7 +301,8 @@ function Header({
           
           {/* Only show these buttons when the user is authenticated */}
           {isAuthenticated && (
-            <>              {/* Preferences button */}
+            <>
+              {/* Preferences button */}
               <motion.button 
                 variants={iconButtonVariants}
                 initial="initial"
@@ -245,6 +317,7 @@ function Header({
                     : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                 }`}
                 title={hasBasicPreferencesOnly ? "Continue with more preference questions" : "Set movie preferences"}
+                aria-label={hasBasicPreferencesOnly ? "Continue with more preference questions" : "Set movie preferences"}
               >
                 <AdjustmentsHorizontalIcon className="w-5 h-5" />
                 {hoveredButton === 'preferences' && (
@@ -271,6 +344,8 @@ function Header({
                   showFavorites ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                 }`}
                 title="View favorites"
+                aria-label="View favorites"
+                aria-pressed={showFavorites}
               >
                 <HeartIcon className="w-5 h-5" />
                 {hoveredButton === 'favorites' && (
@@ -297,6 +372,8 @@ function Header({
                   showWatchlist ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                 }`}
                 title="View watchlist"
+                aria-label="View watchlist"
+                aria-pressed={showWatchlist}
               >
                 <ClockIcon className="w-5 h-5" />
                 {hoveredButton === 'watchlist' && (
@@ -320,10 +397,13 @@ function Header({
                 initial="initial"
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                onClick={handleUserDropdownToggle}
                 onBlur={() => setTimeout(() => setShowUserDropdown(false), 100)}
                 className="p-2.5 text-gray-300 hover:bg-gray-800/70 hover:text-white rounded-full transition-colors duration-200"
                 title={currentUser?.attributes?.email || 'Account'}
+                aria-label="User account"
+                aria-expanded={showUserDropdown}
+                aria-controls="user-dropdown"
               >
                 <UserIcon className="w-5 h-5" />
               </motion.button>
@@ -331,6 +411,7 @@ function Header({
               <AnimatePresence>
                 {showUserDropdown && (
                   <motion.div 
+                    id="user-dropdown"
                     variants={dropdownVariants}
                     initial="hidden"
                     animate="visible"
@@ -343,6 +424,7 @@ function Header({
                         handlePanelToggle('account');
                       }}
                       className="px-4 py-3 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-colors duration-150"
+                      role="menuitem"
                     >
                       <div className="font-medium text-white text-sm">Account</div>
                       <div className="text-xs text-gray-300 truncate">
@@ -351,13 +433,9 @@ function Header({
                     </div>
                     
                     <button
-                      onClick={() => {
-                        if (onSignout) {
-                          onSignout();
-                          setShowUserDropdown(false);
-                        }
-                      }}
+                      onClick={handleSignOut}
                       className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700/50 transition-colors duration-150 flex items-center"
+                      role="menuitem"
                     >
                       <span>Sign out</span>
                     </button>
@@ -381,7 +459,7 @@ function Header({
         </div>
       </div>
 
-      {/* Mobile menu overlay */}
+      {/* Mobile menu overlay - optimized with reduced motion for better performance */}
       <AnimatePresence>
         {showMobileMenu && (
           <>
@@ -392,10 +470,12 @@ function Header({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-              onClick={() => setShowMobileMenu(false)}
+              onClick={handleMobileMenuToggle}
+              aria-hidden="true"
             />
             
             <motion.div
+              id="mobile-menu"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -404,6 +484,7 @@ function Header({
                 ease: "easeOut"
               }}
               className="md:hidden absolute left-2 right-2 top-full mt-2 bg-gray-900/95 backdrop-blur-sm shadow-xl rounded-xl overflow-hidden z-50 border border-gray-800/50"
+              role="menu"
             >
               <div className="p-4">
                 {/* User info section - show when authenticated */}
@@ -425,45 +506,9 @@ function Header({
                   </div>
                 )}
                 
-                {/* Menu items with staggered animation */}
+                {/* Menu items with staggered animation - using memoized items array */}
                 <motion.div className="space-y-2">
-                  {[
-                    {
-                      name: 'Search',
-                      icon: <SearchIcon className="w-5 h-5" />,
-                      onClick: () => handlePanelToggle('search', !showSearch),
-                      active: showSearch,
-                      show: true
-                    },
-                    {
-                      name: 'Preferences',
-                      icon: <AdjustmentsHorizontalIcon className="w-5 h-5" />,
-                      onClick: () => handlePanelToggle('preferences'),
-                      active: false,
-                      show: isAuthenticated
-                    },
-                    {
-                      name: 'Favorites',
-                      icon: <HeartIcon className="w-5 h-5" />,
-                      onClick: () => handlePanelToggle('favorites', !showFavorites),
-                      active: showFavorites,
-                      show: isAuthenticated
-                    },
-                    {
-                      name: 'Watchlist',
-                      icon: <ClockIcon className="w-5 h-5" />,
-                      onClick: () => handlePanelToggle('watchlist', !showWatchlist),
-                      active: showWatchlist,
-                      show: isAuthenticated
-                    },
-                    {
-                      name: 'Account Settings',
-                      icon: <UserIcon className="w-5 h-5" />,
-                      onClick: () => handlePanelToggle('account'),
-                      active: false,
-                      show: isAuthenticated
-                    }
-                  ].map((item, index) => (
+                  {mobileMenuItems.map((item, index) => (
                     item.show && (
                       <motion.div
                         key={item.name}
@@ -473,6 +518,7 @@ function Header({
                           delay: index * 0.05,
                           duration: 0.2
                         }}
+                        role="none"
                       >
                         <button 
                           onClick={item.onClick}
@@ -481,6 +527,8 @@ function Header({
                               ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' 
                               : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                           }`}
+                          role="menuitem"
+                          aria-pressed={item.active}
                         >
                           <div className="mr-3">
                             {item.icon}
@@ -500,14 +548,13 @@ function Header({
                         delay: 0.25,
                         duration: 0.2
                       }}
+                      role="none"
                     >
                       <div className="pt-2 mt-2 border-t border-gray-800/80">
                         <button 
-                          onClick={() => {
-                            if (onSignout) onSignout();
-                            setShowMobileMenu(false);
-                          }}
+                          onClick={handleSignOut}
                           className="w-full flex items-center px-4 py-3 text-left text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-lg transition-all duration-200"
+                          role="menuitem"
                         >
                           <span>Sign out</span>
                         </button>
@@ -524,11 +571,13 @@ function Header({
                         delay: 0.1,
                         duration: 0.2
                       }}
+                      role="none"
                     >
                       <Link 
                         to="/auth"
-                        onClick={() => setShowMobileMenu(false)}
+                        onClick={handleMobileMenuToggle}
                         className="block w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-center text-white rounded-lg font-medium shadow-md transition-all duration-200"
+                        role="menuitem"
                       >
                         Sign In
                       </Link>
@@ -540,10 +589,8 @@ function Header({
           </>
         )}
       </AnimatePresence>
-      
-      {/* Favorites panel is now rendered from App.js */}
     </motion.header>
   );
-}
+});
 
 export default Header;
