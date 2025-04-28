@@ -1,32 +1,86 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import MediaCard from './MediaCard'; // Using default import
-import ScrollContainer from './ScrollContainer'; // Import the new component
+import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import MediaCard from './MediaCard';
+import ScrollContainer from './ScrollContainer';
 
-export const MediaResults = ({
+// Custom hook to replace react-intersection-observer
+const useIsVisible = (rootMargin = '0px') => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { rootMargin }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      if (element) observer.unobserve(element);
+    };
+  }, [rootMargin]);
+
+  return [ref, isVisible];
+};
+
+// Optimized result item component with lazy loading
+const ResultItem = React.memo(({ result, currentUser, handleResultClick }) => {
+  const [ref, isVisible] = useIsVisible('200px');
+  const [hasRendered, setHasRendered] = useState(false);
+  
+  // Once visible, we keep the card rendered
+  useEffect(() => {
+    if (isVisible && !hasRendered) {
+      setHasRendered(true);
+    }
+  }, [isVisible, hasRendered]);
+
+  return (
+    <motion.div
+      ref={ref}
+      key={`${result.id}-${result.media_type}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={(isVisible || hasRendered) ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      transition={{ duration: 0.3 }}
+      className="h-full"
+      layout
+    >
+      {(isVisible || hasRendered) && (
+        <MediaCard
+          result={result}
+          currentUser={currentUser}
+          onClick={() => handleResultClick(result)}
+          promptLogin={() => {}}
+        />
+      )}
+    </motion.div>
+  );
+});
+
+// Main component optimized with React.memo
+export const MediaResults = React.memo(({
   hasSearched,
   isLoading,
   displayedResults,
   handleResultClick,
   currentUser
 }) => {
-  // Add error boundary
-  const renderSafeResults = () => {
+  // Memoize the result rendering function to prevent unnecessary recalculations
+  const renderSafeResults = useCallback(() => {
     try {
       return displayedResults.map((result) => (
-        <motion.div
+        <ResultItem 
           key={`${result.id}-${result.media_type}`}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <MediaCard
-            result={result}
-            currentUser={currentUser}
-            onClick={() => handleResultClick(result)}
-            promptLogin={() => {}}
-          />
-        </motion.div>
+          result={result}
+          currentUser={currentUser}
+          handleResultClick={handleResultClick}
+        />
       ));
     } catch (error) {
       console.error("Error rendering media results:", error);
@@ -36,29 +90,65 @@ export const MediaResults = ({
         </div>
       );
     }
-  };
+  }, [displayedResults, currentUser, handleResultClick]);
 
-  // Change from a standard div to the ScrollContainer for search results
-  return (
-    <div className="search-results-container w-full">
-      {!hasSearched ? (
-        <div className="text-center py-8 text-gray-400">
+  // Memoize the content based on current state
+  const content = useMemo(() => {
+    if (!hasSearched) {
+      return (
+        <motion.div 
+          className="text-center py-8 text-gray-400"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
           Search for movies or TV shows to see results
-        </div>
-      ) : isLoading ? (
-        <div className="flex justify-center items-center py-12">
+        </motion.div>
+      );
+    }
+    
+    if (isLoading) {
+      return (
+        <motion.div 
+          className="flex justify-center items-center py-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      ) : displayedResults.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
+        </motion.div>
+      );
+    }
+    
+    if (displayedResults.length === 0) {
+      return (
+        <motion.div 
+          className="text-center py-8 text-gray-400"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
           No results found. Try a different search.
-        </div>      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
+        </motion.div>
+      );
+    }
+    
+    return (
+      <ScrollContainer className="overflow-x-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 py-4 px-2 md:px-0 w-full">
           {renderSafeResults()}
         </div>
-      )}
+      </ScrollContainer>
+    );
+  }, [hasSearched, isLoading, displayedResults, renderSafeResults]);
+
+  return (
+    <div className="search-results-container w-full">
+      <AnimatePresence mode="wait">
+        {content}
+      </AnimatePresence>
     </div>
   );
-};
+});
 
 export default MediaResults;
