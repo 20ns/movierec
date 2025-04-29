@@ -11,7 +11,7 @@ import { fetchCachedMedia, shouldRefreshCache } from '../services/mediaCache';
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
 const RECOMMENDATIONS_CACHE_KEY_PREFIX = 'movieRec_recommendations_';
 const SESSION_RECS_LOADED_FLAG = 'movieRec_session_loaded';
-const MIN_RECOMMENDATION_COUNT = 3;
+const MIN_RECOMMENDATION_COUNT = 3; // Ensure at least 3 recommendations are shown
 const MAX_RECOMMENDATION_COUNT = 3;
 const SHOWN_ITEMS_LIMIT = 150;
 const RETRY_DELAY = 1500;
@@ -255,6 +255,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, []);
 
+  // --- User Data Fetching Utilities ---
   const fetchUserFavoritesAndGenres = useCallback(async (token) => {
     if (!token) return { favorites: [], genres: [], contentTypeRatio: { movies: 0.5, tv: 0.5 } };
 
@@ -298,6 +299,28 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, []);
 
+  // New function to fetch watchlist items
+  const fetchUserWatchlist = useCallback(async (token) => {
+    if (!token) return [];
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) {
+        logError('Watchlist fetch failed with status', response.status);
+        return [];
+      }
+      
+      const watchlistData = await response.json();
+      return watchlistData?.items || [];
+    } catch (error) {
+      logError('Error fetching watchlist', error);
+      return [];
+    }
+  }, []);
+
   // --- Helper Function to Map Content Type to API Media Type ---
   const getApiMediaType = (type) => {
     if (type === 'movies') return 'movie';
@@ -333,14 +356,34 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       try {
         const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
         const prefs = propUserPreferences || {};
-        const { favorites, genres: favGenres, contentTypeRatio } = await fetchUserFavoritesAndGenres(token);
+        
+        // Fetch both favorites and watchlist in parallel
+        const [favoritesData, watchlistItems] = await Promise.all([
+          fetchUserFavoritesAndGenres(token),
+          fetchUserWatchlist(token)
+        ]);
+        
+        const { favorites, genres: favGenres, contentTypeRatio } = favoritesData;
+        
+        // Create a combined set of IDs to exclude (favorites + watchlist)
         const favoriteIds = new Set(favorites.map((fav) => fav.mediaId?.toString()));
+        const watchlistIds = new Set(watchlistItems.map((item) => item.mediaId?.toString()));
+        
+        // Combined exclusion set with both favorites and watchlist
+        const excludeIds = new Set([
+          ...favorites.map((fav) => fav.mediaId?.toString()),
+          ...watchlistItems.map((item) => item.mediaId?.toString()),
+          ...Array.from(shownItemsHistory)
+        ]);
+        
+        logMessage(`Excluding ${favoriteIds.size} favorites, ${watchlistIds.size} watchlist items, and ${shownItemsHistory.size} previously shown items`);
+        
         const hasPrefs = prefs.favoriteGenres?.length > 0;
         const hasFavs = favorites.length > 0;
 
         // First try fetching from DynamoDB cache if not forcing refresh
         if (!forceRefresh) {
-          const cacheResult = await fetchFromDynamoDBCache(contentTypeFilter, favoriteIds, shownItemsHistory);
+          const cacheResult = await fetchFromDynamoDBCache(contentTypeFilter, excludeIds, new Set());
           if (cacheResult.success) {
             fetchedRecs = cacheResult.recommendations;
             finalDataSource = cacheResult.dataSource;
@@ -417,8 +460,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
             .filter((item) =>
               item.poster_path &&
               item.overview &&
-              !favoriteIds.has(item.id?.toString()) &&
-              !shownItemsHistory.has(item.id)
+              !excludeIds.has(item.id?.toString())
             )
             .map((item) => ({
               ...item,
@@ -437,8 +479,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         }
 
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
-          const existingIds = new Set([...fetchedRecs.map((r) => r.id), ...favoriteIds, ...shownItemsHistory]);
-          const supplementary = await fetchSupplementaryRecommendations(fetchedRecs.length, existingIds, contentTypeFilter);
+          const supplementary = await fetchSupplementaryRecommendations(fetchedRecs.length, excludeIds, contentTypeFilter);
           fetchedRecs = [...fetchedRecs, ...supplementary].slice(0, MAX_RECOMMENDATION_COUNT);
           if (!fetchSuccessful && supplementary.length > 0) {
             finalDataSource = fetchedRecs.length === supplementary.length ? 'supplementary' : 'mixed';
@@ -448,7 +489,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         }
 
         if (fetchedRecs.length === 0) {
-          const genericRecs = await fetchGenericRecommendations(new Set([...favoriteIds, ...shownItemsHistory]), contentTypeFilter);
+          const genericRecs = await fetchGenericRecommendations(excludeIds, contentTypeFilter);
           if (genericRecs.length > 0) {
             fetchedRecs = genericRecs;
             finalDataSource = 'generic';
@@ -456,6 +497,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
             fetchSuccessful = true;
           }
         }
+
+        // Filter out recommendations that are in favorites or watchlist
+        fetchedRecs = fetchedRecs.filter(rec => !favoriteIds.has(rec.id?.toString()) && !watchlistIds.has(rec.id?.toString()));
 
         if (fetchSuccessful) {
           saveRecommendationsToCache(fetchedRecs, userId, finalDataSource, finalReason, contentTypeFilter);
@@ -507,6 +551,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       contentTypeFilter,
       shownItemsHistory,
       fetchUserFavoritesAndGenres,
+      fetchUserWatchlist, // Added new dependency
       fetchSupplementaryRecommendations,
       fetchGenericRecommendations,
       saveRecommendationsToCache,
@@ -856,14 +901,14 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     );
   } else {
     content = <div key="fallback" className="min-h-[200px]"></div>;
-  }  let title = "Recommendations";
+  }  let title = `Personalized Recommendations for You (${Math.max(recommendations.length, MIN_RECOMMENDATION_COUNT)} Found)`; // Ensure at least 3 recommendations are shown in the title
   if (dataSource === 'error') title = "Error Loading";
   else if (dataSource === 'both') title = 'For You';
   else if (dataSource === 'preferences') title = 'Based on Your Taste';
   else if (dataSource === 'favorites') title = 'Inspired by Your Favorites';
   else if (dataSource === 'generic') title = 'Trending Now';
   else if (dataSource === 'dynamo_cache') title = 'Trending & Popular';
-  else if (dataSource === 'supplementary' || dataSource === 'mixed') title = 'Popular Picks';
+  else if (dataSource === 'supplementary' || dataSource === 'mixed') title = 'For You';
 
   return (
     <motion.section
