@@ -322,6 +322,8 @@ const MediaCard = ({
   const handleFavoriteToggle = useCallback(async (e) => {
     e.stopPropagation();
     e.preventDefault();
+    // Prevent initial fetch from overriding user's action
+    hasFetchedRef.current = true;
 
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for favorite toggle");
@@ -414,6 +416,8 @@ const MediaCard = ({
       e.stopPropagation();
       e.preventDefault();
     }
+    // Prevent initial fetch from overriding user's action
+    hasWatchlistFetchedRef.current = true;
 
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for watchlist toggle");
@@ -677,6 +681,7 @@ const MediaCard = ({
           {isAuthenticated && (
             <>
               <motion.button
+                type="button"
                 onClick={handleFavoriteToggle}
                 disabled={isLoadingFavorite}
                 className={`absolute top-2 right-2 z-20 p-1.5 rounded-full transition-all duration-200 ease-in-out backdrop-blur-sm focus:outline-none ${
@@ -699,6 +704,7 @@ const MediaCard = ({
               </motion.button>
               
               <motion.button
+                type="button"
                 onClick={handleWatchlistToggle}
                 disabled={isLoadingWatchlist}
                 className={`absolute top-2 right-10 z-20 p-1.5 rounded-full transition-all duration-200 ease-in-out backdrop-blur-sm focus:outline-none ${
