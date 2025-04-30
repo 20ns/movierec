@@ -1,5 +1,3 @@
-// src/components/PersonalizedRecommendations.jsx
-
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -552,10 +550,11 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       shownItemsHistory,
       fetchUserFavoritesAndGenres,
       fetchUserWatchlist, // Added new dependency
-      fetchSupplementaryRecommendations,
-      fetchGenericRecommendations,
+      fetchSupplementaryRecommendations,      fetchGenericRecommendations,
       saveRecommendationsToCache,
       safeSetState,
+      handleMediaFavoriteToggle,
+      handleMediaWatchlistToggle,
     ]
   );
 
@@ -610,6 +609,33 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     };
     return map[mood] || [];
   };
+
+  // --- Event handlers for favorites and watchlist updates ---
+  const handleMediaFavoriteToggle = useCallback((mediaId, isFavorited) => {
+    logMessage(`Media favorite status changed: ${mediaId} - ${isFavorited ? 'Added to' : 'Removed from'} favorites`);
+    
+    // If the media was added to favorites, add it to our tracked favorite IDs
+    // No need to refresh the recommendations; just let the user keep seeing the current items
+    if (isFavorited) {
+      // Add to the in-memory shownItemsHistory to ensure this item doesn't appear in future refreshes
+      safeSetState(prevState => ({
+        shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
+      }));
+    }
+  }, [safeSetState, logMessage]);
+
+  const handleMediaWatchlistToggle = useCallback((mediaId, isInWatchlist) => {
+    logMessage(`Media watchlist status changed: ${mediaId} - ${isInWatchlist ? 'Added to' : 'Removed from'} watchlist`);
+    
+    // If the media was added to watchlist, add it to our tracked watchlist IDs
+    // No need to refresh the recommendations; just let the user keep seeing the current items
+    if (isInWatchlist) {
+      // Add to the in-memory shownItemsHistory to ensure this item doesn't appear in future refreshes
+      safeSetState(prevState => ({
+        shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
+      }));
+    }
+  }, [safeSetState, logMessage]);
 
   // --- Manual Refresh Handler ---
   const handleRefresh = useCallback(async () => {
@@ -764,7 +790,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       return { success: false };
     }
   }, [currentUser, logMessage]);
-
   // --- Expose methods for parent components to call ---
   useImperativeHandle(ref, () => ({
     refreshRecommendations: (updatedPrefs = null) => {
@@ -791,6 +816,39 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       }, 50);
     },
   }));
+
+  // --- Listen for favorites and watchlist updates from other components ---
+  useEffect(() => {
+    const handleFavoritesUpdate = (event) => {
+      const { mediaId, isFavorited } = event.detail || {};
+      if (mediaId && isFavorited) {
+        logMessage(`External favorite update detected for: ${mediaId}`);
+        // Add to shown history to avoid showing it again in future refreshes
+        safeSetState(prevState => ({
+          shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
+        }));
+      }
+    };
+
+    const handleWatchlistUpdate = (event) => {
+      const { mediaId, isInWatchlist } = event.detail || {};
+      if (mediaId && isInWatchlist) {
+        logMessage(`External watchlist update detected for: ${mediaId}`);
+        // Add to shown history to avoid showing it again in future refreshes
+        safeSetState(prevState => ({
+          shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
+        }));
+      }
+    };
+
+    document.addEventListener('favorites-updated', handleFavoritesUpdate);
+    document.addEventListener('watchlist-updated', handleWatchlistUpdate);
+    
+    return () => {
+      document.removeEventListener('favorites-updated', handleFavoritesUpdate);
+      document.removeEventListener('watchlist-updated', handleWatchlistUpdate);
+    };
+  }, [safeSetState, logMessage]);
 
   // --- Render Logic ---
   if (!isAuthenticated || !initialAppLoadComplete) {
@@ -830,8 +888,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         </div>
       </motion.div>
     );
-  } else if (showRecs) {    content = (
-      <motion.div
+  } else if (showRecs) {    content = (      <motion.div
         key={`recommendations-${refreshCounter}-${dataSource}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -847,7 +904,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
             }}
           >
-            <MediaCard result={item} currentUser={currentUser} />
+            <MediaCard 
+              result={item} 
+              currentUser={currentUser} 
+              onFavoriteToggle={handleMediaFavoriteToggle}
+              onWatchlistToggle={handleMediaWatchlistToggle}
+            />
           </motion.div>
         ))}
       </motion.div>
@@ -868,11 +930,10 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={handleRefresh}
-          disabled={isThinking || isLoading}
+          onClick={handleRefresh}          disabled={isThinking || isLoading}
           className={`bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full ${isThinking || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {(isThinking || isLoading) ? 'Trying...' : 'Try Again'}
+          {(isThinking || isLoading) ? 'Trying...' : 'Get New Recommendations'}
         </motion.button>
       </motion.div>
     );
@@ -888,14 +949,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       >
         <div className="mb-4 text-5xl text-indigo-400">🤷‍♂️</div>
         <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Found</h3>
-        <p className="text-gray-400 mb-6">{recommendationReason}</p>
-        <motion.button
+        <p className="text-gray-400 mb-6">{recommendationReason}</p>        <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleRefresh}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full"
         >
-          Try Refreshing
+          Get New Recommendations
         </motion.button>
       </motion.div>
     );
@@ -945,8 +1005,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           >
             <TvIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>TV Shows</span>
-          </motion.button>
-          <motion.button
+          </motion.button>          <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleRefresh}
@@ -959,7 +1018,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
             >
               <ArrowPathIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             </motion.div>
-            <span>{isThinking || isLoading ? 'Loading...' : 'Refresh'}</span>
+            <span>{isThinking || isLoading ? 'Loading...' : 'Get New Recommendations'}</span>
           </motion.button>
         </div>
       </div>
