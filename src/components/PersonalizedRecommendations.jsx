@@ -228,29 +228,43 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     const apiKey = process.env.REACT_APP_TMDB_API_KEY;
     if (!apiKey) return [];
 
-    let url;
-    if (contentType === 'movies') url = 'https://api.themoviedb.org/3/movie/top_rated';
-    else if (contentType === 'tv') url = 'https://api.themoviedb.org/3/tv/top_rated';
-    else url = 'https://api.themoviedb.org/3/trending/all/week';
+    // Try multiple pages to increase chances of getting enough recommendations
+    const pages = [1, 2];
+    const results = [];
 
-    try {
-      const response = await axios.get(url, { params: { api_key: apiKey, page: Math.floor(Math.random() * 2) + 1 } });
+    for (const page of pages) {
+      if (results.length >= neededCount) break;
+      
+      let url;
+      if (contentType === 'movies') url = 'https://api.themoviedb.org/3/movie/top_rated';
+      else if (contentType === 'tv') url = 'https://api.themoviedb.org/3/tv/top_rated';
+      else url = 'https://api.themoviedb.org/3/trending/all/week';
 
-      let items = response.data.results
-        .filter((item) => item.poster_path && item.overview && !existingIds.has(item.id))
-        .map((item) => ({ ...item, score: Math.round((item.vote_average / 10) * 100) }));
+      try {
+        const response = await axios.get(url, { 
+          params: { api_key: apiKey, page: page } 
+        });
 
-      if (contentType === 'both') {
-        items = items.filter((item) => item.media_type === 'movie' || item.media_type === 'tv');
-      } else {
-        items = items.map((item) => ({ ...item, media_type: contentType }));
+        let items = response.data.results
+          .filter((item) => item.poster_path && item.overview && !existingIds.has(item.id))
+          .map((item) => ({ ...item, score: Math.round((item.vote_average / 10) * 100) }));
+
+        if (contentType === 'both') {
+          items = items.filter((item) => item.media_type === 'movie' || item.media_type === 'tv');
+        } else {
+          items = items.map((item) => ({ ...item, media_type: contentType === 'movies' ? 'movie' : 'tv' }));
+        }
+
+        results.push(...items);
+        
+        // Add fetched IDs to existingIds to avoid duplicates in next page
+        items.forEach(item => existingIds.add(item.id));
+      } catch (error) {
+        logError('Error fetching supplementary recommendations', error);
       }
-
-      return items.slice(0, neededCount);
-    } catch (error) {
-      logError('Error fetching supplementary recommendations', error);
-      return [];
     }
+
+    return results.slice(0, neededCount);
   }, []);
 
   // --- User Data Fetching Utilities ---
@@ -476,30 +490,67 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
         }
 
+        // Always ensure we have at least MIN_RECOMMENDATION_COUNT recommendations
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
+          // First try supplementary recommendations
           const supplementary = await fetchSupplementaryRecommendations(fetchedRecs.length, excludeIds, contentTypeFilter);
-          fetchedRecs = [...fetchedRecs, ...supplementary].slice(0, MAX_RECOMMENDATION_COUNT);
+          fetchedRecs = [...fetchedRecs, ...supplementary];
+          
           if (!fetchSuccessful && supplementary.length > 0) {
             finalDataSource = fetchedRecs.length === supplementary.length ? 'supplementary' : 'mixed';
             finalReason = 'Popular picks for you';
             fetchSuccessful = true;
           }
-        }
-
-        if (fetchedRecs.length === 0) {
-          const genericRecs = await fetchGenericRecommendations(excludeIds, contentTypeFilter);
-          if (genericRecs.length > 0) {
-            fetchedRecs = genericRecs;
-            finalDataSource = 'generic';
-            finalReason = 'Trending now';
-            fetchSuccessful = true;
+          
+          // If still not enough, try generic recommendations
+          if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
+            const genericRecs = await fetchGenericRecommendations(excludeIds, contentTypeFilter);
+            fetchedRecs = [...fetchedRecs, ...genericRecs];
+            
+            if (!fetchSuccessful && genericRecs.length > 0) {
+              finalDataSource = 'generic';
+              finalReason = 'Trending now';
+              fetchSuccessful = true;
+            }
+            
+            // As a last resort, try DynamoDB cache even if we already tried before
+            if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT && forceRefresh) {
+              const dynamoCacheResult = await fetchFromDynamoDBCache(contentTypeFilter, excludeIds, new Set());
+              if (dynamoCacheResult.success) {
+                // Only add items we don't already have
+                const existingIds = new Set(fetchedRecs.map(rec => rec.id?.toString()));
+                const newDynamoRecs = dynamoCacheResult.recommendations.filter(rec => !existingIds.has(rec.id?.toString()));
+                
+                fetchedRecs = [...fetchedRecs, ...newDynamoRecs];
+                
+                if (!fetchSuccessful && newDynamoRecs.length > 0) {
+                  finalDataSource = 'dynamo_cache';
+                  finalReason = 'Daily trending content';
+                  fetchSuccessful = true;
+                }
+              }
+            }
           }
+          
+          // Ensure we don't exceed MAX_RECOMMENDATION_COUNT
+          fetchedRecs = fetchedRecs.slice(0, MAX_RECOMMENDATION_COUNT);
         }
 
         // Filter out recommendations that are in favorites or watchlist
         fetchedRecs = fetchedRecs.filter(rec => !favoriteIds.has(rec.id?.toString()) && !watchlistIds.has(rec.id?.toString()));
 
-        if (fetchSuccessful) {
+        // Validate that we have enough recommendations before setting state
+        if (fetchSuccessful && fetchedRecs.length > 0) {
+          // Fill with generic recommendations if we still don't have enough
+          if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
+            logMessage(`Still only have ${fetchedRecs.length} recommendations, fetching more generic content`);
+            const moreGenericRecs = await fetchGenericRecommendations(
+              new Set([...Array.from(excludeIds), ...fetchedRecs.map(r => r.id)]), 
+              contentTypeFilter
+            );
+            fetchedRecs = [...fetchedRecs, ...moreGenericRecs].slice(0, MAX_RECOMMENDATION_COUNT);
+          }
+          
           saveRecommendationsToCache(fetchedRecs, userId, finalDataSource, finalReason, contentTypeFilter);
           safeSetState({
             recommendations: fetchedRecs,
@@ -762,10 +813,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       // Prepare exclude IDs - combine shown history and favorites
       const excludeIds = [...Array.from(shownItemsHistory || []), ...Array.from(favoriteIds || [])];
       
+      // Request more items than we need as a buffer
+      const requestLimit = MAX_RECOMMENDATION_COUNT * 2;
+      
       // Fetch from DynamoDB cache
       const cacheResult = await fetchCachedMedia({
         mediaType,
-        limit: MAX_RECOMMENDATION_COUNT,
+        limit: requestLimit,
         excludeIds,
         token
       });
