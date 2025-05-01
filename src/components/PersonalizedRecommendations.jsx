@@ -9,7 +9,7 @@ import { fetchCachedMedia, shouldRefreshCache } from '../services/mediaCache';
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
 const RECOMMENDATIONS_CACHE_KEY_PREFIX = 'movieRec_recommendations_';
 const SESSION_RECS_LOADED_FLAG = 'movieRec_session_loaded';
-const MIN_RECOMMENDATION_COUNT = 3; // Ensure at least 3 recommendations are shown
+const MIN_RECOMMENDATION_COUNT = 3;
 const MAX_RECOMMENDATION_COUNT = 3;
 const SHOWN_ITEMS_LIMIT = 150;
 const RETRY_DELAY = 1500;
@@ -151,15 +151,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       dataLoadAttemptedRef.current = false;
       retryCountRef.current = 0;
       prevPreferencesRef.current = null;
-      
-      // If this is a new login (not initial load), add a delay before setting userId
-      // to ensure AWS auth tokens are fully available
+
       const delay = prevUserIdRef.current === null ? 100 : 2000;
       console.log(`[PersonalRecs] Delaying user ID update by ${delay}ms to ensure auth is complete`);
       
       setTimeout(() => {
         prevUserIdRef.current = currentUserId;
-        // If delay was for authentication, trigger a cache check
         if (delay > 100) {
           safeSetState({ cacheChecked: false });
         }
@@ -228,7 +225,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     const apiKey = process.env.REACT_APP_TMDB_API_KEY;
     if (!apiKey) return [];
 
-    // Try multiple pages to increase chances of getting enough recommendations
     const pages = [1, 2];
     const results = [];
 
@@ -256,8 +252,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         }
 
         results.push(...items);
-        
-        // Add fetched IDs to existingIds to avoid duplicates in next page
         items.forEach(item => existingIds.add(item.id));
       } catch (error) {
         logError('Error fetching supplementary recommendations', error);
@@ -311,7 +305,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, []);
 
-  // New function to fetch watchlist items
   const fetchUserWatchlist = useCallback(async (token) => {
     if (!token) return [];
 
@@ -337,8 +330,60 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const getApiMediaType = (type) => {
     if (type === 'movies') return 'movie';
     if (type === 'tv') return 'tv';
-    return 'movie'; // Default to movie if invalid
+    return 'movie';
   };
+
+  // --- DynamoDB Cache Fetch ---
+  const fetchFromDynamoDBCache = useCallback(async (contentTypeFilter, excludeIds = new Set(), preferences = {}, favoriteIds = [], watchlistIds = []) => {
+    logMessage('Attempting to fetch from DynamoDB cache', { contentTypeFilter, excludeIdsCount: excludeIds.size, preferences, favoriteIdsCount: favoriteIds.length, watchlistIdsCount: watchlistIds.length });
+    try {
+      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      if (!token) {
+        logMessage('No auth token available for DynamoDB cache fetch');
+        return { success: false };
+      }
+
+      const mediaType = contentTypeFilter === 'both' ? 'both' : contentTypeFilter === 'movies' ? 'movie' : 'tv';
+      const requestLimit = MAX_RECOMMENDATION_COUNT * 3;
+
+      const excludeIdsArray = Array.from(excludeIds);
+
+      const cacheResult = await fetchCachedMedia({
+        mediaType,
+        limit: requestLimit,
+        excludeIds: excludeIdsArray,
+        token,
+        preferences,
+        favoriteIds,
+        watchlistIds,
+      });
+
+      if (cacheResult.items && cacheResult.items.length > 0) {
+        const filteredItems = cacheResult.items.filter(item => item.id && !excludeIds.has(item.id.toString()));
+        if (filteredItems.length > 0) {
+          logMessage(`Successfully fetched ${cacheResult.items.length} items from DynamoDB cache, ${filteredItems.length} remain after exclusion`);
+          return {
+            success: true,
+            recommendations: filteredItems.map(item => ({
+              ...item,
+              score: item.score || Math.round((item.vote_average / 10) * 100)
+            })),
+            dataSource: 'dynamo_cache',
+            reason: 'Daily trending content'
+          };
+        } else {
+          logMessage(`Fetched ${cacheResult.items.length} from DynamoDB, but all were excluded`);
+          return { success: false };
+        }
+      }
+
+      logMessage('No results found in DynamoDB cache');
+      return { success: false };
+    } catch (error) {
+      logError('Error fetching from DynamoDB cache', error);
+      return { success: false };
+    }
+  }, [currentUser, logMessage, fetchCachedMedia]);
 
   // --- Core Recommendation Fetch Logic ---
   const fetchRecommendations = useCallback(
@@ -369,7 +414,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
         const prefs = propUserPreferences || {};
 
-        // Fetch user data (favorites, watchlist, genres)
         const [favoritesData, watchlistItems] = await Promise.all([
           fetchUserFavoritesAndGenres(token),
           fetchUserWatchlist(token)
@@ -378,7 +422,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         const favoriteIds = new Set(favorites.map((fav) => fav.mediaId?.toString()));
         const watchlistIds = new Set(watchlistItems.map((item) => item.mediaId?.toString()));
 
-        // Combine all IDs to exclude from results
         const excludeIds = new Set([
           ...favoriteIds,
           ...watchlistIds,
@@ -389,27 +432,28 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         const hasPrefs = prefs.favoriteGenres?.length > 0 || prefs.moodPreferences?.length > 0 || prefs.eraPreferences?.length > 0 || prefs.languagePreferences?.length > 0 || prefs.runtimePreference;
         const hasFavs = favorites.length > 0;
 
-        // --- Fetching Strategy ---
-        // 1. Try DynamoDB Cache first (unless forcing a full refresh)
-        if (!forceRefresh) {
-          logMessage('Attempting DynamoDB cache fetch first.');
-          const cacheResult = await fetchFromDynamoDBCache(contentTypeFilter, excludeIds);
-          if (cacheResult.success && cacheResult.recommendations.length >= MIN_RECOMMENDATION_COUNT) {
-            fetchedRecs = cacheResult.recommendations.slice(0, MAX_RECOMMENDATION_COUNT);
-            finalDataSource = cacheResult.dataSource;
-            finalReason = cacheResult.reason;
-            fetchSuccessful = true;
-            logMessage('Sufficient recommendations found in DynamoDB cache.');
-          } else {
-            logMessage('DynamoDB cache did not yield sufficient results or was skipped.');
-          }
+        // 1. Try DynamoDB Cache first
+        logMessage('Attempting DynamoDB cache fetch first');
+        const cacheResult = await fetchFromDynamoDBCache(
+          contentTypeFilter,
+          excludeIds,
+          prefs,
+          Array.from(favoriteIds),
+          Array.from(watchlistIds)
+        );
+        if (cacheResult.success && cacheResult.recommendations.length >= MIN_RECOMMENDATION_COUNT) {
+          fetchedRecs = cacheResult.recommendations.slice(0, MAX_RECOMMENDATION_COUNT);
+          finalDataSource = cacheResult.dataSource;
+          finalReason = cacheResult.reason;
+          fetchSuccessful = true;
+          logMessage('Sufficient recommendations found in DynamoDB cache');
         } else {
-           logMessage('Force refresh requested, skipping initial DynamoDB cache check.');
+          logMessage('DynamoDB cache did not yield sufficient results');
         }
 
-        // 2. If cache fails or is skipped, try TMDB API based on preferences/favorites
-        if (!fetchSuccessful && (hasPrefs || hasFavs)) {
-          logMessage('Attempting TMDB API fetch based on preferences/favorites.');
+        // 2. If DynamoDB fails or forceRefresh, try TMDB API based on preferences/favorites
+        if (!fetchSuccessful || forceRefresh) {
+          logMessage('Attempting TMDB API fetch based on preferences/favorites');
           const apiKey = process.env.REACT_APP_TMDB_API_KEY;
           if (!apiKey) throw new Error('TMDB API Key missing');
 
@@ -419,30 +463,27 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           } else if (hasPrefs && prefs.contentType && prefs.contentType !== 'both') {
             mediaType = getApiMediaType(prefs.contentType);
           } else {
-            // Use ratio from favorites if available, otherwise random
             mediaType = Math.random() < (contentTypeRatio.movies || 0.5) ? 'movie' : 'tv';
           }
           logMessage(`Selected mediaType for TMDB discovery: ${mediaType}`);
 
-          // Combine preference genres and favorite genres, weighting preference genres higher
           const genresToUse = [];
           const prefGenreIds = new Set(prefs.favoriteGenres || []);
           const favGenreIds = new Set(favGenres || []);
 
-          prefGenreIds.forEach(id => genresToUse.push({ id, weight: 2 })); // Higher weight for explicit prefs
+          prefGenreIds.forEach(id => genresToUse.push({ id, weight: 2 }));
           favGenreIds.forEach(id => {
-            if (!prefGenreIds.has(id)) { // Add favorite genres only if not already added as a preference
+            if (!prefGenreIds.has(id)) {
               genresToUse.push({ id, weight: 1 });
             }
           });
           logMessage('Genres to use for TMDB discovery:', genresToUse);
 
-
           const params = {
             api_key: apiKey,
             sort_by: 'popularity.desc',
-            'vote_count.gte': 50, // Lowered slightly to broaden results
-            'vote_average.gte': 5.5, // Lowered slightly
+            'vote_count.gte': 50,
+            'vote_average.gte': 5.5,
             include_adult: false,
           };
 
@@ -453,9 +494,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           if (prefs.moodPreferences?.length > 0) {
             const keywords = prefs.moodPreferences.flatMap((m) => moodToKeywords(m));
             if (keywords.length > 0) {
-              // TMDB API doesn't directly support keyword *discovery*, but we can use it for scoring later.
-              // We could potentially fetch keyword IDs first, but that adds complexity.
-              // For now, we'll rely on genre/other filters for discovery and keywords for scoring.
               logMessage('Mood preferences identified, will be used for scoring:', keywords);
             }
           }
@@ -486,35 +524,34 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
 
           const url = `https://api.themoviedb.org/3/discover/${mediaType}`;
-          const maxPages = 5; // Fetch more pages to increase pool size
+          const maxPages = 5;
           const pages = Array.from({ length: maxPages }, (_, i) => i + 1);
           logMessage(`Fetching up to ${maxPages} pages from TMDB discover endpoint: ${url}`);
 
           const responses = await Promise.all(
             pages.map((p) => axios.get(url, { params: { ...params, page: p } }).catch(err => {
               logError(`Error fetching TMDB page ${p}`, err);
-              return null; // Allow Promise.all to continue
+              return null;
             }))
           );
 
           const allItems = responses
-            .filter(Boolean) // Remove failed requests
+            .filter(Boolean)
             .flatMap((r) => r.data.results)
             .filter((item) =>
               item.poster_path &&
               item.overview &&
-              item.id && // Ensure item has an ID
-              !excludeIds.has(item.id.toString()) // Check against stringified ID
+              item.id &&
+              !excludeIds.has(item.id.toString())
             )
             .map((item) => ({
               ...item,
-              media_type: mediaType, // Ensure media_type is set correctly
+              media_type: mediaType,
               score: calculateSimilarity(item, genresToUse, prefs.moodPreferences),
             }));
 
-          logMessage(`TMDB discover returned ${allItems.length} potential items after filtering.`);
+          logMessage(`TMDB discover returned ${allItems.length} potential items after filtering`);
 
-          // Sort by calculated score and take top N
           const sortedItems = allItems.sort((a, b) => b.score - a.score);
           fetchedRecs = sortedItems.slice(0, MAX_RECOMMENDATION_COUNT);
 
@@ -522,84 +559,59 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
             finalDataSource = hasPrefs && hasFavs ? 'both' : hasPrefs ? 'preferences' : 'favorites';
             finalReason = finalDataSource === 'both' ? 'Based on your preferences & favorites' : hasPrefs ? 'Based on your taste' : 'Inspired by your favorites';
             fetchSuccessful = true;
-            logMessage(`Successfully fetched ${fetchedRecs.length} recommendations from TMDB based on user data.`);
+            logMessage(`Successfully fetched ${fetchedRecs.length} recommendations from TMDB based on user data`);
           } else {
-            logMessage('TMDB API fetch based on user data yielded no results.');
+            logMessage('TMDB API fetch based on user data yielded no results');
           }
         }
 
-        // 3. If still not enough recommendations, try supplementary (Top Rated / Trending)
+        // 3. Supplementary fetch if needed
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
-          logMessage(`Need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations, trying supplementary.`);
+          logMessage(`Need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations, trying supplementary`);
           const supplementary = await fetchSupplementaryRecommendations(
             fetchedRecs.length,
-            new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]), // Exclude already fetched recs
+            new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]),
             contentTypeFilter
           );
           const combinedRecs = [...fetchedRecs, ...supplementary];
-          fetchedRecs = combinedRecs.slice(0, MAX_RECOMMENDATION_COUNT); // Ensure limit
+          fetchedRecs = combinedRecs.slice(0, MAX_RECOMMENDATION_COUNT);
 
           if (!fetchSuccessful && supplementary.length > 0) {
             finalDataSource = 'supplementary';
             finalReason = 'Popular picks for you';
-            fetchSuccessful = true; // Mark as successful even if only supplementary found
-            logMessage(`Added ${supplementary.length} supplementary recommendations.`);
+            fetchSuccessful = true;
+            logMessage(`Added ${supplementary.length} supplementary recommendations`);
           }
         }
 
-        // 4. If STILL not enough, try generic popular/trending
+        // 4. Generic fetch if still not enough
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
-          logMessage(`Still need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations, trying generic.`);
+          logMessage(`Still need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations, trying generic`);
           const genericRecs = await fetchGenericRecommendations(
-            new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]), // Exclude all previous
+            new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]),
             contentTypeFilter
           );
           const combinedRecs = [...fetchedRecs, ...genericRecs];
-          fetchedRecs = combinedRecs.slice(0, MAX_RECOMMENDATION_COUNT); // Ensure limit
+          fetchedRecs = combinedRecs.slice(0, MAX_RECOMMENDATION_COUNT);
 
           if (!fetchSuccessful && genericRecs.length > 0) {
             finalDataSource = 'generic';
             finalReason = 'Trending now';
-            fetchSuccessful = true; // Mark as successful if generic found
-            logMessage(`Added ${genericRecs.length} generic recommendations.`);
+            fetchSuccessful = true;
+            logMessage(`Added ${genericRecs.length} generic recommendations`);
           }
         }
 
-        // 5. As a final fallback (especially if forceRefresh was true), try DynamoDB again
-        if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT && forceRefresh) {
-           logMessage(`Still need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations after force refresh, trying DynamoDB cache as fallback.`);
-           const dynamoCacheResult = await fetchFromDynamoDBCache(
-             contentTypeFilter,
-             new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]) // Exclude all previous
-           );
-           if (dynamoCacheResult.success) {
-             const existingIds = new Set(fetchedRecs.map(rec => rec.id?.toString()));
-             const newDynamoRecs = dynamoCacheResult.recommendations.filter(rec => !existingIds.has(rec.id?.toString()));
-             const combinedRecs = [...fetchedRecs, ...newDynamoRecs];
-             fetchedRecs = combinedRecs.slice(0, MAX_RECOMMENDATION_COUNT); // Ensure limit
-
-             if (!fetchSuccessful && newDynamoRecs.length > 0) {
-               finalDataSource = 'dynamo_cache';
-               finalReason = 'Daily trending content';
-               fetchSuccessful = true;
-               logMessage(`Added ${newDynamoRecs.length} recommendations from DynamoDB cache as fallback.`);
-             }
-           }
-        }
-
-        // Final check and state update
+        // Final state update
         if (fetchSuccessful && fetchedRecs.length > 0) {
-          // Ensure final list doesn't contain excluded items (double-check)
           fetchedRecs = fetchedRecs.filter(rec => rec.id && !favoriteIds.has(rec.id.toString()) && !watchlistIds.has(rec.id.toString()));
-
-          // If filtering removed too many, try one last generic fill
           if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
-             logMessage(`Filtering removed items, now have ${fetchedRecs.length}. Fetching final generic fill.`);
-             const finalFillRecs = await fetchGenericRecommendations(
-               new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]),
-               contentTypeFilter
-             );
-             fetchedRecs = [...fetchedRecs, ...finalFillRecs].slice(0, MAX_RECOMMENDATION_COUNT);
+            logMessage(`Filtering removed items, now have ${fetchedRecs.length}. Fetching final generic fill`);
+            const finalFillRecs = await fetchGenericRecommendations(
+              new Set([...excludeIds, ...fetchedRecs.map(r => r.id?.toString())]),
+              contentTypeFilter
+            );
+            fetchedRecs = [...fetchedRecs, ...finalFillRecs].slice(0, MAX_RECOMMENDATION_COUNT);
           }
 
           logMessage(`Final recommendations count: ${fetchedRecs.length}, DataSource: ${finalDataSource}, Reason: ${finalReason}`);
@@ -610,107 +622,81 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
             recommendationReason: finalReason,
             hasError: false,
             errorMessage: '',
-            // Update shown history carefully, only adding NEWLY shown items
             shownItemsHistory: new Set([...Array.from(shownItemsHistory), ...fetchedRecs.map((r) => r.id?.toString())].slice(-SHOWN_ITEMS_LIMIT)),
           });
         } else {
-          logMessage('No recommendations found after all attempts.');
+          logMessage('No recommendations found after all attempts');
           safeSetState({
             recommendations: [],
             dataSource: 'none',
             recommendationReason: 'Could not find recommendations matching your profile. Try adjusting preferences or adding favorites!',
-            hasError: false, // Not an error, just no results
+            hasError: false,
           });
         }
       } catch (error) {
         logError('Fetch recommendations main error', error);
-        if (retryCountRef.current < MAX_RETRIES && error.message !== 'TMDB API Key missing') { // Don't retry if API key is missing
+        if (retryCountRef.current < MAX_RETRIES && error.message !== 'TMDB API Key missing') {
           retryCountRef.current++;
           logMessage(`Retrying fetch (${retryCountRef.current}/${MAX_RETRIES})...`);
-          isFetchingRef.current = false; // Allow retry
+          isFetchingRef.current = false;
           setTimeout(() => fetchRecommendations(forceRefresh), RETRY_DELAY);
-          return false; // Indicate fetch is not complete yet
+          return false;
         }
         safeSetState({
           recommendations: [],
           dataSource: 'error',
-          recommendationReason: 'Error fetching recommendations.',
+          recommendationReason: 'Error fetching recommendations',
           hasError: true,
-          errorMessage: error.message || 'An unexpected error occurred.',
+          errorMessage: error.message || 'An unexpected error occurred',
         });
       } finally {
-        // Ensure loading state is turned off only if not retrying
         if (mountedRef.current && retryCountRef.current >= MAX_RETRIES) {
           safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
           isFetchingRef.current = false;
         } else if (mountedRef.current && !isFetchingRef.current) {
-           // If retry finished or succeeded without retry needed
-           safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
+          safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
         }
       }
-      // Return true only if recommendations were successfully fetched and set (not during retry)
       return fetchSuccessful && retryCountRef.current < MAX_RETRIES;
     },
     [
-      currentUser, // Includes token changes implicitly
+      currentUser,
       isAuthenticated,
-      userId, // Added userId explicitly
+      userId,
       initialAppLoadComplete,
       propUserPreferences,
       contentTypeFilter,
       shownItemsHistory,
       fetchUserFavoritesAndGenres,
       fetchUserWatchlist,
-      fetchFromDynamoDBCache, // Added DynamoDB fetch
+      fetchFromDynamoDBCache,
       fetchSupplementaryRecommendations,
       fetchGenericRecommendations,
       saveRecommendationsToCache,
       safeSetState,
-      getApiMediaType, // Added helper function
-      calculateSimilarity, // Added helper function
-      moodToKeywords, // Added helper function
-      // Removed handleMediaFavoriteToggle and handleMediaWatchlistToggle as they don't directly influence fetching
+      getApiMediaType,
+      calculateSimilarity,
+      moodToKeywords,
     ]
   );
 
   // --- Improved Similarity Scoring ---
   const calculateSimilarity = (item, genresToUse, moodPrefs) => {
-    // normalize rating (0–25)
     const ratingScore = item.vote_average ? (item.vote_average / 10) * 25 : 0;
-
-    // popularity boost with diminishing returns (0–25)
-    const popScore = item.popularity
-      ? (Math.log10(item.popularity + 1) / Math.log10(1000)) * 25
-      : 0;
-
-    // recency bonus: newer releases up to 10 yrs old (0–20)
-    const releaseTime = item.release_date
-      ? new Date(item.release_date).getTime()
-      : 0;
+    const popScore = item.popularity ? (Math.log10(item.popularity + 1) / Math.log10(1000)) * 25 : 0;
+    const releaseTime = item.release_date ? new Date(item.release_date).getTime() : 0;
     const yearsOld = (Date.now() - releaseTime) / (1000 * 60 * 60 * 24 * 365);
-    const recencyScore = yearsOld < 10
-      ? ((10 - yearsOld) / 10) * 20
-      : 0;
-
-    // genre match: weight each preferred genre (0– genresToUse.length*10)
+    const recencyScore = yearsOld < 10 ? ((10 - yearsOld) / 10) * 20 : 0;
     const genreScore = genresToUse.reduce(
       (sum, g) => sum + (item.genre_ids.includes(g.id) ? g.weight * 10 : 0),
       0
     );
-
-    // mood keyword hits: +5 per match
     const keywords = (moodPrefs || []).flatMap(moodToKeywords);
     const moodScore = keywords.reduce(
-      (sum, kw) =>
-        item.overview?.toLowerCase().includes(kw) ? sum + 5 : sum,
+      (sum, kw) => item.overview?.toLowerCase().includes(kw) ? sum + 5 : sum,
       0
     );
-
-    // cap at 100
-    return Math.min(
-      Math.round(ratingScore + popScore + recencyScore + genreScore + moodScore),
-      100
-    );
+    return Math.min(Math.round(ratingScore + popScore + recencyScore + genreScore + moodScore), 100);
   };
 
   // --- Mood to Keywords Mapping ---
@@ -725,34 +711,27 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     return map[mood] || [];
   };
 
-  // --- Event handlers for favorites and watchlist updates ---
+  // --- Event Handlers ---
   const handleMediaFavoriteToggle = useCallback((mediaId, isFavorited) => {
     logMessage(`Media favorite status changed: ${mediaId} - ${isFavorited ? 'Added to' : 'Removed from'} favorites`);
-    
-    // If the media was added to favorites, add it to our tracked favorite IDs
-    // No need to refresh the recommendations; just let the user keep seeing the current items
     if (isFavorited) {
-      // Add to the in-memory shownItemsHistory to ensure this item doesn't appear in future refreshes
       safeSetState(prevState => ({
         shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
       }));
+      handleRefresh();
     }
-  }, [safeSetState, logMessage]);
+  }, [safeSetState, logMessage, handleRefresh]);
 
   const handleMediaWatchlistToggle = useCallback((mediaId, isInWatchlist) => {
     logMessage(`Media watchlist status changed: ${mediaId} - ${isInWatchlist ? 'Added to' : 'Removed from'} watchlist`);
-    
-    // If the media was added to watchlist, add it to our tracked watchlist IDs
-    // No need to refresh the recommendations; just let the user keep seeing the current items
     if (isInWatchlist) {
-      // Add to the in-memory shownItemsHistory to ensure this item doesn't appear in future refreshes
       safeSetState(prevState => ({
         shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
       }));
+      handleRefresh();
     }
-  }, [safeSetState, logMessage]);
+  }, [safeSetState, logMessage, handleRefresh]);
 
-  // --- Manual Refresh Handler ---
   const handleRefresh = useCallback(async () => {
     if (isFetchingRef.current || !userId || !isAuthenticated) return;
 
@@ -762,51 +741,31 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       refreshCounter: state.refreshCounter + 1,
     });
 
-    // Clear cache for this user and content type
     const cacheKey = getCacheKey(userId, contentTypeFilter);
     if (cacheKey) localStorage.removeItem(cacheKey);
     sessionStorage.removeItem(SESSION_RECS_LOADED_FLAG);
 
     dataLoadAttemptedRef.current = false;
 
-    // Small delay to ensure skeleton appears before fetch starts
     setTimeout(async () => {
       await fetchRecommendations(true);
     }, 100);
   }, [userId, isAuthenticated, contentTypeFilter, fetchRecommendations, safeSetState, state.refreshCounter]);
+
   // --- Initial Load and Preference Changes ---
   useEffect(() => {
     if (!isAuthenticated || !userId || !initialAppLoadComplete) return;
 
-    // Validate authentication token is actually available
     const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
-    
-    console.log('[PersonalRecs] Checking for cached recommendations', {
-      isAuthenticated,
-      userId,
-      initialAppLoadComplete,
-      propHasCompletedQuestionnaire,
-      cacheChecked,
-      hasToken: !!token,
-    });
-
-    // If authenticated but no token yet, wait for token
     if (isAuthenticated && !token) {
       console.log('[PersonalRecs] Auth state is true but token not ready yet, delaying load');
-      safeSetState({ 
-        isLoading: false, 
-        isThinking: false,
-      });
-      
-      // Check again after a short delay
+      safeSetState({ isLoading: false, isThinking: false });
       const tokenCheckTimer = setTimeout(() => {
         safeSetState({ cacheChecked: false });
       }, 1500);
-      
       return () => clearTimeout(tokenCheckTimer);
     }
 
-    // Set up loading timeout to prevent infinite loading
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = setTimeout(() => {
       if (isLoading && mountedRef.current) {
@@ -815,7 +774,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           isLoading: false, 
           isThinking: false, 
           hasError: true, 
-          errorMessage: 'Loading recommendations timed out. Please try refreshing.',
+          errorMessage: 'Loading recommendations timed out. Please try refreshing',
           dataSource: 'error'
         });
         isFetchingRef.current = false;
@@ -823,7 +782,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }, LOADING_TIMEOUT);
 
     const cached = getRecommendationsFromCache(userId, contentTypeFilter);
-    if (cached) {
+    if (cached && !cacheChecked) {
       safeSetState({
         recommendations: cached.data,
         dataSource: cached.dataSource,
@@ -835,7 +794,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       dataLoadAttemptedRef.current = true;
     } else {
       safeSetState({ cacheChecked: true, isLoading: true, isThinking: true });
-      // Small delay to ensure AWS auth is fully ready before API calls
       setTimeout(() => {
         if (mountedRef.current) {
           fetchRecommendations(false);
@@ -859,69 +817,10 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     prevPreferencesRef.current = currentPrefs;
   }, [propUserPreferences, initialAppLoadComplete, propHasCompletedQuestionnaire, handleRefresh, safeSetState]);
 
-  // --- DynamoDB Cache Check ---
-  const fetchFromDynamoDBCache = useCallback(async (contentTypeFilter, excludeIds = new Set()) => { // Removed favoriteIds, shownItemsHistory args as excludeIds now covers both
-    logMessage('Attempting to fetch from DynamoDB cache', { contentTypeFilter, excludeIdsCount: excludeIds.size });
-    try {
-      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
-      if (!token) {
-        logMessage('No auth token available for DynamoDB cache fetch');
-        return { success: false };
-      }
-
-      // Convert contentTypeFilter to the format expected by the Lambda
-      const mediaType = contentTypeFilter === 'both'
-        ? 'both'
-        : contentTypeFilter === 'movies' ? 'movie' : 'tv';
-
-      // Request more items than we need as a buffer, filtering happens client-side
-      const requestLimit = MAX_RECOMMENDATION_COUNT * 3; // Increased buffer
-
-      // Fetch from DynamoDB cache
-      const cacheResult = await fetchCachedMedia({
-        mediaType,
-        limit: requestLimit,
-        // Pass excludeIds directly - Lambda should handle filtering if implemented,
-        // otherwise we filter client-side after fetch.
-        // excludeIds: Array.from(excludeIds), // Convert Set to Array if needed by API
-        token
-      });
-
-      if (cacheResult.items && cacheResult.items.length > 0) {
-        // Filter results client-side to ensure exclusions are respected
-        const filteredItems = cacheResult.items.filter(item => item.id && !excludeIds.has(item.id.toString()));
-
-        if (filteredItems.length > 0) {
-           logMessage(`Successfully fetched ${cacheResult.items.length} items from DynamoDB cache, ${filteredItems.length} remain after exclusion.`);
-           return {
-             success: true,
-             recommendations: filteredItems.map(item => ({
-               ...item,
-               // Ensure score calculation if needed, though cache might already have it
-               score: item.score || Math.round((item.vote_average / 10) * 100)
-             })),
-             dataSource: 'dynamo_cache',
-             reason: 'Daily trending content'
-           };
-        } else {
-           logMessage(`Fetched ${cacheResult.items.length} from DynamoDB, but all were excluded.`);
-           return { success: false };
-        }
-      }
-
-      logMessage('No results found in DynamoDB cache');
-      return { success: false };
-    } catch (error) {
-      logError('Error fetching from DynamoDB cache', error);
-      return { success: false };
-    }
-  }, [currentUser, logMessage, fetchCachedMedia]); // Dependencies for DynamoDB fetch
-
-  // --- Expose methods for parent components to call ---
+  // --- Expose methods for parent components ---
   useImperativeHandle(ref, () => ({
     refreshRecommendations: (updatedPrefs = null) => {
       logMessage('Refreshing recommendations from external trigger');
-
       safeSetState({
         isLoading: true,
         isThinking: true,
@@ -937,23 +836,22 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         prevPreferencesRef.current = JSON.stringify(updatedPrefs);
       }
 
-      // Small delay to ensure the skeleton shows before heavy fetch operations
       setTimeout(() => {
         handleRefresh();
       }, 50);
     },
   }));
 
-  // --- Listen for favorites and watchlist updates from other components ---
+  // --- Listen for favorites and watchlist updates ---
   useEffect(() => {
     const handleFavoritesUpdate = (event) => {
       const { mediaId, isFavorited } = event.detail || {};
       if (mediaId && isFavorited) {
         logMessage(`External favorite update detected for: ${mediaId}`);
-        // Add to shown history to avoid showing it again in future refreshes
         safeSetState(prevState => ({
           shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
         }));
+        handleRefresh();
       }
     };
 
@@ -961,10 +859,10 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       const { mediaId, isInWatchlist } = event.detail || {};
       if (mediaId && isInWatchlist) {
         logMessage(`External watchlist update detected for: ${mediaId}`);
-        // Add to shown history to avoid showing it again in future refreshes
         safeSetState(prevState => ({
           shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
         }));
+        handleRefresh();
       }
     };
 
@@ -975,7 +873,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       document.removeEventListener('favorites-updated', handleFavoritesUpdate);
       document.removeEventListener('watchlist-updated', handleWatchlistUpdate);
     };
-  }, [safeSetState, logMessage]);
+  }, [safeSetState, logMessage, handleRefresh]);
 
   // --- Render Logic ---
   if (!isAuthenticated || !initialAppLoadComplete) {
@@ -1001,7 +899,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-      >      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[...Array(MIN_RECOMMENDATION_COUNT)].map((_, i) => (
             <div key={i} className="bg-gray-800 rounded-xl h-[350px] shadow-md overflow-hidden animate-pulse">
               <div className="h-3/5 bg-gray-700"></div>
@@ -1015,7 +914,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         </div>
       </motion.div>
     );
-  } else if (showRecs) {    content = (      <motion.div
+  } else if (showRecs) {
+    content = (
+      <motion.div
         key={`recommendations-${refreshCounter}-${dataSource}`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1053,11 +954,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       >
         <div className="mb-4 text-5xl text-red-400">⚠️</div>
         <h3 className="text-xl font-semibold text-white mb-3">Something went wrong</h3>
-        <p className="text-gray-400 mb-6">{errorMessage || "We couldn't load recommendations."}</p>
+        <p className="text-gray-400 mb-6">{errorMessage || "We couldn't load recommendations"}</p>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          onClick={handleRefresh}          disabled={isThinking || isLoading}
+          onClick={handleRefresh}
+          disabled={isThinking || isLoading}
           className={`bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full ${isThinking || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {(isThinking || isLoading) ? 'Trying...' : 'Get New Recommendations'}
@@ -1076,7 +978,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       >
         <div className="mb-4 text-5xl text-indigo-400">🤷‍♂️</div>
         <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Found</h3>
-        <p className="text-gray-400 mb-6">{recommendationReason}</p>        <motion.button
+        <p className="text-gray-400 mb-6">{recommendationReason}</p>
+        <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleRefresh}
@@ -1088,7 +991,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     );
   } else {
     content = <div key="fallback" className="min-h-[200px]"></div>;
-  }  let title = 'Recommendations For You'; // Default title
+  }
+
+  let title = 'Recommendations For You';
   if (isLoading) title = "Finding Recommendations...";
   else if (dataSource === 'error') title = "Error Loading";
   else if (dataSource === 'both') title = 'For You (Taste & Favorites)';
@@ -1099,7 +1004,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   else if (dataSource === 'supplementary' || dataSource === 'mixed') title = 'Popular Picks For You';
   else if (dataSource === 'none') title = 'No Recommendations Found';
 
-
   return (
     <motion.section
       initial={{ opacity: 0 }}
@@ -1107,14 +1011,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       className="mb-12 max-w-7xl mx-auto px-4"
     >
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-        {/* Use the updated title */}
         <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
         <div className="flex flex-wrap gap-2">
-          {/* Content Type Filter Buttons */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => { safeSetState({ contentTypeFilter: 'both' }); handleRefresh(); }} // Trigger refresh on filter change
+            onClick={() => { safeSetState({ contentTypeFilter: 'both' }); handleRefresh(); }}
             className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'both' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
             disabled={isLoading || isThinking}
           >
@@ -1124,7 +1026,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => { safeSetState({ contentTypeFilter: 'movies' }); handleRefresh(); }} // Trigger refresh on filter change
+            onClick={() => { safeSetState({ contentTypeFilter: 'movies' }); handleRefresh(); }}
             className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'movies' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
             disabled={isLoading || isThinking}
           >
@@ -1134,14 +1036,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => { safeSetState({ contentTypeFilter: 'tv' }); handleRefresh(); }} // Trigger refresh on filter change
+            onClick={() => { safeSetState({ contentTypeFilter: 'tv' }); handleRefresh(); }}
             className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'tv' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
             disabled={isLoading || isThinking}
           >
             <TvIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>TV Shows</span>
           </motion.button>
-          {/* Refresh Button */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
