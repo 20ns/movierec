@@ -152,6 +152,7 @@ main, section, .content-container, .results-container {
   align-items: center;
   scroll-behavior: smooth;
   overflow: hidden;
+  overscroll-behavior: contain; /* Prevent scroll chaining to background */
 }
 
 .search-results {
@@ -166,6 +167,7 @@ main, section, .content-container, .results-container {
   scroll-behavior: smooth;
   overflow-y: auto;
   overflow-x: hidden; /* Prevent horizontal overflow */
+  overscroll-behavior: contain; /* Contain scroll within results */
 }
 
 .search-results .result-item {

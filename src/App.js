@@ -72,6 +72,34 @@ function AppContent() {
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+useEffect(() => {
+  if (showSearch) {
+    const scrollY = window.scrollY;
+    // Lock body scroll
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    document.body.style.overscrollBehavior = 'none';
+    // Also lock html overflow
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    return () => {
+      // Restore body styles
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overscrollBehavior = '';
+      // Restore html styles
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.overscrollBehavior = '';
+      window.scrollTo(0, scrollY);
+    };
+  }
+}, [showSearch]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
