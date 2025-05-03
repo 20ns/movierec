@@ -151,16 +151,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       dataLoadAttemptedRef.current = false;
       retryCountRef.current = 0;
       prevPreferencesRef.current = null;
-
-      const delay = prevUserIdRef.current === null ? 100 : 2000;
-      console.log(`[PersonalRecs] Delaying user ID update by ${delay}ms to ensure auth is complete`);
-      
-      setTimeout(() => {
-        prevUserIdRef.current = currentUserId;
-        if (delay > 100) {
-          safeSetState({ cacheChecked: false });
-        }
-      }, delay);
+      prevUserIdRef.current = currentUserId;
     }
   }, [currentUser, safeSetState]);
 
@@ -261,7 +252,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     return results.slice(0, neededCount);
   }, []);
 
-  // --- User Data Fetching Utilities ---
   const fetchUserFavoritesAndGenres = useCallback(async (token) => {
     if (!token) return { favorites: [], genres: [], contentTypeRatio: { movies: 0.5, tv: 0.5 } };
 
@@ -326,14 +316,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, []);
 
-  // --- Helper Function to Map Content Type to API Media Type ---
   const getApiMediaType = (type) => {
     if (type === 'movies') return 'movie';
     if (type === 'tv') return 'tv';
     return 'movie';
   };
 
-  // --- DynamoDB Cache Fetch ---
   const fetchFromDynamoDBCache = useCallback(async (contentTypeFilter, excludeIds = new Set(), preferences = {}, favoriteIds = [], watchlistIds = []) => {
     logMessage('Attempting to fetch from DynamoDB cache', { contentTypeFilter, excludeIdsCount: excludeIds.size, preferences, favoriteIdsCount: favoriteIds.length, watchlistIdsCount: watchlistIds.length });
     try {
@@ -432,7 +420,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         const hasPrefs = prefs.favoriteGenres?.length > 0 || prefs.moodPreferences?.length > 0 || prefs.eraPreferences?.length > 0 || prefs.languagePreferences?.length > 0 || prefs.runtimePreference;
         const hasFavs = favorites.length > 0;
 
-        // 1. Try DynamoDB Cache first
         logMessage('Attempting DynamoDB cache fetch first');
         const cacheResult = await fetchFromDynamoDBCache(
           contentTypeFilter,
@@ -451,7 +438,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           logMessage('DynamoDB cache did not yield sufficient results');
         }
 
-        // 2. If DynamoDB fails or forceRefresh, try TMDB API based on preferences/favorites
         if (!fetchSuccessful || forceRefresh) {
           logMessage('Attempting TMDB API fetch based on preferences/favorites');
           const apiKey = process.env.REACT_APP_TMDB_API_KEY;
@@ -565,7 +551,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
         }
 
-        // 3. Supplementary fetch if needed
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
           logMessage(`Need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations, trying supplementary`);
           const supplementary = await fetchSupplementaryRecommendations(
@@ -584,7 +569,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
         }
 
-        // 4. Generic fetch if still not enough
         if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
           logMessage(`Still need ${MIN_RECOMMENDATION_COUNT - fetchedRecs.length} more recommendations, trying generic`);
           const genericRecs = await fetchGenericRecommendations(
@@ -602,7 +586,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
         }
 
-        // Final state update
         if (fetchSuccessful && fetchedRecs.length > 0) {
           fetchedRecs = fetchedRecs.filter(rec => rec.id && !favoriteIds.has(rec.id.toString()) && !watchlistIds.has(rec.id.toString()));
           if (fetchedRecs.length < MIN_RECOMMENDATION_COUNT) {
@@ -650,11 +633,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           errorMessage: error.message || 'An unexpected error occurred',
         });
       } finally {
-        if (mountedRef.current && retryCountRef.current >= MAX_RETRIES) {
+        if (mountedRef.current) {
           safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
           isFetchingRef.current = false;
-        } else if (mountedRef.current && !isFetchingRef.current) {
-          safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
         }
       }
       return fetchSuccessful && retryCountRef.current < MAX_RETRIES;
@@ -680,7 +661,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     ]
   );
 
-  // --- Improved Similarity Scoring ---
+  // --- Similarity Scoring and Mood to Keywords ---
   const calculateSimilarity = (item, genresToUse, moodPrefs) => {
     const ratingScore = item.vote_average ? (item.vote_average / 10) * 25 : 0;
     const popScore = item.popularity ? (Math.log10(item.popularity + 1) / Math.log10(1000)) * 25 : 0;
@@ -699,7 +680,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     return Math.min(Math.round(ratingScore + popScore + recencyScore + genreScore + moodScore), 100);
   };
 
-  // --- Mood to Keywords Mapping ---
   const moodToKeywords = (mood) => {
     const map = {
       'exciting': ['action', 'thrilling', 'intense'],
@@ -752,18 +732,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }, 100);
   }, [userId, isAuthenticated, contentTypeFilter, fetchRecommendations, safeSetState, state.refreshCounter]);
 
-  // --- Initial Load and Preference Changes ---
+  // --- Initial Load ---
   useEffect(() => {
     if (!isAuthenticated || !userId || !initialAppLoadComplete) return;
 
     const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
     if (isAuthenticated && !token) {
-      console.log('[PersonalRecs] Auth state is true but token not ready yet, delaying load');
+      console.log('[PersonalRecs] Auth state is true but token not ready yet');
       safeSetState({ isLoading: false, isThinking: false });
-      const tokenCheckTimer = setTimeout(() => {
-        safeSetState({ cacheChecked: false });
-      }, 1500);
-      return () => clearTimeout(tokenCheckTimer);
+      return;
     }
 
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
@@ -794,18 +771,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       dataLoadAttemptedRef.current = true;
     } else {
       safeSetState({ cacheChecked: true, isLoading: true, isThinking: true });
-      setTimeout(() => {
-        if (mountedRef.current) {
-          fetchRecommendations(false);
-        }
-      }, 500);
+      fetchRecommendations(false);
     }
 
     return () => {
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     };
-  }, [userId, isAuthenticated, initialAppLoadComplete, contentTypeFilter, cacheChecked, fetchRecommendations, safeSetState, propHasCompletedQuestionnaire, isLoading, currentUser]);
+  }, [isAuthenticated, userId, initialAppLoadComplete]);
 
+  // --- Preference Changes ---
   useEffect(() => {
     if (!initialAppLoadComplete || !propHasCompletedQuestionnaire) return;
 
@@ -815,7 +789,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       handleRefresh();
     }
     prevPreferencesRef.current = currentPrefs;
-  }, [propUserPreferences, initialAppLoadComplete, propHasCompletedQuestionnaire, handleRefresh, safeSetState]);
+  }, [initialAppLoadComplete, propHasCompletedQuestionnaire, propUserPreferences]);
 
   // --- Expose methods for parent components ---
   useImperativeHandle(ref, () => ({
@@ -994,8 +968,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   }
 
   let title = 'Recommendations For You';
-  if (isLoading) title = "Finding Recommendations...";
-  else if (dataSource === 'error') title = "Error Loading";
+  if (dataSource === 'error') title = "Error Loading";
   else if (dataSource === 'both') title = 'For You (Taste & Favorites)';
   else if (dataSource === 'preferences') title = 'Based on Your Taste';
   else if (dataSource === 'favorites') title = 'Inspired by Your Favorites';
