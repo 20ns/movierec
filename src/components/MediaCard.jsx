@@ -322,6 +322,7 @@ const MediaCard = ({
   const handleFavoriteToggle = useCallback(async (e) => {
     e.stopPropagation();
     e.preventDefault();
+    e.nativeEvent?.stopImmediatePropagation();
     // Prevent initial fetch from overriding user's action
     hasFetchedRef.current = true;
 
@@ -393,9 +394,10 @@ const MediaCard = ({
         onFavoriteToggle(mediaId, !previousState);
       }
 
-      document.dispatchEvent(new CustomEvent('favorites-updated', { 
-        detail: { mediaId: mediaId, isFavorited: !previousState } 
+      document.dispatchEvent(new CustomEvent('favorites-updated', {
+        detail: { mediaId: mediaId, isFavorited: !previousState }
       }));
++     e?.nativeEvent?.stopImmediatePropagation();
 
       lastFetchTime = 0;
     } catch (error) {
@@ -415,6 +417,7 @@ const MediaCard = ({
     if (e) {
       e.stopPropagation();
       e.preventDefault();
+      e.nativeEvent?.stopImmediatePropagation();
     }
     // Prevent initial fetch from overriding user's action
     hasWatchlistFetchedRef.current = true;
@@ -498,10 +501,6 @@ const MediaCard = ({
         onWatchlistToggle(mediaId, !previousState);
       }
 
-      // Dispatch event to notify other components
-      document.dispatchEvent(new CustomEvent('watchlist-updated', { 
-        detail: { mediaId: mediaId, isInWatchlist: !previousState } 
-      }));
 
       // Reset fetch cooldown to force refresh on next fetch
       lastWatchlistFetchTime = 0;
@@ -525,7 +524,7 @@ const MediaCard = ({
     : 'text-white hover:text-red-300';
 
   const handleCardClick = (e) => {
-    if (e.target.closest('button[aria-label*="avorite"]')) {
+    if (e.target.closest('button')) {
       return;
     }
     onClick?.(result);

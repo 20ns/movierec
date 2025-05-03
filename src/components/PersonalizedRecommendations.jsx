@@ -694,23 +694,27 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   // --- Event Handlers ---
   const handleMediaFavoriteToggle = useCallback((mediaId, isFavorited) => {
     logMessage(`Media favorite status changed: ${mediaId} - ${isFavorited ? 'Added to' : 'Removed from'} favorites`);
+    // Update state locally instead of refreshing the whole list
     if (isFavorited) {
       safeSetState(prevState => ({
+        recommendations: prevState.recommendations.filter(item => item.id.toString() !== mediaId),
         shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
       }));
-      handleRefresh();
     }
-  }, [safeSetState, logMessage, handleRefresh]);
+    // No handleRefresh() call needed here
+  }, [safeSetState, logMessage]);
 
   const handleMediaWatchlistToggle = useCallback((mediaId, isInWatchlist) => {
     logMessage(`Media watchlist status changed: ${mediaId} - ${isInWatchlist ? 'Added to' : 'Removed from'} watchlist`);
+    // Update state locally instead of refreshing the whole list
     if (isInWatchlist) {
       safeSetState(prevState => ({
+        recommendations: prevState.recommendations.filter(item => item.id.toString() !== mediaId),
         shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
       }));
-      handleRefresh();
     }
-  }, [safeSetState, logMessage, handleRefresh]);
+    // No handleRefresh() call needed here
+  }, [safeSetState, logMessage]);
 
   const handleRefresh = useCallback(async () => {
     if (isFetchingRef.current || !userId || !isAuthenticated) return;
@@ -821,22 +825,24 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     const handleFavoritesUpdate = (event) => {
       const { mediaId, isFavorited } = event.detail || {};
       if (mediaId && isFavorited) {
-        logMessage(`External favorite update detected for: ${mediaId}`);
-        safeSetState(prevState => ({
-          shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
-        }));
-        handleRefresh();
+        logMessage(`External favorite update detected for: ${mediaId}. Recommendation list state update handled by direct callback.`);
+        // State update is now handled by handleMediaFavoriteToggle passed via prop.
+        // safeSetState(prevState => ({
+        //   recommendations: prevState.recommendations.filter(item => item.id.toString() !== mediaId),
+        //   shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
+        // }));
       }
     };
 
     const handleWatchlistUpdate = (event) => {
       const { mediaId, isInWatchlist } = event.detail || {};
       if (mediaId && isInWatchlist) {
-        logMessage(`External watchlist update detected for: ${mediaId}`);
-        safeSetState(prevState => ({
-          shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
-        }));
-        handleRefresh();
+        logMessage(`External watchlist update detected for: ${mediaId}. Recommendation list state update handled by direct callback.`);
+        // State update is now handled by handleMediaWatchlistToggle passed via prop.
+        // safeSetState(prevState => ({
+        //   recommendations: prevState.recommendations.filter(item => item.id.toString() !== mediaId),
+        //   shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId])
+        // }));
       }
     };
 
