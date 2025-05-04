@@ -1,5 +1,5 @@
 // WatchlistSection.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClockIcon, ArrowPathIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline';
 import MediaCard from './MediaCard';
@@ -87,7 +87,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   const lastFetchTimeRef = useRef(0);
 
   // Utility: Map API Item to MediaCard Result
-  const mapApiItemToMediaCardResult = (item) => {
+  const mapApiItemToMediaCardResult = useCallback((item) => {
     if (!item || !item.mediaId) {
       console.warn('Skipping invalid raw watchlist item:', item);
       return null; // Skip invalid items
@@ -117,7 +117,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     };
 
     return result;
-  };
+  }, []); // Empty dependency array as the function doesn't rely on component state/props
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -275,45 +275,52 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     return () => EventEmitter.off('header-panel-opened', handleHeaderPanelOpened);
   }, [inHeader, isOpen]);
 
+  // Effect to handle immediate UI updates based on watchlist events
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
-        console.log('WatchlistSection received watchlist-updated event:', event.detail);
-        if (!currentUser) return;
-        const userId = currentUser.username || currentUser.attributes?.sub;
-        if (!userId) return;
+      console.log('WatchlistSection received watchlist-updated event:', event.detail);
+      const { mediaId: updatedId, isInWatchlist: newStatus, item: newItemData } = event.detail || {};
 
-        const detail = event.detail;
-        if (!detail || typeof detail.mediaId === 'undefined' || typeof detail.isInWatchlist === 'undefined') {
-            console.warn('Received watchlist-updated event with missing/invalid detail:', detail);
-            fetchWatchlist(true);
-            return;
-        }
+      if (!currentUser || !updatedId) return;
+      const userId = currentUser.username || currentUser.attributes?.sub;
+      if (!userId) return;
 
-        const { mediaId: updatedId, isInWatchlist: newStatus } = detail;
-
-        if (newStatus) {
-            console.log(`Watchlist Update: Item ${updatedId} added externally. No refresh needed here.`);
-            // setTimeout(() => fetchWatchlist(true), 300); // Removed this line
+      setUserWatchlist(prev => {
+        let updatedList;
+        if (newStatus && newItemData) {
+          // Item added
+          // Map the incoming item data to the format used internally
+          const mappedNewItem = mapApiItemToMediaCardResult(newItemData);
+          if (!mappedNewItem) {
+            console.warn("Could not map new watchlist item from event:", newItemData);
+            return prev; // Return previous state if mapping fails
+          }
+          // Avoid adding duplicates
+          if (prev.some(item => String(item.id) === String(mappedNewItem.id))) {
+            return prev;
+          }
+          updatedList = [mappedNewItem, ...prev];
+          console.log(`Watchlist Update: Added item ${mappedNewItem.id} locally.`);
+        } else if (!newStatus) {
+          // Item removed
+          updatedList = prev.filter(item => String(item.id) !== String(updatedId));
+          console.log(`Watchlist Update: Removed item ${updatedId} locally.`);
         } else {
-            console.log(`Watchlist Update: Item ${updatedId} removed externally, updating local state.`);
-            const updatedList = userWatchlist.filter(item => String(item.id) !== String(updatedId));
-            setUserWatchlist(updatedList);
-            cacheWatchlist(userId, updatedList);
+          // No change needed or invalid event data
+          return prev;
         }
+
+        // Update cache
+        cacheWatchlist(userId, updatedList);
+        return updatedList;
+      });
     };
 
-    const eventTarget = EventEmitter.on ? EventEmitter : document;
-    const addListener = eventTarget.on?.bind(eventTarget) || eventTarget.addEventListener?.bind(eventTarget);
-    const removeListener = eventTarget.off?.bind(eventTarget) || eventTarget.removeEventListener?.bind(eventTarget);
-
-    if (addListener && removeListener) {
-        addListener('watchlist-updated', handleWatchlistUpdate);
-        return () => removeListener('watchlist-updated', handleWatchlistUpdate);
-    } else {
-        console.error("Could not add/remove event listener for watchlist-updated");
-        return () => {};
-    }
-  }, [currentUser, userWatchlist]);
+    document.addEventListener('watchlist-updated', handleWatchlistUpdate);
+    return () => {
+      document.removeEventListener('watchlist-updated', handleWatchlistUpdate);
+    };
+  }, [currentUser, mapApiItemToMediaCardResult]); // Depend on currentUser and the mapping function
 
   const handleClose = () => {
     if (onClose) onClose();

@@ -172,16 +172,35 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   useEffect(() => {
     const handleFavoriteUpdate = (event) => {
-      const { mediaId: updatedId, isFavorited: newStatus } = event.detail || {};
+      const { mediaId: updatedId, isFavorited: newStatus, item: newItem } = event.detail || {};
       
       // Handle the favorite update event
-      if (newStatus) {
-        // Item was added to favorites - No need to force refresh here,
-        // MediaCard updates global cache and PersonalizedRecommendations handles its own refresh.
-        // fetchFavorites(true); // Removed this line
+      if (newStatus && newItem) {
+        // Item was added - add it to the local state and cache immediately
+        setUserFavorites(prev => {
+          // Avoid adding duplicates if the item somehow already exists
+          if (prev.some(fav => fav.mediaId === newItem.mediaId)) {
+            return prev;
+          }
+          const updatedList = [newItem, ...prev];
+          // Update cache
+          if (currentUser) {
+            const userId = currentUser.username || currentUser.attributes?.sub;
+            cacheFavorites(userId, updatedList);
+          }
+          return updatedList;
+        });
       } else if (!newStatus && updatedId) {
-        // Item was removed - we can just filter it out without a full refresh
-        setUserFavorites(prev => prev.filter(item => item.mediaId !== updatedId));
+        // Item was removed - filter it out from local state and cache
+        setUserFavorites(prev => {
+          const updatedList = prev.filter(item => item.mediaId !== updatedId);
+          // Update cache
+          if (currentUser) {
+            const userId = currentUser.username || currentUser.attributes?.sub;
+            cacheFavorites(userId, updatedList);
+          }
+          return updatedList;
+        });
         
         // Also update cache
         if (currentUser) {

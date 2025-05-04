@@ -395,7 +395,20 @@ const MediaCard = ({
       }
 
       document.dispatchEvent(new CustomEvent('favorites-updated', {
-        detail: { mediaId: mediaId, isFavorited: !previousState }
+        detail: {
+          mediaId: mediaId,
+          isFavorited: !previousState,
+          // Include item data for immediate UI updates
+          item: !previousState ? {
+            mediaId: mediaId,
+            title: displayTitle,
+            mediaType: determinedMediaType,
+            posterPath: poster_path,
+            voteAverage: rating, // Use the calculated rating
+            releaseDate: release_date || first_air_date,
+            // Add other relevant fields if needed by FavoritesSection
+          } : null
+        }
       }));
 +     e?.nativeEvent?.stopImmediatePropagation();
 
@@ -501,6 +514,23 @@ const MediaCard = ({
         onWatchlistToggle(mediaId, !previousState);
       }
 
+      // Dispatch event for other components
+      document.dispatchEvent(new CustomEvent('watchlist-updated', {
+        detail: {
+          mediaId: mediaId,
+          isInWatchlist: !previousState,
+          // Include item data for immediate UI updates
+          item: !previousState ? {
+            mediaId: mediaId,
+            title: displayTitle,
+            mediaType: determinedMediaType,
+            posterPath: poster_path,
+            voteAverage: rating, // Use the calculated rating
+            releaseDate: release_date || first_air_date,
+            // Add other relevant fields if needed by WatchlistSection
+          } : null
+        }
+      }));
 
       // Reset fetch cooldown to force refresh on next fetch
       lastWatchlistFetchTime = 0;
