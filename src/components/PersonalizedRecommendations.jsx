@@ -78,7 +78,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     dataSource: null,
     recommendationReason: '',
     shownItemsHistory: new Set(),
-    isLoading: false,
+    isLoading: false, // Let useEffect handle initial loading state
     isThinking: false,
     isRefreshing: false,
     hasError: false,
@@ -868,7 +868,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const showLoading = isLoading;
   const showRecs = !isLoading && recommendations.length > 0;
   const showError = !isLoading && hasError;
-  const showEmpty = !isLoading && !hasError && dataLoadAttemptedRef.current && recommendations.length === 0;
+  // Show empty state only if not loading, no error, a fetch has completed (dataSource is set), and there are no recommendations.
+  const showEmpty = !isLoading && !hasError && dataSource && dataSource !== 'error' && recommendations.length === 0;
 
   let content;
   if (showLoading) {
