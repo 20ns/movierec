@@ -176,8 +176,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       
       // Handle the favorite update event
       if (newStatus) {
-        // Item was added to favorites - force refresh to get the full details
-        fetchFavorites(true);
+        // Item was added to favorites - No need to force refresh here,
+        // MediaCard updates global cache and PersonalizedRecommendations handles its own refresh.
+        // fetchFavorites(true); // Removed this line
       } else if (!newStatus && updatedId) {
         // Item was removed - we can just filter it out without a full refresh
         setUserFavorites(prev => prev.filter(item => item.mediaId !== updatedId));

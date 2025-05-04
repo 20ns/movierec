@@ -292,8 +292,8 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         const { mediaId: updatedId, isInWatchlist: newStatus } = detail;
 
         if (newStatus) {
-            console.log(`Watchlist Update: Item ${updatedId} added externally, forcing refresh.`);
-            setTimeout(() => fetchWatchlist(true), 300);
+            console.log(`Watchlist Update: Item ${updatedId} added externally. No refresh needed here.`);
+            // setTimeout(() => fetchWatchlist(true), 300); // Removed this line
         } else {
             console.log(`Watchlist Update: Item ${updatedId} removed externally, updating local state.`);
             const updatedList = userWatchlist.filter(item => String(item.id) !== String(updatedId));
