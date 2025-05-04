@@ -75,8 +75,7 @@ const MediaCardSkeleton = ({ isMini = false }) => (
     </motion.div>
 );
 
-const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = false }) => {
-  const [isOpen, setIsOpen] = useState(inHeader ? true : false);
+const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = false, isOpen }) => {
   const [userWatchlist, setUserWatchlist] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -263,9 +262,6 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   useEffect(() => {
     if (isOpen && isAuthenticated && currentUser?.signInUserSession) {
       fetchWatchlist();
-      if (inHeader) {
-        EventEmitter.emit('header-panel-opened', { panel: 'watchlist' });
-      }
     }
   }, [isOpen, isAuthenticated, currentUser?.signInUserSession, inHeader]);
 
@@ -321,7 +317,6 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   const handleClose = () => {
     if (onClose) onClose();
-    setIsOpen(false);
   };
 
   const handleWatchlistToggle = async (mediaIdToRemove, _isInWatchlist) => {

@@ -87,14 +87,28 @@ const Header = memo(function Header({
         break;
       case 'favorites':
         if (onFavoritesClick) {
-          closeOtherPanels('favorites');
-          onFavoritesClick(!showFavorites);
+          if (typeof isVisible !== 'undefined') {
+            // Only close other panels when opening
+            if (isVisible) closeOtherPanels('favorites');
+            onFavoritesClick(isVisible);
+          } else {
+            // Toggle behavior: close others only when opening
+            if (!showFavorites) closeOtherPanels('favorites');
+            onFavoritesClick(!showFavorites);
+          }
         }
         break;
       case 'watchlist':
         if (onWatchlistClick) {
-          closeOtherPanels('watchlist');
-          onWatchlistClick(!showWatchlist);
+          if (typeof isVisible !== 'undefined') {
+            // Only close other panels when opening
+            if (isVisible) closeOtherPanels('watchlist');
+            onWatchlistClick(isVisible);
+          } else {
+            // Toggle behavior: close others only when opening
+            if (!showWatchlist) closeOtherPanels('watchlist');
+            onWatchlistClick(!showWatchlist);
+          }
         }
         break;
       case 'preferences':
@@ -332,14 +346,15 @@ const Header = memo(function Header({
               </motion.button>
               
               {/* Favorites button */}
-              <motion.button 
-                variants={iconButtonVariants}
-                initial="initial"
-                whileHover="hover"
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handlePanelToggle('favorites', !showFavorites)}
-                onMouseEnter={() => setHoveredButton('favorites')}
-                onMouseLeave={() => setHoveredButton(null)}
+              <motion.button
+                  variants={iconButtonVariants}
+                  initial="initial"
+                  whileHover="hover"
+                  whileTap={{ scale: 0.95 }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => handlePanelToggle('favorites', !showFavorites)}
+                  onMouseEnter={() => setHoveredButton('favorites')}
+                  onMouseLeave={() => setHoveredButton(null)}
                 className={`relative p-2.5 rounded-full transition-colors duration-200 ${
                   showFavorites ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                 }`}
@@ -360,14 +375,15 @@ const Header = memo(function Header({
               </motion.button>
               
               {/* Watchlist button */}
-              <motion.button 
-                variants={iconButtonVariants}
-                initial="initial"
-                whileHover="hover"
-                whileTap={{ scale: 0.95 }}
-                onClick={() => handlePanelToggle('watchlist', !showWatchlist)}
-                onMouseEnter={() => setHoveredButton('watchlist')}
-                onMouseLeave={() => setHoveredButton(null)}
+              <motion.button
+                  variants={iconButtonVariants}
+                  initial="initial"
+                  whileHover="hover"
+                  whileTap={{ scale: 0.95 }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => handlePanelToggle('watchlist', !showWatchlist)}
+                  onMouseEnter={() => setHoveredButton('watchlist')}
+                  onMouseLeave={() => setHoveredButton(null)}
                 className={`relative p-2.5 rounded-full transition-colors duration-200 ${
                   showWatchlist ? 'bg-purple-600 text-white' : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                 }`}

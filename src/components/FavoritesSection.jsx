@@ -70,8 +70,7 @@ const MediaCardSkeleton = ({ isMini = false }) => (
   </motion.div>
 );
 
-const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = false }) => {
-  const [isOpen, setIsOpen] = useState(inHeader ? true : false);
+const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = false, isOpen }) => {
   const [userFavorites, setUserFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -236,7 +235,6 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   const handleClose = () => {
     if (onClose) onClose();
-    setIsOpen(false);
   };
 
   const handleFavoriteToggle = async (mediaId, isFavorited) => {

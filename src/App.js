@@ -638,11 +638,14 @@ useEffect(() => {
             className="fixed top-16 right-4 sm:right-10 z-50"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
+            exit={{ opacity: 0, y: -20, transition: { duration: 0 } }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+        >
             <FavoritesSection
               currentUser={currentUser}
               isAuthenticated={isAuthenticated}
+              isOpen={showFavorites}
               onClose={() => setShowFavorites(false)}
               inHeader={true}
             />
@@ -656,11 +659,14 @@ useEffect(() => {
             className="fixed top-16 right-4 sm:right-10 z-50"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
+            exit={{ opacity: 0, y: -20, transition: { duration: 0 } }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+        >
             <WatchlistSection
               currentUser={currentUser}
               isAuthenticated={isAuthenticated}
+              isOpen={showWatchlist}
               onClose={() => setShowWatchlist(false)}
               inHeader={true}
             />
