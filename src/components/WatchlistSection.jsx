@@ -12,7 +12,7 @@ const CACHE_EXPIRY_TIME = 15 * 60 * 1000; // 15 minutes
 const clearWatchlistCache = (userId) => {
   try {
     localStorage.removeItem(`${WATCHLIST_CACHE_KEY}_${userId}`);
-    console.log(`Watchlist cache cleared for user ${userId}`);
+    // console.log(`Watchlist cache cleared for user ${userId}`); // Removed log
   } catch (error) {
     console.error('Error clearing watchlist cache:', error);
   }
@@ -25,10 +25,10 @@ const getWatchlistFromCache = (userId) => {
     const { data, timestamp } = JSON.parse(cacheData);
     
     if (Date.now() - timestamp < CACHE_EXPIRY_TIME) {
-        console.log(`Using cached watchlist for user ${userId}`);
+        // console.log(`Using cached watchlist for user ${userId}`); // Removed log
         return data;
     }
-    console.log(`Watchlist cache expired for user ${userId}`);
+    // console.log(`Watchlist cache expired for user ${userId}`); // Removed log
     clearWatchlistCache(userId); // Clear expired cache
     return null;
   } catch (error) {
@@ -46,7 +46,7 @@ const cacheWatchlist = (userId, watchlist) => {
     }
     const cacheData = { data: watchlist, timestamp: Date.now() };
     localStorage.setItem(`${WATCHLIST_CACHE_KEY}_${userId}`, JSON.stringify(cacheData));
-    console.log(`Watchlist cached for user ${userId}, items: ${watchlist.length}`);
+    // console.log(`Watchlist cached for user ${userId}, items: ${watchlist.length}`); // Removed log
   } catch (error) {
     console.error('Error saving to watchlist cache:', error);
   }
@@ -159,20 +159,20 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
     const now = Date.now();
     if (!forceRefresh && now - lastFetchTimeRef.current < 5000) {
-      console.log('Watchlist Fetch: Skipped (recently fetched)');
+      // console.log('Watchlist Fetch: Skipped (recently fetched)'); // Removed log
       if (userWatchlist.length > 0) setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     setError(null);
-    console.log(`Watchlist Fetch: Starting ${forceRefresh ? '(Forced Refresh)' : ''} for user ${userId}`);
+    // console.log(`Watchlist Fetch: Starting ${forceRefresh ? '(Forced Refresh)' : ''} for user ${userId}`); // Removed log
 
     try {
       const cachedWatchlist = !forceRefresh ? getWatchlistFromCache(userId) : null;
 
       if (cachedWatchlist) {
-        console.log('Watchlist Fetch: Using cached data.');
+        // console.log('Watchlist Fetch: Using cached data.'); // Removed log
         const mappedCachedWatchlist = cachedWatchlist.map(mapApiItemToMediaCardResult).filter(Boolean);
         setUserWatchlist(mappedCachedWatchlist);
         setIsLoading(false);
@@ -180,7 +180,9 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         return;
       }
 
-      console.log('Watchlist Fetch: Fetching from API...');
+      
+      // console.log('Watchlist Fetch: Fetching from API...'); // Removed log
+
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`,
         {
@@ -193,8 +195,8 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       );
 
       const responseText = await response.text();
-      console.log(`Watchlist Fetch: API Response Status: ${response.status}`);
-      console.log('Watchlist Fetch: Raw API Response Body:', responseText);
+      // console.log(`Watchlist Fetch: API Response Status: ${response.status}`); // Removed log
+      // console.log('Watchlist Fetch: Raw API Response Body:', responseText); // Removed log
 
       if (!response.ok) {
           throw new Error(`API Error ${response.status}: ${response.statusText}. Body: ${responseText}`);
@@ -208,17 +210,18 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
           throw new Error(`Invalid JSON received from API. Body: ${responseText}`);
       }
 
-      console.log('Watchlist Fetch: Parsed API Data:', rawData);
+      
+
+      // console.log('Watchlist Fetch: Parsed API Data:', rawData); // Removed log
 
       const rawItems = rawData?.items && Array.isArray(rawData.items) ? rawData.items
                      : Array.isArray(rawData) ? rawData
                      : [];
-
-      console.log(`Watchlist Fetch: Found ${rawItems.length} raw items in response.`);
+      // console.log(`Watchlist Fetch: Found ${rawItems.length} raw items in response.`); // Removed log
 
       const processedWatchlist = rawItems.map(mapApiItemToMediaCardResult).filter(Boolean);
 
-      console.log('Watchlist Fetch: Processed Watchlist (passed to state):', processedWatchlist);
+      // console.log('Watchlist Fetch: Processed Watchlist (passed to state):', processedWatchlist); // Removed log
 
       lastFetchTimeRef.current = now;
       cacheWatchlist(userId, processedWatchlist);
@@ -230,7 +233,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       if (userId) clearWatchlistCache(userId);
     } finally {
       setIsLoading(false);
-      console.log("Watchlist Fetch: Finished.");
+      // console.log("Watchlist Fetch: Finished."); // Removed log
     }
   };
 
@@ -278,7 +281,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   // Effect to handle immediate UI updates based on watchlist events
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
-      console.log('WatchlistSection received watchlist-updated event:', event.detail);
+      // console.log('WatchlistSection received watchlist-updated event:', event.detail); // Removed log
       const { mediaId: updatedId, isInWatchlist: newStatus, item: newItemData } = event.detail || {};
 
       if (!currentUser || !updatedId) return;
@@ -300,11 +303,11 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             return prev;
           }
           updatedList = [mappedNewItem, ...prev];
-          console.log(`Watchlist Update: Added item ${mappedNewItem.id} locally.`);
+          // console.log(`Watchlist Update: Added item ${mappedNewItem.id} locally.`); // Removed log
         } else if (!newStatus) {
           // Item removed
           updatedList = prev.filter(item => String(item.id) !== String(updatedId));
-          console.log(`Watchlist Update: Removed item ${updatedId} locally.`);
+          // console.log(`Watchlist Update: Removed item ${updatedId} locally.`); // Removed log
         } else {
           // No change needed or invalid event data
           return prev;
@@ -327,7 +330,7 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   };
 
   const handleWatchlistToggle = async (mediaIdToRemove, _isInWatchlist) => {
-     console.log(`Watchlist Toggle: Request to remove ${mediaIdToRemove}`);
+     // console.log(`Watchlist Toggle: Request to remove ${mediaIdToRemove}`); // Removed log
 
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
       console.error('Watchlist Toggle: No access token.');
@@ -366,7 +369,9 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         throw new Error(`Failed to remove item (${response.status})`);
       }
 
-      console.log(`Watchlist Toggle: Successfully removed ${mediaIdToRemove} via API`);
+      
+      // console.log(`Watchlist Toggle: Successfully removed ${mediaIdToRemove} via API`); // Removed log
+
       clearWatchlistCache(userId);
 
       const eventDetail = { detail: { mediaId: mediaIdToRemove, isInWatchlist: false } };
@@ -506,12 +511,12 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                         initialIsInWatchlist={true}
                         onWatchlistToggle={() => handleWatchlistToggle(mappedResultItem.id, false)}
                     />
-                    {/* Debug logging */}
-                    {console.log('WatchlistSection Debug (Header):', { 
-                      id: mappedResultItem.id, 
-                      title: mappedResultItem.title || mappedResultItem.name, 
+                    {/* Debug logging removed */}
+                    {/* {console.log('WatchlistSection Debug (Header):', {
+                      id: mappedResultItem.id,
+                      title: mappedResultItem.title || mappedResultItem.name,
                       vote_average: mappedResultItem.vote_average
-                    })}
+                    })} */}
                   </motion.div>
                 ))}
               </AnimatePresence>

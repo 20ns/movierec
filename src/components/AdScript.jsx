@@ -86,9 +86,9 @@ const AdScript = () => {
         // Only add the script if it doesn't exist yet
         if (!document.querySelector('script[src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]')) {
           document.head.appendChild(script);
-          console.log('AdSense: Script added to document head after content verified');
+          // console.log('AdSense: Script added to document head after content verified'); // Removed log
         } else {
-          console.log('AdSense: Script already exists in document');
+          // console.log('AdSense: Script already exists in document'); // Removed log
         }
       }, 1000);
       

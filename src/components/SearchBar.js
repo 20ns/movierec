@@ -301,8 +301,8 @@ export const SearchBar = ({ currentUser }) => {
 
   // Add debugging effect
   useEffect(() => {
-    console.log("Current search results:", filteredResults);
-    console.log("Search error state:", error);
+    // console.log("Current search results:", filteredResults); // Removed log
+    // console.log("Search error state:", error); // Removed log
     
     // Debug MediaCard import - Ensure MediaCard is correctly imported if LazyMediaCard fails
     // console.log("LazyMediaCard component available:", typeof LazyMediaCard); 

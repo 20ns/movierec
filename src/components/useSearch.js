@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchWithRetry, fetchEnhancedRecommendations, axiosInstance } from './SearchBarUtils';
 
 // Log the API key at the start to verify it's being read
-console.log("API Key from environment:", process.env.REACT_APP_TMDB_API_KEY);
+// console.log("API Key from environment:", process.env.REACT_APP_TMDB_API_KEY); // Removed log
 
 // Updated genre maps for better tree-shaking
 const GENRE_MAP = {
@@ -492,10 +492,10 @@ export const useSearch = () => {
   }, [allResults, activeFilters]);
 
   const displayedResults = useMemo(() => {
-    const results = filteredResults.slice(0, resultsToShow);
-    console.log("Displayed Results:", results); // Debugging log
-    return results;
-  }, [filteredResults, resultsToShow]);
+const results = filteredResults.slice(0, resultsToShow);
+// console.log("Displayed Results:", results); // Debugging log // Removed log
+return results;
+}, [filteredResults, resultsToShow]);
 
   const showError = useCallback((message, duration = 3000) => {
     setError(message);
@@ -599,10 +599,10 @@ export const useSearch = () => {
       }
 
       // Parse query intent
-      const queryIntent = analyzeQueryIntent(query);
-      console.log("Detected query intent:", queryIntent);
+const queryIntent = analyzeQueryIntent(query);
+// console.log("Detected query intent:", queryIntent); // Removed log
 
-      // Handle similarity searches differently
+// Handle similarity searches differently
       if (queryIntent.similarTo) {
         await handleSimilaritySearch(query, queryIntent, controller.signal);
         return;
@@ -619,12 +619,12 @@ export const useSearch = () => {
           include_adult: false,
           language: 'en-US',
           page: 1
-        };
+};
 
-        console.log("Fetching search results for query:", query);
-        console.log("Search parameters:", searchParams);
-        
-        // Perform search
+// console.log("Fetching search results for query:", query); // Removed log
+// console.log("Search parameters:", searchParams); // Removed log
+
+// Perform search
         let endpointType = 'search/multi';
         let searchResponse;
         
@@ -633,11 +633,11 @@ export const useSearch = () => {
             `https://api.themoviedb.org/3/${endpointType}`,
             searchParams,
             { signal: controller.signal }
-          );
-          
-          console.log("Raw search response status:", searchResponse.status);
-          console.log("Raw search data:", searchResponse.data);
-        } catch (fetchError) {
+);
+
+// console.log("Raw search response status:", searchResponse.status); // Removed log
+// console.log("Raw search data:", searchResponse.data); // Removed log
+} catch (fetchError) {
           console.error("Error during search API call:", fetchError);
           throw new Error(`Search API error: ${fetchError.message}`);
         }
@@ -655,10 +655,10 @@ export const useSearch = () => {
               result &&
               (result.title || result.name) &&
               result.media_type !== 'person' // Exclude person results
-            );
-            
-          console.log("Filtered search results:", searchResults);
-        } catch (processingError) {
+);
+
+// console.log("Filtered search results:", searchResults); // Removed log
+} catch (processingError) {
           console.error("Error processing search results:", processingError);
           throw new Error(`Results processing error: ${processingError.message}`);
         }
@@ -692,11 +692,11 @@ export const useSearch = () => {
   }, [query, activeFilters, showError, calculateScore, analyzeQueryIntent, getHybridRecommendations, handleDirectSearch, handleSimilaritySearch]);
 
   // Enhanced similarity search with better anime handling
-  const handleSimilaritySearch = useCallback(async (query, queryIntent, signal) => {
-    try {
-      console.log("Handling similarity search for:", queryIntent.similarTo);
-      
-      // First, search for the reference media
+const handleSimilaritySearch = useCallback(async (query, queryIntent, signal) => {
+  try {
+  // console.log("Handling similarity search for:", queryIntent.similarTo); // Removed log
+  
+  // First, search for the reference media
       const referenceSearch = await fetchWithRetry(
         'https://api.themoviedb.org/3/search/multi',
         {
@@ -711,10 +711,10 @@ export const useSearch = () => {
       
       // Check if we have any results at all
       if (!referenceSearch.data.results || referenceSearch.data.results.length === 0) {
-        // Try searching with a more permissive search
-        console.log(`No results for "${queryIntent.similarTo}", trying with relaxed filters`);
-        const directSearch = await fetchWithRetry(
-          'https://api.themoviedb.org/3/search/multi',
+// Try searching with a more permissive search
+// console.log(`No results for "${queryIntent.similarTo}", trying with relaxed filters`); // Removed log
+const directSearch = await fetchWithRetry(
+'https://api.themoviedb.org/3/search/multi',
           {
             api_key: process.env.REACT_APP_TMDB_API_KEY,
             query: queryIntent.similarTo,
@@ -756,11 +756,11 @@ export const useSearch = () => {
         showError(`Couldn't find "${queryIntent.similarTo}". Try another title.`);
         setIsLoading(false);
         return;
-      }
-      
-      console.log("Reference media found:", referenceMedia.title || referenceMedia.name);
-      
-      // Get details of the reference media to understand its characteristics
+}
+
+// console.log("Reference media found:", referenceMedia.title || referenceMedia.name); // Removed log
+
+// Get details of the reference media to understand its characteristics
       const detailsResponse = await fetchWithRetry(
         `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}`,
         { 
@@ -770,20 +770,20 @@ export const useSearch = () => {
         { signal }
       );
       
-      const referenceDetails = detailsResponse.data;
-      console.log("Reference details:", referenceDetails);
-      
-      // Is this likely an anime? Check title, genres, keywords
+const referenceDetails = detailsResponse.data;
+// console.log("Reference details:", referenceDetails); // Removed log
+
+// Is this likely an anime? Check title, genres, keywords
       const animeKeywords = ["anime", "animation", "manga", "japanese animation"];
       const isAnime = 
         (referenceDetails.genres?.some(g => g.name === "Animation")) &&
         ((referenceDetails.keywords?.keywords || [])
           .some(k => animeKeywords.includes(k.name.toLowerCase())) ||
-       (referenceMedia.title || referenceMedia.name || "").toLowerCase().includes("anime"));
-      
-      console.log("Is anime detection:", isAnime);
-      
-      // Try to get similar content
+(referenceMedia.title || referenceMedia.name || "").toLowerCase().includes("anime"));
+
+// console.log("Is anime detection:", isAnime); // Removed log
+
+// Try to get similar content
       let similarResults = [];
       
       try {
@@ -796,16 +796,16 @@ export const useSearch = () => {
         
         similarResults = similarResponse.data.results.map(item => ({
           ...item,
-          media_type: referenceMedia.media_type
-        }));
-        
-        console.log(`Similar results count from API: ${similarResults.length}`);
-        
-        // If we don't have enough results, try recommendations
-        if (similarResults.length < 5) {
-          console.log("Not enough similar results, trying recommendations");
-          const recommendationsResponse = await fetchWithRetry(
-            `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}/recommendations`,
+media_type: referenceMedia.media_type
+}));
+
+// console.log(`Similar results count from API: ${similarResults.length}`); // Removed log
+
+// If we don't have enough results, try recommendations
+if (similarResults.length < 5) {
+// console.log("Not enough similar results, trying recommendations"); // Removed log
+const recommendationsResponse = await fetchWithRetry(
+`https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}/recommendations`,
             { api_key: process.env.REACT_APP_TMDB_API_KEY },
             { signal }
           );
@@ -822,16 +822,16 @@ export const useSearch = () => {
               similarResults.push(item);
               existingIds.add(item.id);
             }
-          }
-          
-          console.log(`Combined similar+recommendations count: ${similarResults.length}`);
-        }
-        
-        // For anime or shows with very few similar results, use broader genre matching
-        if ((isAnime || similarResults.length < 3) && referenceDetails.genres) {
-          console.log("Using genre-based discovery for anime/low-result show");
-          
-          // Extract genres for discovery
+}
+
+// console.log(`Combined similar+recommendations count: ${similarResults.length}`); // Removed log
+}
+
+// For anime or shows with very few similar results, use broader genre matching
+if ((isAnime || similarResults.length < 3) && referenceDetails.genres) {
+// console.log("Using genre-based discovery for anime/low-result show"); // Removed log
+
+// Extract genres for discovery
           const genreIds = referenceDetails.genres.map(g => g.id).join(',');
           
           // New approach for anime: Add animation genre (16) and sort by popularity
@@ -884,16 +884,16 @@ export const useSearch = () => {
               similarResults.push(item);
               existingIds.add(item.id);
             }
-          }
-          
-          console.log(`Final results count after genre discovery: ${similarResults.length}`);
-        }
-        
-        // If we still have no similar content, use search by title
-        if (similarResults.length === 0) {
-          console.log("No similar content found, falling back to title search");
-          const fallbackSearch = await fetchWithRetry(
-            'https://api.themoviedb.org/3/search/multi',
+}
+
+// console.log(`Final results count after genre discovery: ${similarResults.length}`); // Removed log
+}
+
+// If we still have no similar content, use search by title
+if (similarResults.length === 0) {
+// console.log("No similar content found, falling back to title search"); // Removed log
+const fallbackSearch = await fetchWithRetry(
+'https://api.themoviedb.org/3/search/multi',
             {
               api_key: process.env.REACT_APP_TMDB_API_KEY,
               query: isAnime ? "anime" : referenceMedia.media_type === 'tv' ? "tv series" : "movie",
@@ -909,11 +909,11 @@ export const useSearch = () => {
             .map(item => ({
               ...item,
               media_type: referenceMedia.media_type
-            }));
-          
-          console.log(`Last resort fallback results: ${similarResults.length}`);
-        }
-      } catch (error) {
+}));
+
+// console.log(`Last resort fallback results: ${similarResults.length}`); // Removed log
+}
+} catch (error) {
         console.warn('Error getting similar content, falling back to direct search:', error);
         // If we can't get similar content, fall back to returning the reference media and
         // potentially other search results
@@ -927,10 +927,10 @@ export const useSearch = () => {
       }
       
       // If we have a modifier, adjust the results
-      if (queryIntent.modifierType && similarResults.length > 0) {
-        console.log("Applying modifier:", queryIntent.modifierType);
-          
-        // Apply the modifier to filter/modify results
+if (queryIntent.modifierType && similarResults.length > 0) {
+// console.log("Applying modifier:", queryIntent.modifierType); // Removed log
+
+// Apply the modifier to filter/modify results
         switch(queryIntent.modifierType) {
           case 'family-friendly':
             // Filtering for family-friendly: lower violence, no adult content
@@ -991,11 +991,11 @@ export const useSearch = () => {
             };
           })
           .sort((a, b) => b.similarityScore - a.similarityScore)
-      ];
-      
-      console.log(`Returning ${formattedResults.length} results`);
-      setAllResults(formattedResults);
-      
+];
+
+// console.log(`Returning ${formattedResults.length} results`); // Removed log
+setAllResults(formattedResults);
+
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Similarity search error:', error);
@@ -1008,11 +1008,11 @@ export const useSearch = () => {
 
   // Add direct search function
   const handleDirectSearch = useCallback(async (query, signal) => {
-    try {
-      setIsLoading(true);
-      console.log("Performing direct title search for:", query);
-      
-      const searchResponse = await fetchWithRetry(
+try {
+setIsLoading(true);
+// console.log("Performing direct title search for:", query); // Removed log
+
+const searchResponse = await fetchWithRetry(
         'https://api.themoviedb.org/3/search/multi',
         {
           api_key: process.env.REACT_APP_TMDB_API_KEY,
@@ -1093,16 +1093,16 @@ export const useSearch = () => {
     }
   }, [fetchWithRetry, fetchPersonWorks]);
 
-  const fetchCastRecommendations = useCallback(async (item) => {
-    console.log("fetchCastRecommendations item:", item); // Log item at start
-    try {
-      const credits = await fetchWithRetry(
+const fetchCastRecommendations = useCallback(async (item) => {
+  // console.log("fetchCastRecommendations item:", item); // Log item at start // Removed log
+  try {
+  const credits = await fetchWithRetry(
         `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
          { api_key: process.env.REACT_APP_TMDB_API_KEY }
-      );
-      console.log('Credits response:', credits); // Log credits response
-      if (!credits?.data?.cast || !Array.isArray(credits.data.cast)) { // Enhanced error checks
-        return [];
+);
+// console.log('Credits response:', credits); // Log credits response // Removed log
+if (!credits?.data?.cast || !Array.isArray(credits.data.cast)) { // Enhanced error checks
+return [];
       }
       const topCast = credits.data.cast.slice(0, 3);
       return Promise.all(topCast.map(actor =>

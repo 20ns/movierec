@@ -24,12 +24,12 @@ import AdScript from './components/AdScript';
 
 // Helper for logging
 const logApp = (message, data) => {
-  console.log(`[App.js] ${message}`, data !== undefined ? data : '');
+  // console.log(`[App.js] ${message}`, data !== undefined ? data : ''); // Removed log
 };
 
 // Helper function for consistent error logging
 const logError = (message, error) => {
-  console.error(`[App.js] ${message}`, error);
+  // console.error(`[App.js] ${message}`, error); // Removed log
 };
 
 // Add this new helper function near the top of the file

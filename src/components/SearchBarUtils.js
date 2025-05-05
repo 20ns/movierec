@@ -329,7 +329,7 @@ export const fetchEnhancedRecommendations = async (primaryResult) => {
 
     } catch (error) {
         console.error('Recommendation engine error:', error);
-        console.log('Error details in fetchEnhancedRecommendations:', error.message, error.response);
+        // console.log('Error details in fetchEnhancedRecommendations:', error.message, error.response); // Removed log
         return [];
     }
 };

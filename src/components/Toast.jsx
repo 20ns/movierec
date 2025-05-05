@@ -5,7 +5,7 @@ import { CheckCircleIcon, HeartIcon } from '@heroicons/react/24/solid';
 const Toast = ({ message, isVisible, type = 'success', onClose }) => {
   useEffect(() => {
     // Add debug logging when visibility changes
-    console.log('Toast visibility changed:', isVisible, 'Message:', message);
+    // console.log('Toast visibility changed:', isVisible, 'Message:', message); // Removed log
     
     if (isVisible) {
       const timer = setTimeout(() => {

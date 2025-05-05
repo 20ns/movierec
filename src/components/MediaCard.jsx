@@ -40,7 +40,7 @@ const extractToken = (user) => {
   if (typeof user === 'string' && user.split('.').length === 3) {
     return user;
   }
-  console.log("Could not extract token from user object:", user);
+  // console.log("Could not extract token from user object:", user); // Removed log
   return null;
 };
 
@@ -88,18 +88,6 @@ const MediaCard = ({
   // For live rating from TMDb when displayed in favorites/watchlist
   const [liveRating, setLiveRating] = useState(rating);
   const [isLoadingRating, setIsLoadingRating] = useState(false);
-  
-  // Debug logging for rating calculation
-  if (fromFavorites || fromWatchlist) {
-    console.log(`MediaCard Debug [${displayTitle}]:`, { 
-      vote_average, 
-      numericVoteAverage,
-      rating, 
-      liveRating,
-      fromFavorites, 
-      fromWatchlist 
-    });
-  }
   const displayScore = score ?? (vote_average ? Math.round(vote_average * 10) : null);
   const displayPopularity = Math.round(popularity) || 'N/A';
   const determinedMediaType = media_type || (release_date ? 'movie' : 'tv');
@@ -410,7 +398,7 @@ const MediaCard = ({
           } : null
         }
       }));
-+     e?.nativeEvent?.stopImmediatePropagation();
+      // e?.nativeEvent?.stopImmediatePropagation(); // Removed redundant call
 
       lastFetchTime = 0;
     } catch (error) {

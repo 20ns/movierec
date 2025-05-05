@@ -21,7 +21,7 @@ const DEBUG_LOGGING = process.env.NODE_ENV === 'development';
 // --- Helper Functions ---
 const logMessage = (message, data) => {
   if (DEBUG_LOGGING) {
-    console.log(`[PersonalRecs] ${message}`, data !== undefined ? data : '');
+    // console.log(`[PersonalRecs] ${message}`, data !== undefined ? data : ''); // Removed log
   }
 };
 
@@ -132,7 +132,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   useEffect(() => {
     const currentUserId = currentUser?.attributes?.sub;
     if (currentUserId !== prevUserIdRef.current) {
-      console.log('[PersonalRecs] User ID changed, resetting component state');
+      // console.log('[PersonalRecs] User ID changed, resetting component state'); // Removed log
       safeSetState({
         recommendations: [],
         dataSource: null,
@@ -742,7 +742,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
     const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
     if (isAuthenticated && !token) {
-      console.log('[PersonalRecs] Auth state is true but token not ready yet');
+      // console.log('[PersonalRecs] Auth state is true but token not ready yet'); // Removed log
       safeSetState({ isLoading: false, isThinking: false });
       return;
     }
@@ -857,11 +857,11 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Render Logic ---
   if (!isAuthenticated || !initialAppLoadComplete) {
-    console.log('[PersonalRecs] Not rendering due to:', {
-      isAuthenticated,
-      initialAppLoadComplete,
-      userId: currentUser?.attributes?.sub || null,
-    });
+    // console.log('[PersonalRecs] Not rendering due to:'); // Removed log and orphaned object
+    //   isAuthenticated, // Removed orphaned object property
+    //   initialAppLoadComplete, // Removed orphaned object property
+    //   userId: currentUser?.attributes?.sub || null, // Removed orphaned object property
+    // }); // Removed orphaned closing parenthesis
     return null;
   }
 

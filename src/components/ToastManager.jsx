@@ -20,11 +20,11 @@ export const ToastProvider = ({ children }) => {
   });
 
   // Log when toast provider is mounted
-  console.log('Toast provider mounted');
+  // console.log('Toast provider mounted'); // Removed log
 
   // This function now handles both string messages and object-style toasts
   const showToast = (messageOrOptions, type = 'success') => {
-    console.log('showToast called with:', messageOrOptions, type);
+    // console.log('showToast called with:', messageOrOptions, type); // Removed log
     
     if (typeof messageOrOptions === 'string') {
       // Handle simple string messages with type as second parameter
