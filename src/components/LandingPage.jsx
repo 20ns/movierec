@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FilmIcon as FilmOutlineIcon } from '@heroicons/react/24/outline';
 import { FilmIcon, SparklesIcon, ArrowRightIcon, UserGroupIcon, LightBulbIcon, ShieldCheckIcon, AdjustmentsHorizontalIcon, HeartIcon, ClockIcon, RocketLaunchIcon, StarIcon } from '@heroicons/react/24/solid';
 
+import PersonalizedRecommendations from './PersonalizedRecommendations';
 const LandingPage = ({ onSignInClick, onSignUpClick }) => {
   // Track current testimonial for mobile slider
   const [activeTestimonial, setActiveTestimonial] = useState(0);
@@ -597,6 +598,16 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
             </div>
           </div>
         </div>
+      </motion.div>
+{/* Personalized Recommendations Section */}
+      <motion.div
+        className="mb-24"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={containerVariants}
+      >
+        <PersonalizedRecommendations />
       </motion.div>
 
       {/* Final CTA */}
