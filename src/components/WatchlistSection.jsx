@@ -281,7 +281,8 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   // Effect to handle immediate UI updates based on watchlist events
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
-      // console.log('WatchlistSection received watchlist-updated event:', event.detail); // Removed log
+      // Roo Debug: WatchlistSection received event
+      console.log('[Roo Debug] WatchlistSection: Received watchlist-updated event', event.detail);
       const { mediaId: updatedId, isInWatchlist: newStatus, item: newItemData } = event.detail || {};
 
       if (!currentUser || !updatedId) return;
@@ -315,8 +316,12 @@ const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
         // Update cache
         cacheWatchlist(userId, updatedList);
+        // Roo Debug: WatchlistSection state update about to happen
+        console.log('[Roo Debug] WatchlistSection: About to call setUserWatchlist', { updatedId, newStatus });
         return updatedList;
       });
+      // Roo Debug: WatchlistSection state update finished
+      console.log('[Roo Debug] WatchlistSection: setUserWatchlist call finished', { updatedId, newStatus });
     };
 
     document.addEventListener('watchlist-updated', handleWatchlistUpdate);

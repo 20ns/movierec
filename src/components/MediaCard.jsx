@@ -192,8 +192,10 @@ const MediaCard = ({
       }
     };
 
-    const timeoutId = setTimeout(checkFavoriteStatus, Math.random() * 500);
-    return () => clearTimeout(timeoutId);
+    checkFavoriteStatus(); // Run immediately, remove setTimeout
+
+    // const timeoutId = setTimeout(checkFavoriteStatus, Math.random() * 500);
+    // return () => clearTimeout(timeoutId);
   }, [isAuthenticated, currentUser, mediaId, initialIsFavorited]);
 
   useEffect(() => {
@@ -265,8 +267,10 @@ const MediaCard = ({
       }
     };
 
-    const timeoutId = setTimeout(checkWatchlistStatus, Math.random() * 500);
-    return () => clearTimeout(timeoutId);
+    checkWatchlistStatus(); // Run immediately, remove setTimeout
+
+    // const timeoutId = setTimeout(checkWatchlistStatus, Math.random() * 500);
+    // return () => clearTimeout(timeoutId);
   }, [isAuthenticated, currentUser, mediaId, initialIsInWatchlist]);
 
   useEffect(() => {
@@ -314,6 +318,8 @@ const MediaCard = ({
     // Prevent initial fetch from overriding user's action
     hasFetchedRef.current = true;
 
+    // Roo Debug: Log auth state on favorite toggle
+    console.log('[Roo Debug] Favorite Toggle Click:', { isAuthenticated, hasCurrentUser: !!currentUser, mediaId });
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for favorite toggle");
       if (toast?.showToast) {
@@ -338,6 +344,8 @@ const MediaCard = ({
     setIsFavorited(!previousState);
 
     try {
+      // Roo Debug: Before favorite API call
+      console.log('[Roo Debug] Favorite Toggle: Attempting API call', { method, mediaId });
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
@@ -358,6 +366,9 @@ const MediaCard = ({
         }
       );
 
+      // Roo Debug: After favorite API call
+      console.log('[Roo Debug] Favorite Toggle: API call finished', { ok: response.ok, status: response.status, mediaId });
+
       if (!response.ok) {
         setIsFavorited(previousState);
         throw new Error(`Server error: ${response.status}`);
@@ -369,19 +380,17 @@ const MediaCard = ({
         globalFavoriteIds.add(mediaId);
       }
 
-      if (toast?.showToast) {
+      /* if (toast?.showToast) { // Temporarily comment out toast
         toast.showToast(
-          previousState 
-            ? `Removed "${displayTitle}" from favorites` 
+          previousState
+            ? `Removed "${displayTitle}" from favorites`
             : `Added "${displayTitle}" to favorites!`,
           previousState ? 'info' : 'favorite'
         );
-      }
+      } */
 
-      if (onFavoriteToggle) {
-        onFavoriteToggle(mediaId, !previousState);
-      }
-
+      // Roo Debug: Before dispatchEvent
+      console.log('[Roo Debug] Favorite Toggle: Before dispatchEvent', { mediaId });
       document.dispatchEvent(new CustomEvent('favorites-updated', {
         detail: {
           mediaId: mediaId,
@@ -398,10 +407,25 @@ const MediaCard = ({
           } : null
         }
       }));
+      // Roo Debug: After dispatchEvent
+      console.log('[Roo Debug] Favorite Toggle: After dispatchEvent', { mediaId });
+
+
+      // Roo Debug: Before onFavoriteToggle prop call
+      console.log('[Roo Debug] Favorite Toggle: Before onFavoriteToggle prop call', { mediaId, newStatus: !previousState });
+      if (onFavoriteToggle) {
+        onFavoriteToggle(mediaId, !previousState);
+      }
+      // Roo Debug: After onFavoriteToggle prop call
+      console.log('[Roo Debug] Favorite Toggle: After onFavoriteToggle prop call', { mediaId });
+
+
       // e?.nativeEvent?.stopImmediatePropagation(); // Removed redundant call
 
       lastFetchTime = 0;
     } catch (error) {
+      // Roo Debug: Error during favorite API call
+      console.error("[Roo Debug] Favorite Toggle: Caught error", { error, mediaId });
       console.error("Error updating favorite:", error);
       if (toast?.showToast) {
         toast.showToast(
@@ -423,6 +447,8 @@ const MediaCard = ({
     // Prevent initial fetch from overriding user's action
     hasWatchlistFetchedRef.current = true;
 
+    // Roo Debug: Log auth state on watchlist toggle
+    console.log('[Roo Debug] Watchlist Toggle Click:', { isAuthenticated, hasCurrentUser: !!currentUser, mediaId });
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for watchlist toggle");
       if (toast?.showToast) {
@@ -447,6 +473,8 @@ const MediaCard = ({
     setIsInWatchlist(!previousState);
 
     try {
+      // Roo Debug: Before watchlist API call
+      console.log('[Roo Debug] Watchlist Toggle: Attempting API call', { method, mediaId });
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`,
         {
@@ -466,6 +494,9 @@ const MediaCard = ({
           })
         }
       );
+
+      // Roo Debug: After watchlist API call
+      console.log('[Roo Debug] Watchlist Toggle: API call finished', { ok: response.ok, status: response.status, mediaId });
 
       if (!response.ok) {
         setIsInWatchlist(previousState);
@@ -489,20 +520,18 @@ const MediaCard = ({
         globalWatchlistIds.add(mediaId);
       }
 
-      if (toast?.showToast) {
+      /* if (toast?.showToast) { // Temporarily comment out toast
         toast.showToast(
-          previousState 
-            ? `Removed "${displayTitle}" from watchlist` 
+          previousState
+            ? `Removed "${displayTitle}" from watchlist`
             : `Added "${displayTitle}" to watchlist!`,
           previousState ? 'info' : 'watchlist'
         );
-      }
-
-      if (onWatchlistToggle) {
-        onWatchlistToggle(mediaId, !previousState);
-      }
+      } */
 
       // Dispatch event for other components
+      // Roo Debug: Before dispatchEvent
+      console.log('[Roo Debug] Watchlist Toggle: Before dispatchEvent', { mediaId });
       document.dispatchEvent(new CustomEvent('watchlist-updated', {
         detail: {
           mediaId: mediaId,
@@ -519,10 +548,24 @@ const MediaCard = ({
           } : null
         }
       }));
+      // Roo Debug: After dispatchEvent
+      console.log('[Roo Debug] Watchlist Toggle: After dispatchEvent', { mediaId });
+
+
+      // Roo Debug: Before onWatchlistToggle prop call
+      console.log('[Roo Debug] Watchlist Toggle: Before onWatchlistToggle prop call', { mediaId, newStatus: !previousState });
+      if (onWatchlistToggle) {
+        onWatchlistToggle(mediaId, !previousState);
+      }
+      // Roo Debug: After onWatchlistToggle prop call
+      console.log('[Roo Debug] Watchlist Toggle: After onWatchlistToggle prop call', { mediaId });
+
 
       // Reset fetch cooldown to force refresh on next fetch
       lastWatchlistFetchTime = 0;
     } catch (error) {
+      // Roo Debug: Error during watchlist API call
+      console.error("[Roo Debug] Watchlist Toggle: Caught error", { error, mediaId });
       console.error("Error updating watchlist:", error);
       if (toast?.showToast) {
         toast.showToast(

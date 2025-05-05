@@ -172,6 +172,8 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   useEffect(() => {
     const handleFavoriteUpdate = (event) => {
+      // Roo Debug: FavoritesSection received event
+      console.log('[Roo Debug] FavoritesSection: Received favorites-updated event', event.detail);
       const { mediaId: updatedId, isFavorited: newStatus, item: newItem } = event.detail || {};
       
       // Handle the favorite update event
@@ -188,8 +190,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             const userId = currentUser.username || currentUser.attributes?.sub;
             cacheFavorites(userId, updatedList);
           }
+          // Roo Debug: FavoritesSection state update about to happen (add)
+          console.log('[Roo Debug] FavoritesSection: About to call setUserFavorites (add)', { updatedId, newStatus });
           return updatedList;
         });
+        // Roo Debug: FavoritesSection state update finished (add)
+        console.log('[Roo Debug] FavoritesSection: setUserFavorites call finished (add)', { updatedId, newStatus });
       } else if (!newStatus && updatedId) {
         // Item was removed - filter it out from local state and cache
         setUserFavorites(prev => {
@@ -199,8 +205,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             const userId = currentUser.username || currentUser.attributes?.sub;
             cacheFavorites(userId, updatedList);
           }
+          // Roo Debug: FavoritesSection state update about to happen (remove)
+          console.log('[Roo Debug] FavoritesSection: About to call setUserFavorites (remove)', { updatedId, newStatus });
           return updatedList;
         });
+        // Roo Debug: FavoritesSection state update finished (remove)
+        console.log('[Roo Debug] FavoritesSection: setUserFavorites call finished (remove)', { updatedId, newStatus });
         
         // Also update cache
         if (currentUser) {
@@ -215,7 +225,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     return () => {
       document.removeEventListener('favorites-updated', handleFavoriteUpdate);
     };
-  }, [currentUser, userFavorites]);
+  }, [currentUser]); // Removed userFavorites from dependencies
 
   // Close sort menu when clicking outside
   useEffect(() => {
