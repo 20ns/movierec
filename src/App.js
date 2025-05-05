@@ -22,6 +22,8 @@ import LandingPage from './components/LandingPage';
 import AdUnit from './components/AdUnit';
 import AdScript from './components/AdScript';
 import MediaDetailModal from './components/MediaDetailModal'; // Import the new modal
+import BlogIndexPage from './pages/BlogIndexPage'; // Import Blog Index Page
+import BlogPostPage from './pages/BlogPostPage'; // Import Blog Post Page
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -800,6 +802,10 @@ useEffect(() => {
               <div className="container mx-auto px-4 pb-16">{renderMainContent()}</div>
             }
           />
+          {/* Blog Routes */}
+          <Route path="/blog" element={<BlogIndexPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

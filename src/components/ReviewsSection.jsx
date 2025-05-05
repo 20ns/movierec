@@ -141,22 +141,62 @@ const ReviewsSection = ({ mediaId, currentUser, onReviewsLoaded }) => { // Add o
       )}
 
       {/* Display Reviews */}
-      {isLoading && <p className="text-gray-400">Loading reviews...</p>}
-      {!isLoading && reviews.length === 0 && <p className="text-gray-400">No reviews yet. Be the first!</p>}
-      {!isLoading && reviews.length > 0 && (
-        <ul className="space-y-4">
-          {reviews.map((review) => (
-            <li key={review.id} className="p-3 bg-gray-700 bg-opacity-70 rounded-md border border-gray-600">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-gray-200">{review.author}</span>
-                <span className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
+      {isLoading && (
+        <div className="space-y-4 animate-pulse">
+          {[...Array(2)].map((_, i) => ( // Show 2 skeleton items
+            <div key={i} className="p-3 bg-gray-700 bg-opacity-50 rounded-md border border-gray-600">
+              <div className="flex items-center justify-between mb-2">
+                <div className="h-4 bg-gray-600 rounded w-1/4"></div> {/* Author */}
+                <div className="h-3 bg-gray-600 rounded w-1/6"></div> {/* Date */}
               </div>
-              <div className="flex items-center mb-2">
+              <div className="flex items-center mb-3">
+                <div className="h-5 bg-gray-600 rounded w-1/3"></div> {/* Rating */}
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-600 rounded w-full"></div> {/* Comment line 1 */}
+                <div className="h-3 bg-gray-600 rounded w-5/6"></div> {/* Comment line 2 */}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!isLoading && reviews.length === 0 && (
+        <div className="text-center py-6 px-4 bg-gray-700/30 rounded-lg border border-dashed border-gray-600">
+          <svg className="mx-auto h-10 w-10 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343m11.314 11.314a8 8 0 00-11.314-11.314m11.314 11.314L6.343 7.343m11.314 11.314V12m-4.657 6.657H12" /> {/* Example icon */}
+          </svg>
+          <h4 className="mt-2 text-sm font-medium text-gray-300">No reviews yet</h4>
+          <p className="mt-1 text-sm text-gray-400">
+            {currentUser ? "Be the first to share your thoughts!" : "Sign in to add the first review."}
+          </p>
+          {currentUser && (
+             <button
+               onClick={() => document.getElementById('comment')?.focus()} // Focus the comment box
+               className="mt-4 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500"
+             >
+               Add Review
+             </button>
+          )}
+        </div>
+      )}
+      {!isLoading && reviews.length > 0 && (
+        <ul className="space-y-5"> {/* Keep increased spacing */}
+          {reviews.map((review) => (
+            // Re-applying enhanced styling for each review item
+            <li
+              key={review.id}
+              className="p-4 bg-gradient-to-br from-gray-700/60 to-gray-800/40 rounded-lg border border-gray-600/80 shadow-sm transition-shadow duration-200 hover:shadow-md" // Keep enhanced class
+            >
+              <div className="flex items-center justify-between mb-2"> {/* Keep increased bottom margin */}
+                <span className="font-semibold text-indigo-300 text-sm">{review.author}</span> {/* Keep changed color and size */}
+                <span className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString()}</span> {/* Keep date style */}
+              </div>
+              <div className="flex items-center mb-2.5"> {/* Keep adjusted bottom margin */}
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={`text-lg ${review.rating >= star ? 'text-yellow-400' : 'text-gray-500'}`}>★</span>
+                  <span key={star} className={`text-xl ${review.rating >= star ? 'text-yellow-400' : 'text-gray-600'}`}>★</span>
                 ))}
               </div>
-              <p className="text-gray-300 text-sm">{review.comment}</p>
+              <p className="text-gray-300 text-sm leading-relaxed">{review.comment}</p> {/* Keep leading-relaxed */}
             </li>
           ))}
         </ul>

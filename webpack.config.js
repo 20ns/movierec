@@ -53,9 +53,15 @@ module.exports = {
     }
   },
   devServer: {
-    static: {
-      directory: path.join(__dirname, 'dist'),
-    },
+    static: [
+      {
+        directory: path.join(__dirname, 'dist'), // Keep serving build output if needed
+      },
+      {
+        directory: path.join(__dirname, 'public'), // Also serve the public directory
+        publicPath: '/', // Serve its contents from the root URL
+      }
+    ],
     historyApiFallback: true,
     hot: true,
     port: 3000

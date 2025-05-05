@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   MagnifyingGlassIcon as SearchIcon, 
   UserIcon, 
   AdjustmentsHorizontalIcon, 
   HeartIcon,
   ClockIcon,
   Bars3Icon,
-  XMarkIcon 
+  XMarkIcon,
+  NewspaperIcon // Add NewspaperIcon
 } from '@heroicons/react/24/outline';
 import FavoritesSection from './FavoritesSection';
 
@@ -53,6 +54,7 @@ const Header = memo(function Header({
   onAccountClick,
   hasBasicPreferencesOnly = false
 }) {
+  const navigate = useNavigate(); // Instantiate useNavigate
   const [hoveredButton, setHoveredButton] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -180,6 +182,17 @@ const Header = memo(function Header({
       onClick: () => handlePanelToggle('search', !showSearch),
       active: showSearch,
       show: true
+    },
+    // Add Blog item for mobile menu
+    {
+      name: 'Blog',
+      icon: <NewspaperIcon className="w-5 h-5" />,
+      onClick: () => {
+        navigate('/blog');
+        setShowMobileMenu(false); // Close menu on navigate
+      },
+      active: false, // Could add active state based on location if needed
+      show: true // Show for everyone
     },
     {
       name: 'Preferences',
@@ -312,6 +325,32 @@ const Header = memo(function Header({
               </motion.div>
             )}
           </motion.button>
+
+          {/* Blog button - always visible */}
+          <motion.button
+            variants={iconButtonVariants}
+            initial="initial"
+            whileHover="hover"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/blog')} // Use navigate directly
+            onMouseEnter={() => setHoveredButton('blog')}
+            onMouseLeave={() => setHoveredButton(null)}
+            className="relative p-2.5 rounded-full text-gray-300 hover:bg-gray-800/70 hover:text-white transition-colors duration-200"
+            title="Blog"
+            aria-label="Blog"
+          >
+            <NewspaperIcon className="w-5 h-5" />
+            {hoveredButton === 'blog' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap px-2 py-1 bg-gray-800 text-xs text-gray-200 rounded shadow-lg pointer-events-none"
+              >
+                Blog
+              </motion.div>
+            )}
+          </motion.button>
+          {/* Removed duplicated Blog button block */}
           
           {/* Only show these buttons when the user is authenticated */}
           {isAuthenticated && (
