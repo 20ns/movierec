@@ -28,6 +28,7 @@ export const fetchCachedMedia = async (options = {}) => {
     preferences = {},
     favoriteIds = [],
     watchlistIds = [],
+    forceRefresh = false, // Destructure forceRefresh
   } = options;
 
   // Ensure IDs are strings for consistency with backend/cache key
@@ -48,32 +49,38 @@ export const fetchCachedMedia = async (options = {}) => {
    // Use a more robust hashing or encoding if needed, btoa might have issues with complex chars
   const cacheKey = CLIENT_CACHE_PREFIX + '_' + btoa(unescape(encodeURIComponent(cacheKeyPayload))); // Handle potential unicode
 
-  // try client cache
-  try {
-    const raw = localStorage.getItem(cacheKey);
-    if (raw) {
-      const { timestamp, data } = JSON.parse(raw); // Expecting { timestamp, data: { items, source } }
-      if (!shouldRefreshCache(timestamp)) {
-        console.log('[MediaCache] Using client-side cache');
-        // Ensure returning the nested structure { items, source }
-        if (data && data.items && data.source) {
-             return data;
+  // try client cache ONLY if forceRefresh is false
+  if (!forceRefresh) {
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const { timestamp, data } = JSON.parse(raw); // Expecting { timestamp, data: { items, source } }
+        if (!shouldRefreshCache(timestamp)) {
+          console.log('[MediaCache] Using client-side cache (forceRefresh=false)');
+          // Ensure returning the nested structure { items, source }
+          if (data && data.items && data.source) {
+               return data;
+          } else {
+               // Clear invalid cache entry
+               localStorage.removeItem(cacheKey);
+          }
         } else {
-             // Clear invalid cache entry
-             localStorage.removeItem(cacheKey);
+           console.log('[MediaCache] Client cache expired');
+           localStorage.removeItem(cacheKey);
         }
-      } else {
-         console.log('[MediaCache] Client cache expired');
-         localStorage.removeItem(cacheKey);
       }
+    } catch (e) {
+        console.warn('[MediaCache] Error reading client cache:', e);
+        localStorage.removeItem(cacheKey); // Clear potentially corrupted cache
     }
-  } catch (e) {
-      console.warn('[MediaCache] Error reading client cache:', e);
-      localStorage.removeItem(cacheKey); // Clear potentially corrupted cache
+  } else {
+      console.log('[MediaCache] Bypassing client cache (forceRefresh=true)');
   }
 
+
+  // Proceed to API call if cache was skipped (forceRefresh=true) or missed/expired
   try {
-    console.log('[MediaCache] Attempting to fetch from Personalized API');
+    console.log(`[MediaCache] Attempting to fetch from Personalized API (forceRefresh=${forceRefresh})`);
     if (!API_GATEWAY_URL) {
         console.error('[MediaCache] API_GATEWAY_URL is not defined. Check environment variables.');
         return { items: [], source: 'error' };

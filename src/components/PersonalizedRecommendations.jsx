@@ -125,8 +125,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
 
   // --- Simplified Fetch Wrapper ---
-  const fetchFromPersonalizedApi = useCallback(async (currentContentTypeFilter, excludeIdsSet = new Set(), preferences = {}, favoriteIdsList = [], watchlistIdsList = []) => {
-    logMessage('Calling fetchCachedMedia', { currentContentTypeFilter, excludeIdsCount: excludeIdsSet.size, preferences, favoriteIdsCount: favoriteIdsList.length, watchlistIdsCount: watchlistIdsList.length });
+  const fetchFromPersonalizedApi = useCallback(async (currentContentTypeFilter, excludeIdsSet = new Set(), preferences = {}, favoriteIdsList = [], watchlistIdsList = [], forceRefresh = false) => {
+    logMessage('Calling fetchCachedMedia', { currentContentTypeFilter, excludeIdsCount: excludeIdsSet.size, preferences, favoriteIdsCount: favoriteIdsList.length, watchlistIdsCount: watchlistIdsList.length, forceRefresh });
     try {
       const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
       // No need for token check here if API Gateway doesn't require it,
@@ -143,6 +143,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         preferences,
         favoriteIds: favoriteIdsList,
         watchlistIds: watchlistIdsList,
+        forceRefresh, // Pass the forceRefresh flag
       });
 
       // fetchCachedMedia returns { items: [], source: '...' }
@@ -170,12 +171,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   // --- Core Recommendation Fetch Logic (Simplified) ---
   const fetchRecommendations = useCallback(
     async (forceRefresh = false) => {
+      console.log('[fetchRecommendations] Called.', { forceRefresh }); // <-- Add log
+      console.log('[fetchRecommendations] Checking conditions:', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current }); // <-- Add log
       // Prevent fetching if not authenticated, initial load not complete, or already fetching
       if (!isAuthenticated || !userId || !initialAppLoadComplete || isFetchingRef.current) {
         if (!isFetchingRef.current) { // Only reset loading state if not already fetching
              safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
         }
         logMessage('Fetch skipped', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
+        console.log('[fetchRecommendations] Exiting early due to conditions.'); // <-- Add log
         return false;
       }
 
@@ -240,7 +244,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           excludeIds,
           prefs,
           favoriteIdsList,
-          watchlistIdsList
+          watchlistIdsList,
+          forceRefresh // Pass forceRefresh down
         );
 
         if (apiResult.success && apiResult.recommendations.length > 0) {
@@ -302,21 +307,16 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         fetchSuccessful = false; // Ensure fetch is marked as unsuccessful
 
       } finally {
-        // Clear timeout and reset fetching flags *only if not retrying*
-         if (!isFetchingRef.current || retryCountRef.current >= MAX_RETRIES) {
-             if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-             if (mountedRef.current) {
-                 safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
-             }
-             isFetchingRef.current = false; // Ensure flag is reset if fetch completes/fails fully
-         } else if (isFetchingRef.current && retryCountRef.current < MAX_RETRIES) {
-             // If retrying, keep isFetchingRef true but reset UI loading state briefly
-             if (mountedRef.current) {
-                  safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
-             }
-         }
+          // This specific execution of fetchRecommendations is finishing.
+          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+          if (mountedRef.current) {
+              // Reset UI loading state regardless of success/failure/retry
+              safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
+          }
+          isFetchingRef.current = false; // Always reset the flag for this execution context
+          console.log('[fetchRecommendations] finally: Reset isFetchingRef to false.'); // Add log
       }
-      // Return true only if the fetch cycle (including potential retries) completed successfully
+      // Return true only if the fetch cycle completed successfully in *this* execution (not counting retries)
       return fetchSuccessful && retryCountRef.current < MAX_RETRIES;
     },
     [
@@ -366,7 +366,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Refresh Logic (Fetch 6, Show 3) ---
   const handleRefresh = useCallback(async () => {
-    if (isFetchingRef.current || !userId || !isAuthenticated) return;
+    console.log('[handleRefresh] Clicked!'); // <-- Add log
+    console.log('[handleRefresh] Checking conditions:', { isFetching: isFetchingRef.current, userId, isAuthenticated }); // <-- Add log
+    if (isFetchingRef.current || !userId || !isAuthenticated) {
+        console.log('[handleRefresh] Exiting early due to conditions.'); // <-- Add log
+        return;
+    }
 
     // Check if we can simply show the next set of items
     if (displayIndex === 0 && allRecommendations.length > MIN_RECOMMENDATION_COUNT) {
