@@ -14,7 +14,7 @@ const clearFavoritesCache = (userId) => {
   try {
     localStorage.removeItem(`${FAVORITES_CACHE_KEY}_${userId}`);
   } catch (error) {
-    console.error('Error clearing favorites cache:', error);
+    // console.error('Error clearing favorites cache:', error);
   }
 };
 
@@ -30,7 +30,7 @@ const getFavoritesFromCache = (userId) => {
     }
     return null;
   } catch (error) {
-    console.error('Error retrieving from favorites cache:', error);
+    // console.error('Error retrieving from favorites cache:', error);
     return null;
   }
 };
@@ -43,7 +43,7 @@ const cacheFavorites = (userId, favorites) => {
     };
     localStorage.setItem(`${FAVORITES_CACHE_KEY}_${userId}`, JSON.stringify(cacheData));
   } catch (error) {
-    console.error('Error saving to favorites cache:', error);
+    // console.error('Error saving to favorites cache:', error);
   }
 };
 
@@ -94,7 +94,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   const fetchFavorites = async (forceRefresh = false) => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      console.error('No access token available');
+      // console.error('No access token available');
       setError('Authentication token missing');
       return;
     }
@@ -102,10 +102,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
     // If not forcing refresh and we fetched recently (within last 5 seconds), don't fetch again
     const now = Date.now();
     if (!forceRefresh && now - lastFetchTimeRef.current < 5000) {
-      console.log('Skipping fetch - too soon since last fetch');
+      // console.log('Skipping fetch - too soon since last fetch');
       return;
     }
-  
+
     setIsLoading(true);
     setError(null);
     
@@ -114,14 +114,14 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       
       // Only use cache if not forcing a refresh
       const cachedFavorites = !forceRefresh ? getFavoritesFromCache(userId) : null;
-      
-      if (cachedFavorites) {      console.log('Using cached favorites data');
+
+      if (cachedFavorites) {      // console.log('Using cached favorites data');
         setUserFavorites(cachedFavorites);
         setIsLoading(false);
         return;
       }
-      
-      console.log('Fetching favorites from API...');
+
+      // console.log('Fetching favorites from API...');
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
@@ -157,7 +157,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
       cacheFavorites(userId, processedFavorites);
       setUserFavorites(processedFavorites);
     } catch (err) {
-      console.error('Error fetching favorites:', err);
+      // console.error('Error fetching favorites:', err);
       setError('Failed to load favorites. Please try again later.');
     } finally {
       setIsLoading(false);
@@ -173,9 +173,9 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
   useEffect(() => {
     const handleFavoriteUpdate = (event) => {
       // Roo Debug: FavoritesSection received event
-      console.log('[Roo Debug] FavoritesSection: Received favorites-updated event', event.detail);
+      // console.log('[Roo Debug] FavoritesSection: Received favorites-updated event', event.detail);
       const { mediaId: updatedId, isFavorited: newStatus, item: newItem } = event.detail || {};
-      
+
       // Handle the favorite update event
       if (newStatus && newItem) {
         // Item was added - add it to the local state and cache immediately
@@ -191,11 +191,11 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             cacheFavorites(userId, updatedList);
           }
           // Roo Debug: FavoritesSection state update about to happen (add)
-          console.log('[Roo Debug] FavoritesSection: About to call setUserFavorites (add)', { updatedId, newStatus });
+          // console.log('[Roo Debug] FavoritesSection: About to call setUserFavorites (add)', { updatedId, newStatus });
           return updatedList;
         });
         // Roo Debug: FavoritesSection state update finished (add)
-        console.log('[Roo Debug] FavoritesSection: setUserFavorites call finished (add)', { updatedId, newStatus });
+        // console.log('[Roo Debug] FavoritesSection: setUserFavorites call finished (add)', { updatedId, newStatus });
       } else if (!newStatus && updatedId) {
         // Item was removed - filter it out from local state and cache
         setUserFavorites(prev => {
@@ -206,12 +206,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
             cacheFavorites(userId, updatedList);
           }
           // Roo Debug: FavoritesSection state update about to happen (remove)
-          console.log('[Roo Debug] FavoritesSection: About to call setUserFavorites (remove)', { updatedId, newStatus });
+          // console.log('[Roo Debug] FavoritesSection: About to call setUserFavorites (remove)', { updatedId, newStatus });
           return updatedList;
         });
         // Roo Debug: FavoritesSection state update finished (remove)
-        console.log('[Roo Debug] FavoritesSection: setUserFavorites call finished (remove)', { updatedId, newStatus });
-        
+        // console.log('[Roo Debug] FavoritesSection: setUserFavorites call finished (remove)', { updatedId, newStatus });
+
         // Also update cache
         if (currentUser) {
           const userId = currentUser.username || currentUser.attributes?.sub;
@@ -269,10 +269,10 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
 
   const handleFavoriteToggle = async (mediaId, isFavorited) => {
     if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      console.error('No access token available');
+      // console.error('No access token available');
       return;
     }
-    
+
     const userId = currentUser.username || currentUser.attributes?.sub;
     
     if (!isFavorited) {
@@ -302,7 +302,7 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
         // Clear the cache to ensure fresh data on next fetch
         clearFavoritesCache(userId);
       } catch (error) {
-        console.error('Error removing from favorites:', error);
+        // console.error('Error removing from favorites:', error);
         // Restore the item in case of error
         fetchFavorites(true);
       }
@@ -459,12 +459,12 @@ const FavoritesSection = ({ currentUser, isAuthenticated, onClose, inHeader = fa
                       onFavoriteToggle={(mediaId) => handleFavoriteToggle(mediaId, false)}
                     />
                     {/* Debug logging */}
-                    {console.log('FavoritesSection Debug (Header):', { 
-                      mediaId: item.mediaId, 
-                      title: item.title, 
+                    {/* {console.log('FavoritesSection Debug (Header):', {
+                      mediaId: item.mediaId,
+                      title: item.title,
                       voteAverage: item.voteAverage,
                       parsedVoteAverage: parseFloat(item.voteAverage) || 0
-                    })}
+                    })} */}
                   </motion.div>
                 ))}
               </AnimatePresence>

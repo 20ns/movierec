@@ -171,15 +171,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   // --- Core Recommendation Fetch Logic (Simplified) ---
   const fetchRecommendations = useCallback(
     async (forceRefresh = false) => {
-      console.log('[fetchRecommendations] Called.', { forceRefresh }); // <-- Add log
-      console.log('[fetchRecommendations] Checking conditions:', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current }); // <-- Add log
+      // console.log('[fetchRecommendations] Called.', { forceRefresh }); // <-- Remove log
+      // console.log('[fetchRecommendations] Checking conditions:', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current }); // <-- Remove log
       // Prevent fetching if not authenticated, initial load not complete, or already fetching
       if (!isAuthenticated || !userId || !initialAppLoadComplete || isFetchingRef.current) {
         if (!isFetchingRef.current) { // Only reset loading state if not already fetching
              safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
         }
         logMessage('Fetch skipped', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
-        console.log('[fetchRecommendations] Exiting early due to conditions.'); // <-- Add log
+        // console.log('[fetchRecommendations] Exiting early due to conditions.'); // <-- Remove log
         return false;
       }
 
@@ -314,7 +314,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
           }
           isFetchingRef.current = false; // Always reset the flag for this execution context
-          console.log('[fetchRecommendations] finally: Reset isFetchingRef to false.'); // Add log
+          // console.log('[fetchRecommendations] finally: Reset isFetchingRef to false.'); // Remove log
       }
       // Return true only if the fetch cycle completed successfully in *this* execution (not counting retries)
       return fetchSuccessful && retryCountRef.current < MAX_RETRIES;
@@ -366,10 +366,10 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Refresh Logic (Fetch 6, Show 3) ---
   const handleRefresh = useCallback(async () => {
-    console.log('[handleRefresh] Clicked!'); // <-- Add log
-    console.log('[handleRefresh] Checking conditions:', { isFetching: isFetchingRef.current, userId, isAuthenticated }); // <-- Add log
+    // console.log('[handleRefresh] Clicked!'); // <-- Remove log
+    // console.log('[handleRefresh] Checking conditions:', { isFetching: isFetchingRef.current, userId, isAuthenticated }); // <-- Remove log
     if (isFetchingRef.current || !userId || !isAuthenticated) {
-        console.log('[handleRefresh] Exiting early due to conditions.'); // <-- Add log
+        // console.log('[handleRefresh] Exiting early due to conditions.'); // <-- Remove log
         return;
     }
 
