@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import LandingPage from './components/LandingPage';
 import AdUnit from './components/AdUnit';
 import AdScript from './components/AdScript';
+import MediaDetailModal from './components/MediaDetailModal'; // Import the new modal
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -111,6 +112,9 @@ useEffect(() => {
   // New state for recommendations visibility
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [justSignedIn, setJustSignedIn] = useState(false);
+  // State for Media Detail Modal
+  const [selectedMediaItem, setSelectedMediaItem] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Calculate if user has only completed basic preferences but not detailed ones
   const hasBasicPreferencesOnly = userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted;
@@ -383,6 +387,19 @@ useEffect(() => {
   const handleSignInClick = useCallback(() => navigate('/signin'), [navigate]);
   const handleSignUpClick = useCallback(() => navigate('/signup'), [navigate]);
 
+  // --- Media Detail Modal Handler ---
+  const handleMediaClick = useCallback((item) => {
+    logApp('Media item clicked:', item);
+    setSelectedMediaItem(item);
+    setIsDetailModalOpen(true);
+  }, []);
+
+  const handleCloseDetailModal = useCallback(() => {
+    setIsDetailModalOpen(false);
+    // Optional: Delay clearing item to allow modal fade-out animation
+    setTimeout(() => setSelectedMediaItem(null), 300);
+  }, []);
+
   // --- Render Logic ---  // Modified to ensure it doesn't stay in loading state forever
   const showPageLoading = !initialAppLoadComplete || (isAuthenticated && preferencesLoading && refreshCycleRef.current < 3);
 
@@ -463,54 +480,27 @@ useEffect(() => {
                   propUserPreferences={userPreferences}
                   propHasCompletedQuestionnaire={hasCompletedQuestionnaire}
                   initialAppLoadComplete={initialAppLoadComplete}
+                  onMediaClick={handleMediaClick} // Pass the handler down
                 />
               </motion.div>
             )}
           </AnimatePresence>
           
-          {/* Ad unit with stronger conditions */}
-          {showRecommendations && isAuthenticated && !showPageLoading && (
-            <div className="pt-2 pb-2">
-              <AdUnit 
-                className="max-w-6xl mx-auto rounded-xl overflow-hidden" 
-                contentBefore={<div className="text-sm text-gray-400 text-center mb-2">Recommendations sponsored by our partners</div>}
-              />
-            </div>
-          )}
+          {/* Ad unit removed from main content area */}
           
-          <TrendingSection 
-            currentUser={currentUser} 
-            isAuthenticated={isAuthenticated} 
+          <TrendingSection
+            currentUser={currentUser}
+            isAuthenticated={isAuthenticated}
             initialAppLoadComplete={initialAppLoadComplete}
+            onMediaClick={handleMediaClick} // Pass the handler down
           />
           
-          {/* Second ad also with stronger conditions */}
-          {isAuthenticated && !showPageLoading && (
-            <div className="pb-4 pt-2">
-              <AdUnit 
-                className="max-w-6xl mx-auto rounded-xl overflow-hidden" 
-                contentBefore={<div className="text-sm text-gray-400 text-center mb-2">Discover more content</div>}
-              />
-            </div>
-          )}
+          {/* Removed second ad unit */}
           
           <CategoryBrowser onCategorySelect={setSelectedGenre} />
-          {selectedGenre && <GenreResults genreId={selectedGenre} currentUser={currentUser} />}
+          {selectedGenre && <GenreResults genreId={selectedGenre} currentUser={currentUser} onMediaClick={handleMediaClick} />}
           
-          {/* Third ad with enhanced context */}
-          {selectedGenre && isAuthenticated && !showPageLoading && (
-            <div className="pt-6 pb-8">
-              <AdUnit 
-                className="max-w-6xl mx-auto rounded-xl overflow-hidden" 
-                contentBefore={
-                  <div className="text-sm text-gray-300 font-medium px-1 mb-3">
-                    <h3 className="text-base md:text-lg mb-1 text-white">Similar Content You Might Enjoy</h3>
-                    <p>Based on your interest in this genre, here are some additional recommendations.</p>
-                  </div>
-                }
-              />
-            </div>
-          )}
+          {/* Removed third ad unit */}
         </div>
       );
     }
@@ -736,15 +726,27 @@ useEffect(() => {
                 className="max-w-3xl mx-auto relative"
                 transition={{ delay: 0.2, duration: 0.5 }}
               >
-                <SearchBar 
-                  currentUser={currentUser} 
-                  onResultClick={() => setShowSearch(false)} 
+                <SearchBar
+                  currentUser={currentUser}
+                  // Pass the main click handler down to SearchBar
+                  onMediaClick={(item) => {
+                    handleMediaClick(item); // Call App's handler
+                    setShowSearch(false); // Close search on click
+                  }}
                 />
               </motion.div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      {/* Media Detail Modal */}
+      <MediaDetailModal
+        item={selectedMediaItem}
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        currentUser={currentUser}
+      />
 
       <main className="relative z-10 pt-20 transition-transform duration-300 ease-in-out">
         <Routes>

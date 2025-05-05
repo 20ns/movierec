@@ -33,6 +33,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     propUserPreferences, // Renamed for clarity
     propHasCompletedQuestionnaire, // Renamed for clarity
     initialAppLoadComplete = false,
+    onMediaClick, // Add prop for handling media click
   } = props;
 
   const userId = isAuthenticated ? currentUser?.attributes?.sub : null;
@@ -552,6 +553,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               currentUser={currentUser}
               onFavoriteToggle={handleMediaFavoriteToggle}
               onWatchlistToggle={handleMediaWatchlistToggle}
+              onClick={onMediaClick} // Pass the click handler to MediaCard
             />
           </motion.div>
         ))}

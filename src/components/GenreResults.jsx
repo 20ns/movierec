@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import MediaCard from './MediaCard';
 
-const GenreResults = ({ genreId, mediaType = 'movie', currentUser }) => {
+const GenreResults = ({ genreId, mediaType = 'movie', currentUser, onMediaClick }) => { // Add onMediaClick prop
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -83,8 +83,8 @@ const GenreResults = ({ genreId, mediaType = 'movie', currentUser }) => {
             key={`${item.id}-${item.media_type}`}
             result={item}
             currentUser={currentUser}
-            onClick={() => {}}
-            promptLogin={() => {}}
+            onClick={onMediaClick} // Use the passed handler
+            promptLogin={() => {}} // Keep promptLogin or pass a real one if needed
           />
         ))}
       </div>

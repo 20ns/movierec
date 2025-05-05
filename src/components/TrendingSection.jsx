@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import MediaCard from './MediaCard';
 
-const TrendingSection = ({ currentUser }) => {
+const TrendingSection = ({ currentUser, onMediaClick }) => { // Add onMediaClick prop
   const [trendingContent, setTrendingContent] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeWindow, setTimeWindow] = useState('day'); // 'day' or 'week'
@@ -128,8 +128,8 @@ const TrendingSection = ({ currentUser }) => {
                 key={item.id}
                 result={item}
                 currentUser={currentUser}
-                onClick={() => {}}
-                promptLogin={() => {}}
+                onClick={onMediaClick} // Use the passed handler
+                promptLogin={() => {}} // Keep promptLogin or pass a real one if needed
               />
             ))}
           </motion.div>

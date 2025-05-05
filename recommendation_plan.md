@@ -1,72 +1,75 @@
-# Personalized Recommendation Improvement Plan
+# MovieRec Improvement Plan (Including AdSense Compliance)
 
-## Goal
+## 🎯 Original Project Aim
 
-Deliver highly personalized recommendations by leveraging user data (favorites, watchlist, questionnaire) more effectively, prioritizing the DynamoDB cache but falling back to TMDB when necessary, and implementing a "fetch 6, show 3" pattern for faster refreshes.
+MovieRec aims to be an intelligent and intuitive platform for discovering movies and TV shows perfectly tailored to individual user tastes. By leveraging user viewing history, explicit preferences (collected via an onboarding questionnaire and preference center), and trending data, MovieRec provides a personalized discovery experience, making it effortless to find your next favorite thing to watch.
 
-## Phases
+## ⚠️ AdSense Compliance Issues
 
-### Phase 1: Backend Enhancement (AWS Lambda)
+The site has faced AdSense rejection due to:
 
-*   **Modify Lambda:** Update the Lambda function for the `/media-recommendations` endpoint.
-    *   **Input:** Correctly receive and parse `userId`, `mediaType`, `limit`, `excludeIds`, `preferences` (JSON string), `favorites` (comma-separated IDs), and `watchlist` (comma-separated IDs).
-    *   **Personalized Ranking Logic:**
-        *   **Seed Identification:** Use `favorites`/`watchlist` IDs to identify user-relevant "seed" items and fetch their details (genres) from DynamoDB.
-        *   **Candidate Generation:** Query DynamoDB (e.g., using `GenrePopularityIndex`, filtered by `mediaType`) based on seed genres and user `preferences`. Fetch a larger candidate pool (e.g., 50-100 items).
-        *   **Filtering:** Remove items present in `excludeIds`, `favorites`, and `watchlist` from the candidate pool.
-        *   **Scoring & Ranking:** Score remaining candidates based on a weighted combination of:
-            *   Genre overlap with seeds and preferences.
-            *   Match with other `preferences` (era, mood - using existing fields).
-            *   Item popularity/rating (as a contributing factor).
-            *   Recency (optional).
-        *   **TMDB Fallback:** If DynamoDB yields fewer than 6 candidates after filtering, make targeted TMDB API calls (`/discover` based on preferences/genres, passing `excludeIds`) to supplement the pool. Re-score and rank the combined pool.
-    *   **Output:** Return the **top 6** highest-scoring items and indicate the source (e.g., `{ items: [...], source: 'dynamo_personalized' }`).
+1.  **Low Value Content:** Primarily relying on aggregated TMDB data without sufficient unique publisher content.
+2.  **Google-served ads on screens without publisher content:** Ads potentially appearing on pages with insufficient content or during loading states, despite existing checks.
 
-### Phase 2: Frontend Adjustments (`PersonalizedRecommendations.jsx` & `mediaCache.js`)
+## 📈 Proposed Improvement Plan
 
-*   **Request More Items:** Modify `fetchCachedMedia` and its usage to request `limit: 6`.
-*   **Store Full Set:** Update the state in `PersonalizedRecommendations.jsx` to store the full list of 6 recommendations received.
-*   **Implement Display Logic:**
-    *   Initially, display only the first 3 items.
-    *   **Refresh Logic:** On the *first* refresh click after a new set is loaded, display items 4-6. On *subsequent* refresh clicks, trigger a full backend fetch (`fetchRecommendations(true)`) for a new set of 6.
+This plan aims to address AdSense compliance issues by enhancing content value and refining the ad strategy.
 
-### Phase 3: Data Enrichment (Future Consideration)
-
-*   Defer enriching the existing 10,000 DynamoDB items for now. Revisit if results from Phases 1 & 2 need further improvement.
-
-## Data Flow Diagram
+### Plan Overview (Mermaid Diagram)
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend (React)
-    participant API Gateway
-    participant Lambda Function
-    participant DynamoDB
-    participant TMDB API
+graph TD
+    A[Start: AdSense Rejection] --> B{Analyze Issues};
+    B --> C[Low Value Content];
+    B --> D[Ads on Screens w/o Content];
 
-    User->>Frontend (React): Loads Page
-    Frontend (React)->>API Gateway: GET /media-recommendations (limit=6, ...)
-    API Gateway->>Lambda Function: Invoke
-    Lambda Function->>DynamoDB: Query Candidates + Seeds
-    DynamoDB-->>Lambda Function: Items
-    alt DynamoDB results < 6
-        Lambda Function->>TMDB API: Call /discover
-        TMDB API-->>Lambda Function: Supplementary candidates
+    C --> E[Strategy: Enhance Content Value];
+    E --> E1[Add User Reviews/Comments];
+    E --> E2[Introduce Editorial Content (Blog, Lists)];
+    E --> E3[Develop Community Features];
+    E --> E4[Unique Data Presentation];
+
+    D --> F[Strategy: Refine Ad Placement];
+    F --> F1[Reduce Ad Density (Fewer Units)];
+    F --> F2[Place Ads ONLY on High-Value Pages Initially];
+    F --> F3[Stricter Ad Loading Conditions];
+    F --> F4[Ensure Clear Separation from Navigation];
+
+    subgraph Implementation Steps
+        G[Implement Content Features (e.g., Reviews Backend/UI)]
+        H[Refactor Ad Logic (Use stricter conditions, fewer units)]
+        I[Review Site Navigation & UX]
+        J[Resubmit to AdSense]
     end
-    Lambda Function->>Lambda Function: Filter & Rank (Score based on user data + existing fields)
-    Lambda Function->>API Gateway: Return top 6 ranked items
-    API Gateway-->>Frontend (React): Response { items: [item1..item6] }
-    Frontend (React)->>Frontend (React): Store [item1..item6], Display [item1, item2, item3]
-    Frontend (React)->>User: Show Recommendations [1, 2, 3]
 
-    User->>Frontend (React): Clicks Refresh (1st time)
-    Frontend (React)->>Frontend (React): Display [item4, item5, item6]
-    Frontend (React)->>User: Show Recommendations [4, 5, 6]
+    E1 & E2 & E3 & E4 --> G;
+    F1 & F2 & F3 & F4 --> H;
+    G & H --> I;
+    I --> J;
 
-    User->>Frontend (React): Clicks Refresh (2nd time)
-    Frontend (React)->>API Gateway: GET /media-recommendations (limit=6, new exclude list)
-    Note right of Frontend (React): Repeat fetch cycle for new set
-    API Gateway-->>Frontend (React): Response { items: [newItem1..newItem6] }
-    Frontend (React)->>Frontend (React): Store [newItem1..newItem6], Display [newItem1, newItem2, newItem3]
-    Frontend (React)->>User: Show Recommendations [new 1, 2, 3]
+    style E fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#ccf,stroke:#333,stroke-width:2px
+```
+
+### Detailed Plan Steps:
+
+1.  **Enhance Content Value (Primary Focus):**
+    *   **User Reviews/Comments:** Implement a system allowing logged-in users to write short reviews or comments on movie/TV show pages.
+    *   **Editorial Content:** Create a simple blog section or dedicated pages for curated lists, short articles, or "Editor's Picks" with unique commentary.
+    *   **(Optional) Community Features:** Consider adding user profiles or discussion forums.
+    *   **(Optional) Unique Data Insights:** Present interesting insights based on anonymized user interaction data.
+
+2.  **Refine Ad Placement Strategy:**
+    *   **Reduce Ad Density:** Start with fewer ad units (e.g., one per main content page).
+    *   **Target High-Value Pages:** Initially place ads only on pages with guaranteed unique content (blog, reviews pages).
+    *   **Strengthen Loading Conditions:** Tie ad loading more directly to the presence of unique content elements.
+    *   **Clear Separation:** Ensure ads are visually distinct from core content and navigation.
+
+3.  **Review User Experience:**
+    *   Ensure fast load times and intuitive navigation.
+    *   Clearly communicate the site's value proposition (recommendations + unique content/community).
+
+4.  **Implementation & Resubmission:**
+    *   Implement the necessary backend and frontend changes for content features and ad logic.
+    *   Thoroughly test the changes.
+    *   Resubmit the site to AdSense for review.

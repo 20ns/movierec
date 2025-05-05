@@ -24,7 +24,7 @@ import { formatQueryIntentSummary } from './SearchBarUtils';
 
 const LazyMediaCard = lazy(() => import('./MediaCard'));
 
-export const SearchBar = ({ currentUser }) => {
+export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClick prop
   // State management
   const [showFilters, setShowFilters] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -106,12 +106,17 @@ export const SearchBar = ({ currentUser }) => {
     }
   }, [query, activeFilters, handleSearch]);
   
-  // Function to handle result click with redirect
-  const handleResultClickWithRedirect = useCallback((item) => {
+  // Function to handle result click (now opens modal instead of redirect)
+  const handleResultClickWithModal = useCallback((item) => {
+    // Call the original handleResultClick from useSearch if needed (e.g., for analytics)
     handleResultClick(item);
-    // Short delay before redirect
-    setTimeout(() => { window.location.href = '/'; }, 100);
-  }, [handleResultClick]);
+    // Call the passed-in handler to open the modal
+    if (onMediaClick) {
+      onMediaClick(item);
+    }
+    // No longer redirecting
+    // setTimeout(() => { window.location.href = '/'; }, 100);
+  }, [handleResultClick, onMediaClick]); // Add onMediaClick dependency
   
   // Read URL parameters on component mount
   useEffect(() => {
@@ -412,7 +417,7 @@ export const SearchBar = ({ currentUser }) => {
                       <LazyMediaCard
                         result={item}
                         currentUser={currentUser}
-                        onClick={() => handleResultClickWithRedirect(item)}
+                        onClick={() => handleResultClickWithModal(item)} // Use modal handler
                         highlightMatch={true}
                       />
                     </Suspense>
@@ -445,7 +450,7 @@ export const SearchBar = ({ currentUser }) => {
                       <LazyMediaCard
                         result={item}
                         currentUser={currentUser}
-                        onClick={() => handleResultClickWithRedirect(item)}
+                        onClick={() => handleResultClickWithModal(item)} // Use modal handler
                       />
                     </Suspense>
                   </motion.div>
@@ -518,7 +523,7 @@ export const SearchBar = ({ currentUser }) => {
                             <LazyMediaCard
                               result={item}
                               currentUser={currentUser}
-                              onClick={() => handleResultClickWithRedirect(item)}
+                              onClick={() => handleResultClickWithModal(item)} // Use modal handler
                               highlightMatch={item.isReferenceMedia}
                             />
                           </Suspense>
@@ -543,8 +548,11 @@ export const SearchBar = ({ currentUser }) => {
                     isLoading={isLoading}
                     // Pass the paginated slice of the 'main' group
                     displayedResults={currentResults} // Use paginated results
-                    handleResultClick={handleResultClickWithRedirect}
+                    // Pass the modal click handler to MediaResults
+                    handleResultClick={handleResultClickWithModal}
                     currentUser={currentUser}
+                    // Pass the main onMediaClick handler as well, if MediaResults needs it directly
+                    onMediaClick={onMediaClick}
                   />
                   <PaginationControls
                     totalPages={totalPages} // Ensure totalPages reflects the 'main' group length
