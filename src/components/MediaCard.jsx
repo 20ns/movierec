@@ -6,7 +6,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
-import { useToast } from './ToastManager';
+// import { useToast } from './ToastManager'; // Removed useToast import
 
 // Extract the year from a date string or return empty string if invalid
 const extractYear = (dateString) => {
@@ -60,11 +60,13 @@ const MediaCard = ({
   fromFavorites = false,
   isMiniCard = false
 }) => {
-  const toast = useToast();
+  // const toast = useToast(); // Removed useToast hook
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
   const [isInWatchlist, setIsInWatchlist] = useState(initialIsInWatchlist ?? false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
   const [isLoadingWatchlist, setIsLoadingWatchlist] = useState(false);
+  const [showFavoriteFeedback, setShowFavoriteFeedback] = useState(false); // State for favorite feedback
+  const [showWatchlistFeedback, setShowWatchlistFeedback] = useState(false); // State for watchlist feedback
   const hasFetchedRef = useRef(initialIsFavorited !== null);
   const hasWatchlistFetchedRef = useRef(initialIsInWatchlist !== null);
 
@@ -322,9 +324,7 @@ const MediaCard = ({
     console.log('[Roo Debug] Favorite Toggle Click:', { isAuthenticated, hasCurrentUser: !!currentUser, mediaId });
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for favorite toggle");
-      if (toast?.showToast) {
-        toast.showToast("Please sign in to save favorites", "warning");
-      }
+      // Removed toast call for login prompt
       promptLogin?.();
       return;
     }
@@ -332,9 +332,7 @@ const MediaCard = ({
     const token = extractToken(currentUser);
     if (!token) {
       console.error("MediaCard: No authentication token found");
-      if (toast?.showToast) {
-        toast.showToast("Authentication error. Please try signing in again.", "error");
-      }
+      // Removed toast call for auth error
       return;
     }
 
@@ -380,14 +378,9 @@ const MediaCard = ({
         globalFavoriteIds.add(mediaId);
       }
 
-      /* if (toast?.showToast) { // Temporarily comment out toast
-        toast.showToast(
-          previousState
-            ? `Removed "${displayTitle}" from favorites`
-            : `Added "${displayTitle}" to favorites!`,
-          previousState ? 'info' : 'favorite'
-        );
-      } */
+      // Trigger visual feedback
+      setShowFavoriteFeedback(true);
+      setTimeout(() => setShowFavoriteFeedback(false), 1500); // Reset after 1.5 seconds
 
       // Roo Debug: Before dispatchEvent
       console.log('[Roo Debug] Favorite Toggle: Before dispatchEvent', { mediaId });
@@ -427,16 +420,11 @@ const MediaCard = ({
       // Roo Debug: Error during favorite API call
       console.error("[Roo Debug] Favorite Toggle: Caught error", { error, mediaId });
       console.error("Error updating favorite:", error);
-      if (toast?.showToast) {
-        toast.showToast(
-          `Failed to ${previousState ? 'remove from' : 'add to'} favorites`,
-          'error'
-        );
-      }
+      // Removed error toast call
     } finally {
       setIsLoadingFavorite(false);
     }
-  }, [isAuthenticated, currentUser, mediaId, isFavorited, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onFavoriteToggle]);
+  }, [isAuthenticated, currentUser, mediaId, isFavorited, displayTitle, determinedMediaType, poster_path, overview, promptLogin, onFavoriteToggle]); // Removed toast from dependencies
 
   const handleWatchlistToggle = useCallback(async (e) => {
     if (e) {
@@ -451,9 +439,7 @@ const MediaCard = ({
     console.log('[Roo Debug] Watchlist Toggle Click:', { isAuthenticated, hasCurrentUser: !!currentUser, mediaId });
     if (!isAuthenticated) {
       console.log("MediaCard: User not authenticated for watchlist toggle");
-      if (toast?.showToast) {
-        toast.showToast("Please sign in to use watchlist", "warning");
-      }
+      // Removed toast call for login prompt
       promptLogin?.();
       return;
     }
@@ -461,9 +447,7 @@ const MediaCard = ({
     const token = extractToken(currentUser);
     if (!token) {
       console.error("MediaCard: No authentication token found");
-      if (toast?.showToast) {
-        toast.showToast("Authentication error. Please try signing in again.", "error");
-      }
+      // Removed toast call for auth error
       return;
     }
 
@@ -520,14 +504,9 @@ const MediaCard = ({
         globalWatchlistIds.add(mediaId);
       }
 
-      /* if (toast?.showToast) { // Temporarily comment out toast
-        toast.showToast(
-          previousState
-            ? `Removed "${displayTitle}" from watchlist`
-            : `Added "${displayTitle}" to watchlist!`,
-          previousState ? 'info' : 'watchlist'
-        );
-      } */
+      // Trigger visual feedback
+      setShowWatchlistFeedback(true);
+      setTimeout(() => setShowWatchlistFeedback(false), 1500); // Reset after 1.5 seconds
 
       // Dispatch event for other components
       // Roo Debug: Before dispatchEvent
@@ -567,17 +546,12 @@ const MediaCard = ({
       // Roo Debug: Error during watchlist API call
       console.error("[Roo Debug] Watchlist Toggle: Caught error", { error, mediaId });
       console.error("Error updating watchlist:", error);
-      if (toast?.showToast) {
-        toast.showToast(
-          `Failed to ${previousState ? 'remove from' : 'add to'} watchlist`,
-          'error'
-        );
-      }
+      // Removed error toast call
       setIsInWatchlist(previousState); // Revert UI state on error
     } finally {
       setIsLoadingWatchlist(false);
     }
-  }, [isAuthenticated, currentUser, mediaId, isInWatchlist, displayTitle, determinedMediaType, poster_path, overview, toast, promptLogin, onWatchlistToggle]);
+  }, [isAuthenticated, currentUser, mediaId, isInWatchlist, displayTitle, determinedMediaType, poster_path, overview, promptLogin, onWatchlistToggle]); // Removed toast from dependencies
 
   const HeartIcon = isFavorited ? HeartSolidIcon : HeartOutlineIcon;
   const heartIconClasses = isFavorited 
@@ -750,7 +724,7 @@ const MediaCard = ({
                     : isFavorited
                     ? 'bg-red-600/70 hover:bg-red-500/80'
                     : 'bg-black/50 hover:bg-black/70'
-                }`}
+                } ${showFavoriteFeedback ? 'ring-2 ring-offset-2 ring-offset-gray-800 ring-red-400' : ''}`} // Add feedback ring
                 aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
                 whileTap={{ scale: 0.9 }}
                 whileHover={{ scale: 1.1 }}
@@ -773,7 +747,7 @@ const MediaCard = ({
                     : isInWatchlist
                     ? 'bg-blue-600/70 hover:bg-blue-500/80'
                     : 'bg-black/50 hover:bg-black/70'
-                }`}
+                } ${showWatchlistFeedback ? 'ring-2 ring-offset-2 ring-offset-gray-800 ring-blue-400' : ''}`} // Add feedback ring
                 aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
                 whileTap={{ scale: 0.9 }}
                 whileHover={{ scale: 1.1 }}

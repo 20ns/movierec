@@ -17,7 +17,7 @@ import AccountDetailsModal from './components/AccountDetailsModal';
 import SearchBar from './components/SearchBar';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ToastProvider, useToast } from './components/ToastManager';
+// import { ToastProvider, useToast } from './components/ToastManager'; // Removed Toast imports
 import LandingPage from './components/LandingPage';
 import AdUnit from './components/AdUnit';
 import AdScript from './components/AdScript';
@@ -66,7 +66,7 @@ function AppContent() {
   } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { showToast } = useToast(); // Changed from addToast to showToast to match ToastManager.jsx
+  // const { showToast } = useToast(); // Removed useToast hook
 
   // --- Component State ---
   const [selectedGenre, setSelectedGenre] = useState(null);
@@ -178,17 +178,17 @@ useEffect(() => {
     // Force immediately start preference loading
     fetchingPreferencesRef.current = false;
     refreshCycleRef.current = 0;
-    
-    // Force a new toast even if it's a re-render
-    setTimeout(() => {
-      showToast({
-        title: 'Welcome back!',
-        message: 'Fetching your personalized recommendations...',
-        type: 'success',
-        duration: 4000,
-      });
-    }, 100);
-  }, [handleSigninSuccess, showToast]);
+
+    // Removed toast call on sign-in
+    // setTimeout(() => {
+    //   showToast({
+    //     title: 'Welcome back!',
+    //     message: 'Fetching your personalized recommendations...',
+    //     type: 'success',
+    //     duration: 4000,
+    //   });
+    // }, 100);
+  }, [handleSigninSuccess]); // Removed showToast from dependencies
 
   // --- Fetch User Preferences ---
   const fetchUserPreferences = useCallback(async () => {
@@ -281,22 +281,22 @@ useEffect(() => {
             setShowRecommendations(true);
             setJustSignedIn(false);
             logApp('Showing recommendations after sign-in and preferences fetch');
-            
-            // Add toast notification
-            showToast({
-              title: 'Welcome back!',
-              message: 'Your personalized recommendations are ready',
-              type: 'success',
-              duration: 4000,
-            });
+
+            // Removed toast notification
+            // showToast({
+            //   title: 'Welcome back!',
+            //   message: 'Your personalized recommendations are ready',
+            //   type: 'success',
+            //   duration: 4000,
+            // });
           }, 300);
         }
       } else {
-        logApp('Skipping state updates for outdated fetch cycle', 
+        logApp('Skipping state updates for outdated fetch cycle',
           { cycle: currentRefreshCycle, current: refreshCycleRef.current });
       }
     }
-  }, [isAuthenticated, currentUser, justSignedIn, showToast]);
+  }, [isAuthenticated, currentUser, justSignedIn]); // Removed showToast from dependencies
 
   // --- Effect: Initial Preference Fetch ---
   useEffect(() => {
@@ -368,16 +368,16 @@ useEffect(() => {
     // Add a small delay before showing recommendations after questionnaire completion
     setTimeout(() => {
       setShowRecommendations(true);
-      
-      // Add toast notification
-      showToast({
-        title: 'Preferences updated!',
-        message: 'Your recommendations have been refreshed',
-        type: 'success',
-        duration: 4000,
-      });
+
+      // Removed toast notification
+      // showToast({
+      //   title: 'Preferences updated!',
+      //   message: 'Your recommendations have been refreshed',
+      //   type: 'success',
+      //   duration: 4000,
+      // });
     }, 500);
-  }, [currentUser, fetchUserPreferences, location.pathname, navigate, showToast]);
+  }, [currentUser, fetchUserPreferences, location.pathname, navigate]); // Removed showToast from dependencies
 
   // --- Navigation Handlers ---
   const handleSignInClick = useCallback(() => navigate('/signin'), [navigate]);
@@ -807,12 +807,12 @@ useEffect(() => {
 
 function App() {
   return (
-    <ToastProvider>
+    // <ToastProvider> // Removed ToastProvider wrapper
       <BrowserRouter>
         <AppContent />
         <AdScript />
       </BrowserRouter>
-    </ToastProvider>
+    // </ToastProvider>
   );
 }
 
