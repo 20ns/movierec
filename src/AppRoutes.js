@@ -29,7 +29,7 @@ function AppRoutes({
   }
 
   return (
-    <Routes>
+    <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       {/* Authentication Routes */}
       <Route
         path="/auth"

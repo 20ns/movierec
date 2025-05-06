@@ -751,7 +751,7 @@ useEffect(() => {
       />
 
       <main className="relative z-10 pt-20 transition-transform duration-300 ease-in-out">
-        <Routes>
+        <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Route
             path="/auth"
             element={
@@ -816,7 +816,7 @@ useEffect(() => {
 function App() {
   return (
     // <ToastProvider> // Removed ToastProvider wrapper
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppContent />
         <AdScript />
       </BrowserRouter>
