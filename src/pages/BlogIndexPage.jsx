@@ -11,6 +11,30 @@ const posts = [
     excerpt: 'Dive into the list of the highest-grossing films of all time, exploring the magic behind their monumental success...',
     readTime: '5 min read',
     category: 'Analysis'
+  },
+  {
+    slug: 'top-5-sci-fi-movies-last-decade',
+    title: 'Top 5 Sci-Fi Movies of the Last Decade (2015-2024)',
+    date: 'May 6, 2025',
+    excerpt: 'Explore the best science fiction films from 2015-2024, featuring mind-bending concepts and stunning visuals.',
+    readTime: '6 min read',
+    category: 'Top Lists'
+  },
+  {
+    slug: 'animated-movies-for-adults',
+    title: 'Beyond Cartoons: Animated Movies That Adults Will Love',
+    date: 'May 6, 2025',
+    excerpt: 'Discover animated films with complex themes and sophisticated storytelling that captivate adult audiences.',
+    readTime: '7 min read',
+    category: 'Recommendations'
+  },
+  {
+    slug: 'hidden-gem-tv-shows',
+    title: 'Binge-Worthy Finds: Hidden Gem TV Shows You Might Have Missed',
+    date: 'May 6, 2025',
+    excerpt: 'Explore brilliant but underrated TV series that slipped under the radar, offering fresh and unique viewing experiences.',
+    readTime: '8 min read',
+    category: 'Recommendations'
   }
   // Add more posts as they are created
 ];

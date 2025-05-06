@@ -1,30 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Import useRef
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
-
-// Custom renderer components for ReactMarkdown
-const renderers = {
-  img: ({ node, ...props }) => (
-    // Return only the img tag directly to avoid invalid nesting within <p>
-    <img
-      {...props}
-      // Apply styling directly, including margins previously on the div
-      className="my-6 rounded-lg mx-auto shadow-lg max-w-full max-h-[600px] object-cover"
-      loading="lazy"
-    />
-    // Caption logic removed temporarily to fix nesting
-  ),
-};
+import AdUnit from '../components/AdUnit'; // Import AdUnit
 
 function BlogPostPage() {
   const { slug } = useParams();
   const [markdown, setMarkdown] = useState('');
+  const firstH2Rendered = useRef(false); // Ref to track if the first H2 (and ad) was rendered
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState({ title: '', date: '', readTime: '' });
+
+  // Reset the ad tracker when the slug changes
+  useEffect(() => {
+    firstH2Rendered.current = false;
+  }, [slug]);
 
   useEffect(() => {
     if (!slug) {
@@ -148,7 +141,34 @@ fetch(filePath)
           {/* Content */}
           <div className="p-6 sm:p-8">
             <div className="prose prose-invert prose-indigo max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers}>
+              {/* Define renderers inside component to access ref */}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  img: ({ node, ...props }) => (
+                    <img
+                      {...props}
+                      className="my-6 rounded-lg mx-auto shadow-lg max-w-full max-h-[600px] object-cover"
+                      loading="lazy"
+                    />
+                  ),
+                  h2: ({ node, ...props }) => {
+                    const heading = <h2 {...props} />;
+                    let adUnit = null;
+                    if (!firstH2Rendered.current) {
+                      // Insert AdUnit after the first H2
+                      adUnit = <AdUnit className="my-8" />; // Add margin for spacing
+                      firstH2Rendered.current = true;
+                    }
+                    return (
+                      <>
+                        {heading}
+                        {adUnit}
+                      </>
+                    );
+                  },
+                }}
+              >
                 {markdown}
               </ReactMarkdown>
             </div>
