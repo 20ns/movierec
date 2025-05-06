@@ -7,7 +7,22 @@ import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outl
 import AdUnit from '../components/AdUnit';
 import { Helmet } from 'react-helmet';
 
-const placeholderImage = 'https://via.placeholder.com/800x400?text=Image+not+available';
+const placeholderImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+const CustomImage = ({ src, alt, title, className, ...props }) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  return (
+    <img
+      src={imgSrc}
+      alt={alt}
+      title={title}
+      className={className}
+      loading="lazy"
+      onError={e => { e.currentTarget.onerror = null; setImgSrc(placeholderImage); }}
+      {...props}
+    />
+  );
+};
 
 function BlogPostPage() {
   const { slug } = useParams();
@@ -28,13 +43,10 @@ function BlogPostPage() {
       return;
     }
     setLoading(true);
-    setError(null);
     fetch(`/blog/${slug}.md`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Blog post not found: ${slug}`);
-        }
-        return response.text();
+      .then(res => {
+        if (!res.ok) throw new Error('Post not found');
+        return res.text();
       })
       .then(text => {
         setMarkdown(text);
@@ -50,8 +62,7 @@ function BlogPostPage() {
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error loading markdown:', err);
-        setError(`Failed to load post: ${err.message}`);
+        setError(err.message);
         setLoading(false);
       });
   }, [slug]);
@@ -77,7 +88,7 @@ function BlogPostPage() {
       >
         <div className="bg-gray-800 p-8 rounded-xl shadow-lg text-red-400 text-center">
           <p className="mb-4">{error}</p>
-          <Link to="/blog" className="text-indigo-400 hover:underline inline-flex items-center">
+          <Link to="/blog" className="inline-flex items-center text-indigo-400 hover:underline">
             <ArrowLeftIcon className="w-4 h-4 mr-1" />
             Back to Blog
           </Link>
@@ -90,10 +101,9 @@ function BlogPostPage() {
     <>
       <Helmet>
         <title>{metadata.title}</title>
-        <meta name="description" content={`${metadata.title} – ${metadata.readTime} on ${metadata.date}`} />
+        <meta name="description" content={`${metadata.title} – ${metadata.readTime}`} />
         <meta property="og:title" content={metadata.title} />
         <meta property="og:description" content={`Read time: ${metadata.readTime}`} />
-        <meta property="og:image" content={placeholderImage} />
       </Helmet>
       <motion.div
         className="min-h-screen py-12 px-4"
@@ -129,12 +139,10 @@ function BlogPostPage() {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  img: ({ ...props }) => (
-                    <img
+                  img: ({ node, ...props }) => (
+                    <CustomImage
                       {...props}
-                      className="rounded-lg mx-auto shadow my-6 max-w-full"
-                      loading="lazy"
-                      onError={e => (e.currentTarget.src = placeholderImage)}
+                      className="rounded-lg mx-auto shadow my-6 w-full max-w-sm object-contain"
                     />
                   ),
                   h2: ({ node, ...props }) => {
