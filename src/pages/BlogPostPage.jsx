@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import AdUnit from '../components/AdUnit';
-import { Helmet } from 'react-helmet';
+import SafeHelmet from '../components/SafeHelmet';
 
 const placeholderImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -99,12 +99,12 @@ function BlogPostPage() {
 
   return (
     <>
-      <Helmet>
+      <SafeHelmet>
         <title>{metadata.title}</title>
         <meta name="description" content={`${metadata.title} – ${metadata.readTime}`} />
         <meta property="og:title" content={metadata.title} />
         <meta property="og:description" content={`Read time: ${metadata.readTime}`} />
-      </Helmet>
+      </SafeHelmet>
       <motion.div
         className="min-h-screen py-12 px-4"
         initial={{ opacity: 0 }}
