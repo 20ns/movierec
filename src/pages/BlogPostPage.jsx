@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react'; // Import useRef
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
-import AdUnit from '../components/AdUnit'; // Import AdUnit
+import AdUnit from '../components/AdUnit';
+import { Helmet } from 'react-helmet';
+
+const placeholderImage = 'https://via.placeholder.com/800x400?text=Image+not+available';
 
 function BlogPostPage() {
   const { slug } = useParams();
   const [markdown, setMarkdown] = useState('');
-  const firstH2Rendered = useRef(false); // Ref to track if the first H2 (and ad) was rendered
+  const firstH2Rendered = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState({ title: '', date: '', readTime: '' });
 
-  // Reset the ad tracker when the slug changes
   useEffect(() => {
     firstH2Rendered.current = false;
   }, [slug]);
@@ -25,174 +27,145 @@ function BlogPostPage() {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
-    // Fetch from the root, assuming 'public' is served there
-    const filePath = `/blog/${slug}.md`;
-fetch(filePath)
-  .then(response => {
+    fetch(`/blog/${slug}.md`)
+      .then(response => {
         if (!response.ok) {
-          throw new Error(`Blog post not found at ${filePath}`);
+          throw new Error(`Blog post not found: ${slug}`);
         }
         return response.text();
       })
       .then(text => {
         setMarkdown(text);
-        
-        // Extract basic metadata from the markdown if available
-        const titleMatch = text.match(/# (.*)/);
-        const dateMatch = text.match(/Date: (.*)/);
-        
-        // Roughly estimate reading time (avg reading speed: 200 words/min)
-        const wordCount = text.split(/\s+/).length;
-        const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
-        
+        const titleMatch = text.match(/^#\s+(.*)/m);
+        const dateMatch = text.match(/^Date:\s*(.*)/m);
+        const words = text.split(/\s+/).length;
+        const minutes = Math.max(1, Math.ceil(words / 200));
         setMetadata({
           title: titleMatch ? titleMatch[1] : 'Blog Post',
           date: dateMatch ? dateMatch[1] : 'Recent',
-          readTime: `${readTimeMinutes} min read`
+          readTime: `${minutes} min read`
         });
-        
         setLoading(false);
       })
       .catch(err => {
-        console.error("Error fetching markdown:", err);
-        setError(`Failed to load blog post: ${err.message}`);
+        console.error('Error loading markdown:', err);
+        setError(`Failed to load post: ${err.message}`);
         setLoading(false);
       });
   }, [slug]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative z-10">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block w-12 h-12 border-4 border-t-indigo-500 border-gray-700 rounded-full animate-spin mb-4"></div>
-          <p className="text-lg text-indigo-300 font-medium">Loading post...</p>
+          <p className="text-lg text-indigo-300">Loading post...</p>
         </div>
       </div>
     );
   }
+
   if (error) {
     return (
-      <motion.div 
-        className="min-h-screen flex items-center justify-center relative z-10"
+      <motion.div
+        className="min-h-screen flex items-center justify-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.3 }}
       >
-        <div className="bg-gray-800/70 backdrop-blur-md border border-red-800/50 rounded-xl p-8 shadow-xl max-w-md">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-red-900/30 text-red-400">
-            <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold text-white text-center mb-2">Error</h3>
-          <p className="text-red-400 text-center">{error}</p>
-          <div className="mt-6 text-center">
-            <Link to="/blog" className="text-indigo-400 hover:text-indigo-300 inline-flex items-center transition-colors">
-              <ArrowLeftIcon className="w-4 h-4 mr-2" />
-              Back to Blog
-            </Link>
-          </div>
+        <div className="bg-gray-800 p-8 rounded-xl shadow-lg text-red-400 text-center">
+          <p className="mb-4">{error}</p>
+          <Link to="/blog" className="text-indigo-400 hover:underline inline-flex items-center">
+            <ArrowLeftIcon className="w-4 h-4 mr-1" />
+            Back to Blog
+          </Link>
         </div>
       </motion.div>
     );
   }
-  return (
-    <motion.div 
-      className="min-h-screen py-12 px-4 relative z-10"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="max-w-3xl mx-auto">
-        {/* Back link */}
-        <Link 
-          to="/blog"
-          className="inline-flex items-center text-indigo-400 hover:text-indigo-300 mb-6 group transition-colors"
-        >
-          <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-          Back to all posts
-        </Link>
 
-        {/* Article container */}        <motion.article
-          className="bg-gray-800/70 backdrop-blur-md rounded-xl shadow-xl border border-gray-700/50 overflow-hidden"
-          initial={{ y: 20 }}
-          animate={{ y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-        >
-          {/* Header */}
-          <div className="p-6 sm:p-8 border-b border-gray-700/50 bg-gradient-to-r from-indigo-900/30 to-purple-900/30">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
-              {metadata.title}
-            </h1>
-            <div className="flex flex-wrap items-center text-sm text-gray-400 gap-4">
-              <div className="flex items-center">
-                <CalendarIcon className="h-4 w-4 mr-1.5 text-indigo-400" />
-                <span>{metadata.date}</span>
+  return (
+    <>
+      <Helmet>
+        <title>{metadata.title}</title>
+        <meta name="description" content={`${metadata.title} – ${metadata.readTime} on ${metadata.date}`} />
+        <meta property="og:title" content={metadata.title} />
+        <meta property="og:description" content={`Read time: ${metadata.readTime}`} />
+        <meta property="og:image" content={placeholderImage} />
+      </Helmet>
+      <motion.div
+        className="min-h-screen py-12 px-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="max-w-3xl mx-auto">
+          <Link to="/blog" className="inline-flex items-center text-indigo-400 hover:underline mb-6">
+            <ArrowLeftIcon className="w-4 h-4 mr-1" />
+            Back to all posts
+          </Link>
+          <motion.article
+            className="bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-700"
+            initial={{ y: 20 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+          >
+            <header className="p-6 bg-gradient-to-r from-indigo-900 to-purple-900 text-white">
+              <h1 className="text-3xl font-bold">{metadata.title}</h1>
+              <div className="flex space-x-4 mt-2 text-gray-300">
+                <span className="flex items-center">
+                  <CalendarIcon className="w-4 h-4 mr-1" />
+                  {metadata.date}
+                </span>
+                <span className="flex items-center">
+                  <ClockIcon className="w-4 h-4 mr-1" />
+                  {metadata.readTime}
+                </span>
               </div>
-              <div className="flex items-center">
-                <ClockIcon className="h-4 w-4 mr-1.5 text-indigo-400" />
-                <span>{metadata.readTime}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Content */}
-          <div className="p-6 sm:p-8">
-            <div className="prose prose-invert prose-indigo max-w-none">
-              {/* Define renderers inside component to access ref */}
+            </header>
+            <div className="p-6 prose prose-invert prose-indigo max-w-none">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  img: ({ node, ...props }) => (
+                  img: ({ ...props }) => (
                     <img
                       {...props}
-                      className="my-6 rounded-lg mx-auto shadow-lg max-w-full max-h-[600px] object-cover"
+                      className="rounded-lg mx-auto shadow my-6 max-w-full"
                       loading="lazy"
+                      onError={e => (e.currentTarget.src = placeholderImage)}
                     />
                   ),
                   h2: ({ node, ...props }) => {
                     const heading = <h2 {...props} />;
-                    let adUnit = null;
+                    let ad = null;
                     if (!firstH2Rendered.current) {
-                      // Insert AdUnit after the first H2
-                      adUnit = <AdUnit className="my-8" />; // Add margin for spacing
+                      ad = <AdUnit className="my-8" />;
                       firstH2Rendered.current = true;
                     }
                     return (
                       <>
                         {heading}
-                        {adUnit}
+                        {ad}
                       </>
                     );
-                  },
+                  }
                 }}
               >
                 {markdown}
               </ReactMarkdown>
             </div>
-          </div>
-          
-          {/* Footer */}
-          <div className="p-6 sm:p-8 border-t border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-800/30">
-            <div className="flex justify-between items-center">
-              <Link 
-                to="/blog"
-                className="inline-flex items-center text-indigo-400 hover:text-indigo-300 group transition-colors"
-              >
-                <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+            <footer className="p-6 bg-gray-900 text-gray-400 flex justify-between items-center">
+              <Link to="/blog" className="inline-flex items-center text-indigo-400 hover:underline">
+                <ArrowLeftIcon className="w-4 h-4 mr-1" />
                 Back to all posts
               </Link>
-              
-              <div className="flex items-center space-x-4">
-                {/* You can add social sharing buttons here */}
-              </div>
-            </div>
-          </div>
-        </motion.article>
-      </div>
-    </motion.div>
+            </footer>
+          </motion.article>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
