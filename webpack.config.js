@@ -13,54 +13,53 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /\.mjs$/,
+        include: /node_modules/,
+        type: 'javascript/auto'
+      },
+      {
         test: /\.(js|jsx)$/,
         exclude: /node_modules/,
-        use: 'babel-loader',
+        use: 'babel-loader'
       },
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader', 'postcss-loader'],
-      },
-    ],
+        use: ['style-loader', 'css-loader', 'postcss-loader']
+      }
+    ]
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './public/index.html',
+      template: './public/index.html'
     }),
     new Dotenv(),
     new webpack.ProvidePlugin({
-      process: 'process/browser.js', // Fixed with .js extension
+      process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer']
     })
   ],
   resolve: {
-    extensions: ['.js', '.jsx'],
+    extensions: ['.mjs', '.js', '.jsx'],
+    alias: {
+      process: 'process/browser.js',
+    },
     fallback: {
       crypto: require.resolve('crypto-browserify'),
       stream: require.resolve('stream-browserify'),
       buffer: require.resolve('buffer/'),
-      process: require.resolve('process/browser.js'), // Fixed path
       util: require.resolve('util/'),
       assert: require.resolve('assert/'),
       url: require.resolve('url/'),
       vm: require.resolve('vm-browserify'),
       path: require.resolve('path-browserify'),
-      fs: false,
-      os: require.resolve('os-browserify/browser')
-    },
-    alias: {
-      process: "process/browser.js" // Added .js extension
+      os: require.resolve('os-browserify/browser'),
+      fs: false
     }
   },
   devServer: {
     static: [
-      {
-        directory: path.join(__dirname, 'dist'), // Keep serving build output if needed
-      },
-      {
-        directory: path.join(__dirname, 'public'), // Also serve the public directory
-        publicPath: '/', // Serve its contents from the root URL
-      }
+      { directory: path.resolve(__dirname, 'dist') },
+      { directory: path.resolve(__dirname, 'public'), publicPath: '/' }
     ],
     historyApiFallback: true,
     hot: true,
