@@ -2,12 +2,11 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { Amplify } from 'aws-amplify';
-import awsconfig from './aws-config';
+import awsExports from './aws-exports';
 import App from './App';
 import './index.css';
-import { configureAmplify } from './config/amplify-config';
 
-configureAmplify();
+Amplify.configure(awsExports);
 
 
 // Render the app
