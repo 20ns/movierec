@@ -3,6 +3,8 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 const AuthPage = lazy(() => import('./auth/authPage.jsx'));
 const OnboardingQuestionnaire = lazy(() => import('./components/OnboardingQuestionnaire'));
+const BlogIndexPage = lazy(() => import('./pages/BlogIndexPage'));
+const BlogPostPage = lazy(() => import('./pages/BlogPostPage'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 
 // This component defines the application's routes.
@@ -31,6 +33,9 @@ function AppRoutes({
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="inline-block w-12 h-12 border-4 border-t-indigo-500 border-gray-700 rounded-full animate-spin"></div></div>}>
       <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        {/* Blog Pages */}
+        <Route path="/blog" element={<BlogIndexPage />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
       {/* Authentication Routes */}
       <Route
         path="/auth"
