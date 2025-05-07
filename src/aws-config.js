@@ -10,7 +10,7 @@ const awsconfig = {
     
     // Add this OAuth config if you're using hosted UI
     oauth: {
-      domain: 'movierec.com',
+      domain: 'eu-north-1x2fwi0mfk.auth.eu-north-1.amazoncognito.com',
       scope: ['email', 'profile', 'openid'],
       redirectSignIn: process.env.REACT_APP_REDIRECT_SIGN_IN,
       redirectSignOut: process.env.REACT_APP_REDIRECT_SIGN_OUT,

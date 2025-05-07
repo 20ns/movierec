@@ -9,7 +9,6 @@ import { configureAmplify } from './config/amplify-config';
 
 configureAmplify();
 
-Amplify.configure(awsconfig);
 
 // Render the app
 const container = document.getElementById('root');
