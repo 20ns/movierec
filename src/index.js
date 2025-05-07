@@ -5,6 +5,9 @@ import { Amplify } from 'aws-amplify';
 import awsconfig from './aws-config';
 import App from './App';
 import './index.css';
+import { configureAmplify } from './config/amplify-config';
+
+configureAmplify();
 
 Amplify.configure(awsconfig);
 
