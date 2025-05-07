@@ -74,6 +74,7 @@ const MediaCardSkeleton = ({ isMini = false }) => (
       </div>
     </motion.div>
 );
+// testing
 
 const WatchlistSection = ({ currentUser, isAuthenticated, onClose, inHeader = false, isOpen }) => {
   const [userWatchlist, setUserWatchlist] = useState([]);
