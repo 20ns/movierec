@@ -1,5 +1,6 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
 const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
@@ -44,7 +45,8 @@ mode: 'production',
     new SubresourceIntegrityPlugin({
       hashFuncNames: ['sha256', 'sha384']
     }),
-    new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' })
+    new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' }),
+    new CopyPlugin({ patterns: [{ from: 'public/blog', to: 'blog' }] })
   ],
   resolve: {
     extensions: ['.mjs', '.js', '.jsx'],
