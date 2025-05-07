@@ -10,7 +10,7 @@ const awsconfig = {
     
     // Add this OAuth config if you're using hosted UI
     oauth: {
-      domain: 'account.d1akezqpdr5wgr.amplifyapp.com',
+      domain: 'movierec.com',
       scope: ['email', 'profile', 'openid'],
       redirectSignIn: process.env.REACT_APP_REDIRECT_SIGN_IN,
       redirectSignOut: process.env.REACT_APP_REDIRECT_SIGN_OUT,
