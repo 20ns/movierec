@@ -2,13 +2,15 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
 const webpack = require('webpack');
-const SriPlugin = require('webpack-subresource-integrity');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const { SubresourceIntegrityPlugin } = require('webpack-subresource-integrity');
 
 module.exports = {
+mode: 'production',
   entry: './src/index.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
+    filename: 'bundle.[contenthash].js',
     publicPath: '/',
     crossOriginLoading: 'anonymous'
   },
@@ -25,23 +27,24 @@ module.exports = {
         use: 'babel-loader'
       },
       {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader', 'postcss-loader']
-      }
+              test: /\.css$/,
+              use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader']
+            }
     ]
   },
   plugins: [
     new HtmlWebpackPlugin({
       template: './public/index.html'
     }),
-    new Dotenv(),
+    new Dotenv({ path: path.resolve(__dirname, '.env') }),
     new webpack.ProvidePlugin({
       process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer']
     }),
-    new SriPlugin({
+    new SubresourceIntegrityPlugin({
       hashFuncNames: ['sha256', 'sha384']
-    })
+    }),
+    new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' })
   ],
   resolve: {
     extensions: ['.mjs', '.js', '.jsx'],
