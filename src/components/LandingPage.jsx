@@ -54,7 +54,7 @@ const visualExplorationItems = [
 const benefits = [
   { icon: ClockIcon, text: "Save Time Searching", iconColor: "text-indigo-300" },
   { icon: UserIcon, text: "Truly Personalized Picks", iconColor: "text-purple-300" },
-  { icon: BoltIcon, text: "Easy 2-Minute Setup", iconColor: "text-rose-300" },
+  { icon: BoltIcon, text: "Easy 30-Second Setup", iconColor: "text-rose-300" },
   { icon: ShieldCheckIcon, text: "No Credit Card Required", iconColor: "text-teal-300" },
 ];
 
@@ -162,7 +162,7 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
               <div className="p-6">
                 <h3 className="text-xl font-semibold text-white mb-2">{item.name}</h3>
                 <p className="text-gray-400 text-sm mb-4">{item.description}</p>
-                <button className="text-indigo-400 hover:text-indigo-300 font-medium text-sm flex items-center group-hover:text-indigo-200">
+                <button onClick={onSignUpClick} className="text-indigo-400 hover:text-indigo-300 font-medium text-sm flex items-center group-hover:text-indigo-200">
                   Explore Now <ArrowRightIcon className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
@@ -215,25 +215,24 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
       {/* 6. Final Call to Action */}
       <motion.section
         variants={itemVariants}
-        className="py-16 md:py-24 text-center bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-700 rounded-2xl my-12 shadow-2xl"
+        className="py-20 md:py-28 text-center bg-gradient-to-br from-indigo-800 via-purple-800 to-pink-800 rounded-3xl my-16 shadow-2xl relative overflow-hidden"
       >
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-          Ready to Find Your Next Favorite Movie?
+        {/* Optional: Add subtle decorative elements if desired */}
+        <SparklesIcon className="w-16 h-16 text-yellow-300/80 mx-auto mb-4 opacity-75" />
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-5">
+          Stop Searching, Start Watching.
         </h2>
-        <p className="text-lg text-indigo-100 mb-10 max-w-xl mx-auto">
-          Join free today and transform your movie nights. Simple, fast, and personalized.
+        <p className="text-lg text-indigo-200 mb-10 max-w-xl mx-auto">
+          Say goodbye to endless scrolling. Get movie recommendations you'll actually love, in minutes.
         </p>
         <motion.button
           onClick={onSignUpClick}
-          className="bg-white text-indigo-700 px-10 py-4 rounded-lg font-semibold text-lg hover:bg-indigo-50 transition-colors shadow-xl transform hover:scale-105"
-          whileHover={{ scale: 1.05 }}
+          className="bg-white text-indigo-700 px-8 sm:px-12 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-indigo-100 transition-all duration-300 ease-in-out shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-opacity-50 w-full sm:w-auto max-w-xs sm:max-w-none"
+          whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(255, 255, 255, 0.2)" }}
           whileTap={{ scale: 0.98 }}
         >
-          Create Your Free Profile
+          Find Your Next Favorite Movie
         </motion.button>
-        <p className="text-sm text-indigo-200 mt-4">
-          Takes just 2 minutes. No credit card required.
-        </p>
       </motion.section>
 
     </motion.div>
