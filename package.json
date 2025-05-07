@@ -6,7 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
-    "dev": "webpack serve --mode development"
+    "dev": "webpack serve --mode development",
+    "audit": "npm audit --audit-level=high"
   },
   "keywords": [],
   "author": "",
@@ -35,6 +36,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.23.1",
     "react-window": "^1.8.11",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "styled-components": "^6.1.11",
     "tailwindcss": "^3.4.3"
@@ -61,7 +63,8 @@
     "vm-browserify": "^1.1.2",
     "webpack": "^5.98.0",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.2"
+    "webpack-dev-server": "^4.15.2",
+    "webpack-subresource-integrity": "^5.2.0-rc.1"
   },
   "browser": {
     "crypto": false,

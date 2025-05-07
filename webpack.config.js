@@ -2,13 +2,15 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
 const webpack = require('webpack');
+const SriPlugin = require('webpack-subresource-integrity');
 
 module.exports = {
   entry: './src/index.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js',
-    publicPath: '/'
+    publicPath: '/',
+    crossOriginLoading: 'anonymous'
   },
   module: {
     rules: [
@@ -36,6 +38,9 @@ module.exports = {
     new webpack.ProvidePlugin({
       process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer']
+    }),
+    new SriPlugin({
+      hashFuncNames: ['sha256', 'sha384']
     })
   ],
   resolve: {

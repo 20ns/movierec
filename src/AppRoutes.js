@@ -1,9 +1,9 @@
 // src/AppRoutes.js
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import AuthPage from './auth/authPage.jsx';
-import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
-import LandingPage from './components/LandingPage';
+const AuthPage = lazy(() => import('./auth/authPage.jsx'));
+const OnboardingQuestionnaire = lazy(() => import('./components/OnboardingQuestionnaire'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
 
 // This component defines the application's routes.
 // It receives necessary state and handlers as props from AppContent.
@@ -29,7 +29,8 @@ function AppRoutes({
   }
 
   return (
-    <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="inline-block w-12 h-12 border-4 border-t-indigo-500 border-gray-700 rounded-full animate-spin"></div></div>}>
+      <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       {/* Authentication Routes */}
       <Route
         path="/auth"
@@ -101,7 +102,8 @@ function AppRoutes({
       {/* Catch-all Route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  );
+    </Suspense>
+    );
 }
 
 export default AppRoutes;

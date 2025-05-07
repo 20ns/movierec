@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import AdUnit from '../components/AdUnit';
@@ -137,8 +138,9 @@ function BlogPostPage() {
             </header>
             <div className="p-6 prose prose-invert prose-indigo max-w-none">
               <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
+                               remarkPlugins={[remarkGfm]}
+                               rehypePlugins={[rehypeSanitize]}
+                               components={{
                   img: ({ node, ...props }) => (
                     <CustomImage
                       {...props}
