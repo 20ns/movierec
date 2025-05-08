@@ -403,7 +403,7 @@ useEffect(() => {
   }, []);
 
   // --- Render Logic ---  // Modified to ensure it doesn't stay in loading state forever
-  const showPageLoading = !initialAppLoadComplete || (isAuthenticated && preferencesLoading && refreshCycleRef.current < 3);
+  const showPageLoading = !initialAppLoadComplete;
 
   const renderMainContent = () => {
     if (!isAuthenticated && initialAppLoadComplete) {
