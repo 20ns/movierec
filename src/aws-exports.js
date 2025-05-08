@@ -6,8 +6,8 @@ const awsExports = {
   oauth: {
     domain: 'eu-north-1x2fwi0mfk.auth.eu-north-1.amazoncognito.com',
     scope: ['email', 'openid', 'profile'],
-    redirectSignIn: 'https://www.movierec.net/',
-    redirectSignOut: 'https://www.movierec.net/',
+    redirectSignIn: 'https://movierec.net/',
+    redirectSignOut: 'https://movierec.net/',
     responseType: 'code'
   },
   aws_cloud_logic_custom: [
