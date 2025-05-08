@@ -2,4 +2,6 @@ customHeaders:
   - pattern: '**/*'
     headers:
       - key: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.movierec.net https://account.d1akezqpdr5wgr.amplifyapp.com https://pagead2.googlesyndication.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.amazonaws.com https://*.amplifyapp.com https://www.movierec.net https://*.execute-api.eu-north-1.amazonaws.com;"
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.movierec.net https://account.d1akezqpdr5wgr.amplifyapp.com https://pagead2.googlesyndication.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.themoviedb.org https://n09230hhhj.execute-api.eu-north-1.amazonaws.com https://*.amazonaws.com https://*.amplifyapp.com https://www.movierec.net https://*.execute-api.eu-north-1.amazonaws.com;"
+      - key: Permissions-Policy
+        value: ""

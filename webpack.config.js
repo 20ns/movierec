@@ -37,7 +37,7 @@ mode: 'production',
     new HtmlWebpackPlugin({
       template: './public/index.html'
     }),
-    new Dotenv({ path: path.resolve(__dirname, '.env'), silent: true }),
+    new Dotenv({ path: path.resolve(__dirname, '.env'), silent: true, systemvars: true }),
     new webpack.ProvidePlugin({
       process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer']
