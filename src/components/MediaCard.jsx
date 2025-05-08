@@ -137,6 +137,9 @@ const MediaCard = ({
       const token = extractToken(currentUser);
       if (!token) return;
 
+      // Roo Debug: Log auth state and cache status for favorites
+      console.log('[Roo Debug] checkFavoriteStatus:', { isAuthenticated, hasToken: !!token, mediaId, globalFavoritesFetched, canFetch: !(globalFavoritesFetched && Date.now() - lastFetchTime < FETCH_COOLDOWN), willAttemptFetch: isAuthenticated && token && !(globalFavoritesFetched && Date.now() - lastFetchTime < FETCH_COOLDOWN && globalFavoriteIds.has(mediaId)) });
+
       try {
         const now = Date.now();
         if (globalFavoritesFetched && now - lastFetchTime < FETCH_COOLDOWN) {
@@ -211,6 +214,9 @@ const MediaCard = ({
 
       const token = extractToken(currentUser);
       if (!token) return;
+
+      // Roo Debug: Log auth state and cache status for watchlist
+      console.log('[Roo Debug] checkWatchlistStatus:', { isAuthenticated, hasToken: !!token, mediaId, globalWatchlistFetched, canFetch: !(globalWatchlistFetched && Date.now() - lastWatchlistFetchTime < WATCHLIST_FETCH_COOLDOWN), willAttemptFetch: isAuthenticated && token && !(globalWatchlistFetched && Date.now() - lastWatchlistFetchTime < WATCHLIST_FETCH_COOLDOWN && globalWatchlistIds.has(mediaId)) });
 
       try {
         const now = Date.now();
