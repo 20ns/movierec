@@ -2,6 +2,16 @@ customHeaders:
   - pattern: '**/*'
     headers:
       - key: Content-Security-Policy
-        value: "default-src 'none'; script-src 'unsafe-eval'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self';"
-      - key: X-Test-Header
-        value: "AmplifyTest123"
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://account.d1akezqpdr5wgr.amplifyapp.com https://www.movierec.net https://pagead2.googlesyndication.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://*.execute-api.eu-north-1.amazonaws.com https://*.amazonaws.com https://api.themoviedb.org https://image.tmdb.org; font-src 'self'; frame-ancestors 'self'; upgrade-insecure-requests;"
+      - key: Strict-Transport-Security # Copied from the working console version
+        value: max-age=31536000; includeSubDomains
+      - key: X-Content-Type-Options # Copied from the working console version
+        value: nosniff
+      - key: X-XSS-Protection # Copied from the working console version
+        value: 1; mode=block
+      - key: X-Frame-Options # Copied from the working console version
+        value: SAMEORIGIN
+      - key: Referrer-Policy # Copied from the working console version
+        value: strict-origin-when-cross-origin
+      - key: Cache-Control # Copied from the working console version
+        value: no-cache, no-store, must-revalidate

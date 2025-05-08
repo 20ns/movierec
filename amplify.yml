@@ -14,14 +14,13 @@ frontend:
   cache:
     paths:
       - node_modules/**/*
-  environment:
-    variables:
-      REACT_APP_TMDB_API_KEY: "b484a8d608caf759d5d575db3ec03bbc"
-      REACT_APP_COGNITO_USER_POOL_ID: "eu-north-1_x2FwI0mFK"
-      REACT_APP_COGNITO_CLIENT_ID: "4gob38of1s9tu7h9ciik5unjrl"
-      REACT_APP_API_GATEWAY_INVOKE_URL: "https://n09230hhhj.execute-api.eu-north-1.amazonaws.com/prod"
-      REACT_APP_REDIRECT_SIGN_IN: "https://movierec.net"
-      REACT_APP_REDIRECT_SIGN_OUT: "https://movierec.net"
+  environmentVariables: # Changed 'environment:' to 'environmentVariables:'
+      REACT_APP_TMDB_API_KEY: "" # Value will come from Amplify Console
+      REACT_APP_COGNITO_USER_POOL_ID: "" # Value will come from Amplify Console
+      REACT_APP_COGNITO_CLIENT_ID: "" # Value will come from Amplify Console
+      REACT_APP_API_GATEWAY_INVOKE_URL: "" # Value will come from Amplify Console
+      REACT_APP_REDIRECT_SIGN_IN: "" # Value will come from Amplify Console
+      REACT_APP_REDIRECT_SIGN_OUT: "" # Value will come from Amplify Console
   customHeaders: custom-headers.yml
   redirects:
     - source: "</^[^.]+$/>"
