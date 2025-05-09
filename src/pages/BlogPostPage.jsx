@@ -11,7 +11,48 @@ import SafeHelmet from '../components/SafeHelmet';
 const placeholderImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const CustomImage = ({ src, alt, title, className, ...props }) => {
-  const [imgSrc, setImgSrc] = useState(src);
+  const [imgSrc, setImgSrc] = useState(placeholderImage);
+
+  useEffect(() => {
+    const fetchFanart = async () => {
+      try {
+        // Search TMDB for a matching movie by title or alt text
+        const tmdbRes = await fetch(
+          `https://api.themoviedb.org/3/search/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&query=${encodeURIComponent(
+            alt || title || ''
+          )}`
+        );
+        const tmdbData = await tmdbRes.json();
+        const movieId = tmdbData.results?.[0]?.id;
+        if (movieId) {
+          // Fetch images from Fanart.tv
+          const fanartRes = await fetch(
+            `https://webservice.fanart.tv/v3/movies/${movieId}?api_key=${process.env.REACT_APP_FANART_TV_API_KEY}`
+          );
+          const fanartData = await fanartRes.json();
+          const url =
+            fanartData.movieposter?.[0]?.url ||
+            fanartData.moviebackground?.[0]?.url;
+          if (url) {
+            setImgSrc(url);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Fanart fetch error', err);
+      }
+      // Fallback to original src if Fanart not available
+      setImgSrc(src);
+    };
+    fetchFanart();
+  }, [src, alt, title]);
+
+  const handleError = (e) => {
+    e.currentTarget.onerror = null;
+    // If original src error, fall back to placeholder
+    setImgSrc(placeholderImage);
+  };
+
   return (
     <img
       src={imgSrc}
@@ -19,7 +60,7 @@ const CustomImage = ({ src, alt, title, className, ...props }) => {
       title={title}
       className={className}
       loading="lazy"
-      onError={e => { e.currentTarget.onerror = null; setImgSrc(placeholderImage); }}
+      onError={handleError}
       {...props}
     />
   );
