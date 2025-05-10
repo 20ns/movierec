@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import { visit } from 'unist-util-visit';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import AdUnit from '../components/AdUnit';
@@ -11,40 +12,185 @@ import SafeHelmet from '../components/SafeHelmet';
 const placeholderImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const CustomImage = ({ src, alt, title, className, ...props }) => {
+  console.log('[CustomImage Props Received]', { src, alt, title, className });
   const [imgSrc, setImgSrc] = useState(placeholderImage);
 
   useEffect(() => {
-    const fetchFanart = async () => {
+    const fetchImage = async () => {
+      // --- Stage 1: Attempt with Explicit ID ---
+      let explicitId = null;
+      let explicitIsMovie = null;
+      let isBackdropRequest = false;
+
+      if (src) {
+        if (src.startsWith('backdrop_tmdbid:')) {
+          explicitId = src.substring('backdrop_tmdbid:'.length);
+          explicitIsMovie = true;
+          isBackdropRequest = true;
+        } else if (src.startsWith('backdrop_tmdbtvid:')) {
+          explicitId = src.substring('backdrop_tmdbtvid:'.length);
+          explicitIsMovie = false;
+          isBackdropRequest = true;
+        } else if (src.startsWith('tmdbid:')) {
+          explicitId = src.substring('tmdbid:'.length);
+          explicitIsMovie = true;
+        } else if (src.startsWith('tmdbtvid:')) {
+          explicitId = src.substring('tmdbtvid:'.length);
+          explicitIsMovie = false;
+        }
+      }
+
+      if (explicitId) {
+        console.log(`[CustomImage] Attempting fetch for explicit ID: ${explicitId}, Type: ${explicitIsMovie ? 'Movie' : 'TV'}, Backdrop: ${isBackdropRequest}, Alt: ${alt}`);
+        try {
+          // 1a. Fanart with explicit ID
+          const fanartUrl = `https://webservice.fanart.tv/v3/${explicitIsMovie ? 'movies' : 'tv'}/${explicitId}?api_key=${process.env.REACT_APP_FANART_TV_API_KEY}`;
+          console.log(`[CustomImage] Fetching Fanart: ${fanartUrl}`);
+          const fanartRes = await fetch(fanartUrl);
+          if (fanartRes.ok) {
+            const fanartData = await fanartRes.json();
+            console.log(`[CustomImage] Fanart response OK for ID ${explicitId}. Data:`, fanartData);
+            let fanartImage = null;
+            if (isBackdropRequest) {
+              fanartImage = explicitIsMovie
+                ? fanartData.moviebackground?.[0]?.url
+                : fanartData.showbackground?.[0]?.url || fanartData.tvbackground?.[0]?.url;
+              console.log(`[CustomImage] Fanart backdrop check: ${fanartImage || 'not found'}`);
+            } else { // Poster request
+              fanartImage = explicitIsMovie
+                ? fanartData.movieposter?.[0]?.url
+                : fanartData.tvposter?.[0]?.url || fanartData.tvthumb?.[0]?.url;
+              console.log(`[CustomImage] Fanart poster check: ${fanartImage || 'not found'}`);
+            }
+
+            if (fanartImage) {
+              console.log(`[CustomImage] Using Fanart image: ${fanartImage}`);
+              setImgSrc(fanartImage);
+              return;
+            } else {
+              console.log(`[CustomImage] No suitable image from Fanart for ID ${explicitId}, backdrop: ${isBackdropRequest}.`);
+            }
+          } else {
+            console.warn(`[CustomImage] Fanart.tv (ID: ${explicitId}, type: ${explicitIsMovie ? 'movie' : 'tv'}, backdrop: ${isBackdropRequest}) failed: ${fanartRes.status} - ${fanartRes.statusText}. URL: ${fanartUrl}`);
+          }
+
+          // 1b. TMDB Image with explicit ID (if Fanart failed or didn't have the specific type)
+          const tmdbApiUrl = `https://api.themoviedb.org/3/${explicitIsMovie ? 'movie' : 'tv'}/${explicitId}?api_key=${process.env.REACT_APP_TMDB_API_KEY}`;
+          console.log(`[CustomImage] Fetching TMDB: ${tmdbApiUrl}`);
+          const tmdbRes = await fetch(tmdbApiUrl);
+          if (tmdbRes.ok) {
+            const tmdbData = await tmdbRes.json();
+            console.log(`[CustomImage] TMDB response OK for ID ${explicitId}. Data:`, tmdbData);
+            const imagePath = isBackdropRequest ? tmdbData.backdrop_path : tmdbData.poster_path;
+            if (imagePath) {
+              const fullTmdbUrl = `https://image.tmdb.org/t/p/original${imagePath}`;
+              console.log(`[CustomImage] Using TMDB image: ${fullTmdbUrl}`);
+              setImgSrc(fullTmdbUrl);
+              return;
+            } else {
+              console.log(`[CustomImage] No suitable image path from TMDB for ID ${explicitId} (backdrop: ${isBackdropRequest}, path was: ${imagePath === null ? 'null' : imagePath === undefined ? 'undefined' : imagePath}).`);
+            }
+          } else {
+            console.warn(`[CustomImage] TMDB API (ID: ${explicitId}, type: ${explicitIsMovie ? 'movie' : 'tv'}, backdrop: ${isBackdropRequest}) failed: ${tmdbRes.status} - ${tmdbRes.statusText}. URL: ${tmdbApiUrl}`);
+          }
+        } catch (err) {
+          console.warn(`[CustomImage] Error fetching with explicit ID ${explicitId} (type: ${explicitIsMovie ? 'movie' : 'tv'}, backdrop: ${isBackdropRequest}):`, err);
+        }
+        // If explicit ID was provided but all attempts failed, fall back to placeholder.
+        console.log(`[CustomImage] Explicit ID path for ${explicitId} (backdrop: ${isBackdropRequest}) exhausted. Setting placeholder.`);
+        setImgSrc(placeholderImage);
+        return;
+      }
+
+      // --- Stage 2: Attempt with Text-Based Search (if no explicit ID was provided) ---
+      let derivedId = null;
+      let derivedIsMovie = true; // Default to movie for text search
+      let derivedTmdbPosterUrl = null;
+
       try {
-        // Search TMDB for a matching movie by title or alt text
-        const tmdbRes = await fetch(
-          `https://api.themoviedb.org/3/search/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&query=${encodeURIComponent(
-            alt || title || ''
-          )}`
-        );
-        const tmdbData = await tmdbRes.json();
-        const movieId = tmdbData.results?.[0]?.id;
-        if (movieId) {
-          // Fetch images from Fanart.tv
-          const fanartRes = await fetch(
-            `https://webservice.fanart.tv/v3/movies/${movieId}?api_key=${process.env.REACT_APP_FANART_TV_API_KEY}`
-          );
-          const fanartData = await fanartRes.json();
-          const url =
-            fanartData.movieposter?.[0]?.url ||
-            fanartData.moviebackground?.[0]?.url;
-          if (url) {
-            setImgSrc(url);
-            return;
+        const rawText = (alt || title || '').replace(/\b(Scene|Poster|Movie Poster|TV Show Poster|thumbnail)\b/gi, '').trim();
+        if (!rawText) {
+          // If no alt/title text, and no explicit ID, try original src or placeholder
+          if (src && (src.startsWith('http:') || src.startsWith('https:') || src.startsWith('data:'))) {
+            setImgSrc(src);
+          } else {
+            console.log(`[CustomImage] No rawText for text search, no explicit ID. Setting placeholder.`);
+            setImgSrc(placeholderImage);
+          }
+          return;
+        }
+        const query = encodeURIComponent(rawText);
+
+        // 2a. TMDB Search (Movie then TV) to get an ID and potential poster URL
+        const movieSearchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${process.env.REACT_APP_TMDB_API_KEY}&query=${query}`;
+        const movieRes = await fetch(movieSearchUrl);
+        if (movieRes.ok) {
+          const movieData = await movieRes.json();
+          if (movieData.results?.[0]) {
+            derivedId = movieData.results[0].id;
+            derivedIsMovie = true;
+            if (movieData.results[0].poster_path) {
+              derivedTmdbPosterUrl = `https://image.tmdb.org/t/p/original${movieData.results[0].poster_path}`;
+            }
+          }
+        } else {
+          console.warn(`TMDB movie search (query: "${rawText}") failed: ${movieRes.status}`);
+        }
+
+        if (!derivedId) {
+          const tvSearchUrl = `https://api.themoviedb.org/3/search/tv?api_key=${process.env.REACT_APP_TMDB_API_KEY}&query=${query}`;
+          const tvRes = await fetch(tvSearchUrl);
+          if (tvRes.ok) {
+            const tvData = await tvRes.json();
+            if (tvData.results?.[0]) {
+              derivedId = tvData.results[0].id;
+              derivedIsMovie = false;
+              if (tvData.results[0].poster_path) {
+                derivedTmdbPosterUrl = `https://image.tmdb.org/t/p/original${tvData.results[0].poster_path}`;
+              }
+            }
+          } else {
+            console.warn(`TMDB TV search (query: "${rawText}") failed: ${tvRes.status}`);
+          }
+        }
+
+        // 2b. Fanart with derived ID
+        if (derivedId) {
+          const fanartUrl = `https://webservice.fanart.tv/v3/${derivedIsMovie ? 'movies' : 'tv'}/${derivedId}?api_key=${process.env.REACT_APP_FANART_TV_API_KEY}`;
+          const fanartRes = await fetch(fanartUrl);
+          if (fanartRes.ok) {
+            const fanartData = await fanartRes.json();
+            const fanartImage = derivedIsMovie
+              ? fanartData.movieposter?.[0]?.url || fanartData.moviebackground?.[0]?.url
+              : fanartData.tvposter?.[0]?.url || fanartData.tvthumb?.[0]?.url;
+            if (fanartImage) {
+              setImgSrc(fanartImage);
+              return;
+            }
+          } else {
+            console.warn(`Fanart.tv (derived ID: ${derivedId}, type: ${derivedIsMovie ? 'movie' : 'tv'}) failed: ${fanartRes.status}`);
           }
         }
       } catch (err) {
-        console.warn('Fanart fetch error', err);
+        console.warn('Error during text-based image search:', err);
       }
-      // Fallback to original src if Fanart not available
-      setImgSrc(src);
+
+      // --- Stage 3: Final Fallbacks (for text-search path) ---
+      if (derivedTmdbPosterUrl) { // Poster from text search
+        setImgSrc(derivedTmdbPosterUrl);
+        return;
+      }
+      
+      // If src is a valid URL (and not an ID string we've processed)
+      if (src && (src.startsWith('http:') || src.startsWith('https:') || src.startsWith('data:'))) {
+        setImgSrc(src);
+        return;
+      }
+
+      console.log(`[CustomImage] All fallbacks exhausted for text-search path (alt: ${alt}). Setting placeholder.`);
+      setImgSrc(placeholderImage);
     };
-    fetchFanart();
+    fetchImage();
   }, [src, alt, title]);
 
   const handleError = (e) => {
@@ -64,6 +210,17 @@ const CustomImage = ({ src, alt, title, className, ...props }) => {
       {...props}
     />
   );
+};
+
+// Custom rehype plugin to log image properties before sanitization
+const rehypeImageSrcLogger = () => {
+  return (tree) => {
+    visit(tree, 'element', (node) => {
+      if (node.tagName === 'img') {
+        console.log('[rehypeImageSrcLogger] Found <img> HAST node, properties:', node.properties);
+      }
+    });
+  };
 };
 
 function BlogPostPage() {
@@ -179,8 +336,46 @@ function BlogPostPage() {
             </header>
             <div className="p-6 prose prose-invert prose-indigo max-w-none">
               <ReactMarkdown
+urlTransform={uri => uri}
                                remarkPlugins={[remarkGfm]}
-                               rehypePlugins={[rehypeSanitize]}
+                               rehypePlugins={[
+                                 rehypeImageSrcLogger, // Our custom logger plugin first
+                                 // Temporarily commenting out rehypeSanitize for testing
+                                 /*
+                                 [rehypeSanitize, {
+                                 schema: {
+                                   ...defaultSchema,
+                                   attributes: {
+                                     ...defaultSchema.attributes,
+                                     img: [
+                                       'alt',
+                                       'title',
+                                       'class',
+                                       (name, value) => {
+                                         if (name === 'src') {
+                                           const customProtocols = ['tmdbid:', 'tmdbtvid:', 'backdrop_tmdbid:', 'backdrop_tmdbtvid:'];
+                                           const defaultProtocols = ['http:', 'https:', 'mailto:', 'data:'];
+                                           const isCustom = customProtocols.some(protocol => String(value).startsWith(protocol));
+                                           const isDefault = defaultProtocols.some(protocol => String(value).startsWith(protocol));
+                                           if (isCustom || isDefault) return true;
+                                           return false;
+                                         }
+                                         return false;
+                                       }
+                                     ],
+                                     '*': defaultSchema.attributes['*'],
+                                   },
+                                   protocols: {
+                                     ...defaultSchema.protocols,
+                                     src: [
+                                       ...(defaultSchema.protocols?.src || []),
+                                       'tmdbid', 'tmdbtvid', 'backdrop_tmdbid', 'backdrop_tmdbtvid', 'data'
+                                     ],
+                                   },
+                                 }
+                               }]
+                               */
+                               ]}
                                components={{
                   img: ({ node, ...props }) => (
                     <CustomImage

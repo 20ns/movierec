@@ -2,7 +2,7 @@
 
 **Date:** May 6, 2025
 
-![Avatar movie poster](https://m.media-amazon.com/images/M/MV5BZDA0OGQxNTItMDZkMC00N2UyLTg3MzMtYTJmNjg3Nzk5MzRiXkEyXkFqcGdeQXVyMjUzOTY1NTc@._V1_.jpg "Avatar - The reigning box office champion")
+![Avatar movie poster]()
 
 ## Introduction: The Billion-Dollar Club
 
@@ -16,7 +16,7 @@ Here are the undisputed champions of global box office revenue:
 
 ### 1. Avatar (2009) - **$2.923 Billion**
 
-![Avatar Poster](https://upload.wikimedia.org/wikipedia/en/d/d6/Avatar_%282009_film%29_poster.jpg "Official Avatar Poster")
+![Avatar Poster]()
 
 *   **Director:** James Cameron
 *   **Why it Dominated:** James Cameron's sci-fi epic didn't just tell a story; it transported audiences to Pandora with revolutionary 3D and visual effects. Its universal themes of environmentalism and conflict, combined with sheer spectacle, made it a must-see event, further boosted by a successful 2022 re-release.
@@ -24,7 +24,7 @@ Here are the undisputed champions of global box office revenue:
 
 ### 2. Avengers: Endgame (2019) - **$2.798 Billion**
 
-![Avengers assemble in Endgame](https://terrigen-cdn-dev.marvel.com/content/prod/1x/avengersendgame_lob_crd_05_2.jpg "The Avengers prepare for their final battle")
+![Avengers assemble in Endgame]()
 
 *   **Director:** Anthony & Joe Russo
 *   **Why it Dominated:** The ultimate superhero crossover event! *Endgame* was the epic conclusion to Marvel's 22-film "Infinity Saga." Years of character development and storytelling culminated in a hugely anticipated, emotionally charged finale that drew fans worldwide.
@@ -32,7 +32,7 @@ Here are the undisputed champions of global box office revenue:
 
 ### 3. Avatar: The Way of Water (2022) - **$2.320 Billion**
 
-![Underwater scene from Avatar: The Way of Water](https://m.media-amazon.com/images/M/MV5BYjhiNjBlODctY2ZiOC00YjVlLWFlNzAtNTVhNzM1YjI1NzMxXkEyXkFqcGdeQXVyMjQxNTE1MDA@._V1_.jpg "Exploring the oceans of Pandora")
+![Underwater scene from Avatar: The Way of Water]()
 
 *   **Director:** James Cameron
 *   **Why it Dominated:** James Cameron proved lightning *can* strike twice (or thrice, counting Titanic!). Returning to Pandora over a decade later, the sequel pushed visual boundaries again, especially with its stunning underwater sequences. It continued the story of the Sully family, blending action with strong family themes.
@@ -40,7 +40,7 @@ Here are the undisputed champions of global box office revenue:
 
 ### 4. Titanic (1997) - **$2.257 Billion**
 
-![Iconic Jack and Rose scene from Titanic](https://m.media-amazon.com/images/M/MV5BMDdmZGU3NDQtY2E5My00ZTliLWIzOTUtMTY4ZGI1YjdiNjk3XkEyXkFqcGdeQXVyNTA4NzY1MzY@._V1_.jpg "Jack and Rose on the bow of the Titanic")
+![Iconic Jack and Rose scene from Titanic]()
 
 *   **Director:** James Cameron
 *   **Why it Dominated:** A timeless romance set against a historical tragedy. *Titanic* was a cultural phenomenon, captivating audiences with its epic scale, emotional story, and star-making performances from Leonardo DiCaprio and Kate Winslet. Its 11 Oscar wins didn't hurt, either!
@@ -48,7 +48,7 @@ Here are the undisputed champions of global box office revenue:
 
 ### 5. Star Wars: Episode VII - The Force Awakens (2015) - **$2.068 Billion**
 
-![Rey and BB-8 in The Force Awakens](https://lumiere-a.akamaihd.net/v1/images/the-force-awakens-poster-horizontal-a_3748cd94.jpeg "A new generation of Star Wars heroes")
+![Rey and BB-8 in The Force Awakens]()
 
 *   **Director:** J.J. Abrams
 *   **Why it Dominated:** The Force was *strong* with this one. After a decade-long wait for a new mainline Star Wars film, *The Force Awakens* masterfully blended nostalgia with new characters, reigniting the saga for millions of fans, old and new.
