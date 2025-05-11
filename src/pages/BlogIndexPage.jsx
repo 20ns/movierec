@@ -5,6 +5,46 @@ import { CalendarIcon, ArrowRightIcon, NewspaperIcon } from '@heroicons/react/24
 
 const posts = [
   {
+    slug: 'indie-sci-fi-gems-2020s',
+    title: 'Beyond the Blockbusters: Indie Sci-Fi Gems You Missed in the 2020s',
+    date: 'May 11, 2025',
+    excerpt: "The 2020s have already offered a fascinating landscape for science fiction, and it's not all about the big-budget spectacles. Independent filmmakers are consistently delivering thought-provoking, unique, and often mind-bending sci-fi stories that deserve your attention.",
+    readTime: '6 min read',
+    category: 'Indie Films'
+  },
+  {
+    slug: 'new-wave-international-horror',
+    title: 'The New Wave of International Horror: 5 Must-See Foreign Films Redefining Scary',
+    date: 'May 11, 2025',
+    excerpt: "Horror knows no borders, and some of the most innovative, terrifying, and thought-provoking scary movies are coming from outside the English-speaking world. International filmmakers are pushing the genre in bold new directions...",
+    readTime: '7 min read',
+    category: 'Horror'
+  },
+  {
+    slug: 'video-game-adaptations-got-good',
+    title: 'From Pixels to Prestige: How Video Game Adaptations Finally Got Good',
+    date: 'May 11, 2025',
+    excerpt: "For decades, 'video game movie' was almost a punchline... A new era of video game adaptations is upon us, with creators finally cracking the code to translate beloved interactive experiences into compelling television and film.",
+    readTime: '6 min read',
+    category: 'Adaptations'
+  },
+  {
+    slug: 'tv-anti-heroes-we-love',
+    title: "The Rise of the Anti-Hero: Why We Love TV's Most Complicated Characters",
+    date: 'May 11, 2025',
+    excerpt: "Gone are the days when television protagonists were purely virtuous. Today, some of the most compelling and popular characters on TV are anti-heroes: flawed individuals who often operate in morally grey areas...",
+    readTime: '7 min read',
+    category: 'TV Shows'
+  },
+  {
+    slug: 'anthology-series-comeback',
+    title: 'Short & Sweet: Anthology Series Making a Big Comeback',
+    date: 'May 11, 2025',
+    excerpt: "In an age of sprawling cinematic universes and multi-season character arcs, there's a refreshing appeal to the anthology series. Offering self-contained stories within each episode or season...",
+    readTime: '6 min read',
+    category: 'TV Shows'
+  },
+  {
     slug: 'highest-grossing-movies',
     title: 'Box Office Kings: Unveiling the Highest-Grossing Movies Ever Made',
     date: 'May 6, 2025',
