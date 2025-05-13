@@ -9,7 +9,6 @@ const clearFavoritesCache = (userId) => {
   if (!userId) return;
   try {
     localStorage.removeItem(`${FAVORITES_CACHE_KEY}_${userId}`);
-    console.log(`[useFavorites] Cache cleared for user ${userId}`);
   } catch (error) {
     console.error('[useFavorites] Error clearing cache:', error);
   }
@@ -24,10 +23,8 @@ const getFavoritesFromCache = (userId) => {
     const { data, timestamp } = JSON.parse(cacheData);
 
     if (Date.now() - timestamp < CACHE_EXPIRY_TIME) {
-      console.log(`[useFavorites] Cache hit for user ${userId}`);
       return data;
     }
-    console.log(`[useFavorites] Cache expired for user ${userId}`);
     clearFavoritesCache(userId); // Clear expired cache
     return null;
   } catch (error) {
@@ -44,7 +41,6 @@ const cacheFavorites = (userId, favorites) => {
       timestamp: Date.now()
     };
     localStorage.setItem(`${FAVORITES_CACHE_KEY}_${userId}`, JSON.stringify(cacheData));
-    console.log(`[useFavorites] Favorites cached for user ${userId}`);
   } catch (error) {
     console.error('[useFavorites] Error saving to cache:', error);
   }
@@ -69,7 +65,6 @@ function useFavorites(currentUser, isAuthenticated) {
   // --- Fetching Logic ---
   const fetchFavorites = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken || isFetchingRef.current) {
-      // console.log('[useFavorites] Skipping fetch:', { isAuthenticated, hasToken: !!currentUser?.signInUserSession?.accessToken?.jwtToken, isFetching: isFetchingRef.current });
       return;
     }
 
@@ -83,7 +78,6 @@ function useFavorites(currentUser, isAuthenticated) {
     // Rate limiting
     const now = Date.now();
     if (!forceRefresh && now - lastFetchTimeRef.current < 5000) {
-      console.log('[useFavorites] Skipping fetch - too soon since last fetch');
       return;
     }
 
@@ -98,7 +92,6 @@ function useFavorites(currentUser, isAuthenticated) {
       }
     }
 
-    console.log(`[useFavorites] Fetching favorites from API (Force Refresh: ${forceRefresh})...`);
     setIsLoading(true);
     setError(null);
     isFetchingRef.current = true;
@@ -153,7 +146,6 @@ function useFavorites(currentUser, isAuthenticated) {
   // --- Initial Fetch and Fetch on User Change ---
   useEffect(() => {
     if (isAuthenticated && userId) {
-      console.log('[useFavorites] Auth state ready, attempting initial fetch.');
       fetchFavorites(); // Fetch on initial load or user change
     } else {
       // Clear state if user logs out
@@ -179,7 +171,6 @@ function useFavorites(currentUser, isAuthenticated) {
     cacheFavorites(userId, updatedFavorites); // Update cache optimistically
 
     try {
-      console.log(`[useFavorites] Removing favorite ${mediaId} via API...`);
       const response = await fetch(
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
         {
@@ -196,10 +187,6 @@ function useFavorites(currentUser, isAuthenticated) {
       if (!response.ok) {
         throw new Error(`Failed to remove from favorites: ${response.status}`);
       }
-
-      console.log(`[useFavorites] Favorite ${mediaId} removed successfully via API.`);
-      // Clear cache on successful API removal to ensure consistency on next full fetch
-      clearFavoritesCache(userId);
 
     } catch (error) {
       console.error('[useFavorites] Error removing from favorites:', error);
@@ -220,8 +207,6 @@ function useFavorites(currentUser, isAuthenticated) {
          // Ignore events not for the current user
          return;
       }
-
-      console.log('[useFavorites] Received favorites-updated event:', { updatedId, newStatus });
 
       if (newStatus && mediaData) {
         // Item was added - Add it locally and update cache
@@ -286,8 +271,6 @@ function useFavorites(currentUser, isAuthenticated) {
 
   // --- Refresh Function ---
   const refreshFavorites = useCallback(() => {
-    console.log('[useFavorites] Manual refresh triggered.');
-    // Clear cache before forcing refresh to ensure fresh data
     clearFavoritesCache(userId);
     fetchFavorites(true);
   }, [fetchFavorites, userId]);

@@ -56,7 +56,6 @@ export const fetchCachedMedia = async (options = {}) => {
       if (raw) {
         const { timestamp, data } = JSON.parse(raw); // Expecting { timestamp, data: { items, source } }
         if (!shouldRefreshCache(timestamp)) {
-          console.log('[MediaCache] Using client-side cache (forceRefresh=false)');
           // Ensure returning the nested structure { items, source }
           if (data && data.items && data.source) {
                return data;
@@ -65,7 +64,6 @@ export const fetchCachedMedia = async (options = {}) => {
                localStorage.removeItem(cacheKey);
           }
         } else {
-           console.log('[MediaCache] Client cache expired');
            localStorage.removeItem(cacheKey);
         }
       }

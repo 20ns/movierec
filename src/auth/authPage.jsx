@@ -120,9 +120,6 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setError('');
     try {
       const user = await Auth.signIn(email, password);
-      console.log('[AuthPage] Sign-in successful, calling onSigninSuccess with user', { 
-        userId: user?.attributes?.sub || user?.username,
-      });
       onSigninSuccess(user);
       navigate('/');
     } catch (err) {
