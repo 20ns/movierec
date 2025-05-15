@@ -40,11 +40,11 @@ const dropdownVariants = {
 };
 
 // Memoized component to prevent unnecessary renders
-const Header = memo(function Header({ 
-  currentUser, 
-  isAuthenticated, 
+const Header = memo(function Header({
+  currentUser,
+  isAuthenticated,
   onSearchClick,
-  showSearch, 
+  showSearch,
   onPreferencesClick,
   onFavoritesClick,
   showFavorites,
@@ -52,7 +52,8 @@ const Header = memo(function Header({
   showWatchlist,
   onSignout,
   onAccountClick,
-  hasBasicPreferencesOnly = false
+  hasBasicPreferencesOnly = false,
+  searchContainerRef // Added new prop for the search container
 }) {
   const navigate = useNavigate(); // Instantiate useNavigate
   const [hoveredButton, setHoveredButton] = useState(null);
@@ -183,7 +184,17 @@ const Header = memo(function Header({
   useEffect(() => {
     const handleClickOutside = event => {
       if (headerRef.current && !headerRef.current.contains(event.target)) {
-        if (showSearch) onSearchClick(false);
+        // Check if the click is inside the search container (if search is active and ref is provided)
+        const isClickInsideSearchContainer =
+          showSearch &&
+          searchContainerRef &&
+          searchContainerRef.current &&
+          searchContainerRef.current.contains(event.target);
+
+        if (showSearch && !isClickInsideSearchContainer) {
+          onSearchClick(false);
+        }
+        // Close other panels as before
         if (showFavorites) onFavoritesClick(false);
         if (showWatchlist) onWatchlistClick(false);
         setShowUserDropdown(false);
@@ -192,7 +203,7 @@ const Header = memo(function Header({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSearch, showFavorites, showWatchlist, onSearchClick, onFavoritesClick, onWatchlistClick]);
+  }, [showSearch, showFavorites, showWatchlist, onSearchClick, onFavoritesClick, onWatchlistClick, searchContainerRef]);
   
   // Memoize menu items to prevent recreation on each render
   const mobileMenuItems = useMemo(() => [

@@ -17,13 +17,12 @@ import AccountDetailsModal from './components/AccountDetailsModal';
 import SearchBar from './components/SearchBar';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
-// import { ToastProvider, useToast } from './components/ToastManager'; // Removed Toast imports
 import LandingPage from './components/LandingPage';
 import AdUnit from './components/AdUnit';
 import AdScript from './components/AdScript';
-import MediaDetailModal from './components/MediaDetailModal'; // Import the new modal
-import BlogIndexPage from './pages/BlogIndexPage'; // Import Blog Index Page
-import BlogPostPage from './pages/BlogPostPage'; // Import Blog Post Page
+import MediaDetailModal from './components/MediaDetailModal';
+import BlogIndexPage from './pages/BlogIndexPage'; 
+import BlogPostPage from './pages/BlogPostPage';
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -128,6 +127,7 @@ useEffect(() => {
   const prevUserIdRef = useRef(null);
   const refreshCycleRef = useRef(0); // Track refresh cycles to prevent repeated refreshes
   const processingAuthChangeRef = useRef(false); // Prevent concurrent auth processing
+  const searchAreaRef = useRef(null); // Ref for the search container
 
   // --- Effect: Mark Initial App Load Complete ---
   useEffect(() => {
@@ -683,6 +683,7 @@ useEffect(() => {
           showWatchlist={showWatchlist}
           showSearch={showSearch}
           hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
+          searchContainerRef={searchAreaRef} // Pass the ref to Header
         />
       )}<AnimatePresence>
         {showSearch && (
@@ -699,16 +700,17 @@ useEffect(() => {
             />
               {/* Search container with improved animation - positioned below header */}
             <motion.div
+              ref={searchAreaRef} // Assign the ref here
               key="search-container"
               initial={{ opacity: 0, y: -20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.98 }}
-              transition={{ 
-                type: "spring", 
-                stiffness: 350, 
+              transition={{
+                type: "spring",
+                stiffness: 350,
                 damping: 30,
                 delay: 0.05
-              }}              
+              }}
               className="fixed inset-x-0 top-16 z-30 pt-4 px-4"
               onClick={(e) => e.stopPropagation()}
             >              {/* Close button positioned for both desktop and mobile */}
