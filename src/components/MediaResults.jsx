@@ -134,7 +134,7 @@ export const MediaResults = React.memo(({
     }
     
     return (
-      <ScrollContainer className="overflow-x-hidden">
+      <ScrollContainer key={displayedResults.map(r => r.id).join('-')} className="overflow-x-hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 py-4 px-2 md:px-0 w-full">
           {renderSafeResults()}
         </div>
