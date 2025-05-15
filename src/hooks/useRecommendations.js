@@ -749,23 +749,26 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
       return;
     }
 
-    // Check cache first on initial load or user change
+    // First check cache once
     const cached = getRecommendationsFromCache(userId, contentTypeFilter);
-    if (cached && !cacheChecked) { // Only use cache if not checked before for this user/filter
+    safeSetState({ cacheChecked: true });
+    if (cached) {
       logMessage('Using cached recommendations on initial load');
       safeSetState({
         recommendations: cached.data,
         dataSource: cached.dataSource,
         recommendationReason: cached.reason || '',
-        cacheChecked: true, // Mark cache as checked
         isLoading: false,
         isThinking: false,
       });
-      dataLoadAttemptedRef.current = true; // Mark data as loaded (from cache)
-    } else if (!dataLoadAttemptedRef.current) { // Fetch only if cache wasn't used and no fetch attempted yet
+      dataLoadAttemptedRef.current = true;
+      return;
+    }
+    // No cache or empty – now fetch
+    if (!dataLoadAttemptedRef.current) {
       logMessage('Cache miss or invalid, initiating fetch');
-      safeSetState({ cacheChecked: true, isLoading: true, isThinking: true }); // Mark cache checked, start loading
-      fetchRecommendations(false); // Initial fetch, don't force refresh
+      safeSetState({ isLoading: true, isThinking: true });
+      fetchRecommendations(false);
     }
 
     // Cleanup timeout on unmount or before next effect run
