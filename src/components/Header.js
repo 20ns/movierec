@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -58,6 +58,7 @@ const Header = memo(function Header({
   const [hoveredButton, setHoveredButton] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const headerRef = useRef(null);
 
   // Handle panel toggling with useCallback to prevent recreation on each render
   const handlePanelToggle = useCallback((panelName, isVisible) => {
@@ -137,8 +138,12 @@ const Header = memo(function Header({
 
   // Use useCallback for event handlers
   const handleUserDropdownToggle = useCallback(() => {
-    setShowUserDropdown(prev => !prev);
-  }, []);
+      if (showSearch) onSearchClick(false);
+      if (showFavorites) onFavoritesClick(false);
+      if (showWatchlist) onWatchlistClick(false);
+      setShowMobileMenu(false);
+      setShowUserDropdown(prev => !prev);
+  }, [showSearch, showFavorites, showWatchlist, onSearchClick, onFavoritesClick, onWatchlistClick]);
 
   const handleMobileMenuToggle = useCallback(() => {
     setShowMobileMenu(prev => !prev);
@@ -173,6 +178,21 @@ const Header = memo(function Header({
     window.addEventListener('resize', handleResize, { passive: true });
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Close all panels when clicking outside header
+  useEffect(() => {
+    const handleClickOutside = event => {
+      if (headerRef.current && !headerRef.current.contains(event.target)) {
+        if (showSearch) onSearchClick(false);
+        if (showFavorites) onFavoritesClick(false);
+        if (showWatchlist) onWatchlistClick(false);
+        setShowUserDropdown(false);
+        setShowMobileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSearch, showFavorites, showWatchlist, onSearchClick, onFavoritesClick, onWatchlistClick]);
   
   // Memoize menu items to prevent recreation on each render
   const mobileMenuItems = useMemo(() => [
@@ -188,8 +208,12 @@ const Header = memo(function Header({
       name: 'Blog',
       icon: <NewspaperIcon className="w-5 h-5" />,
       onClick: () => {
+        if (showSearch) onSearchClick(false);
+        if (showFavorites) onFavoritesClick(false);
+        if (showWatchlist) onWatchlistClick(false);
+        setShowUserDropdown(false);
+        setShowMobileMenu(false);
         navigate('/blog');
-        setShowMobileMenu(false); // Close menu on navigate
       },
       active: false, // Could add active state based on location if needed
       show: true // Show for everyone
@@ -225,7 +249,7 @@ const Header = memo(function Header({
   ], [isAuthenticated, showSearch, showFavorites, showWatchlist, handlePanelToggle]);
   
   return (
-    <motion.header 
+    <motion.header ref={headerRef}
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
@@ -238,8 +262,18 @@ const Header = memo(function Header({
           transition={{ type: "spring", stiffness: 400, damping: 10 }}
           className="flex-shrink-0"
         >
-          <Link to="/" className="flex items-center">
-            <img 
+          <Link
+            to="/"
+            onClick={() => {
+              if (showSearch) onSearchClick(false);
+              if (showFavorites) onFavoritesClick(false);
+              if (showWatchlist) onWatchlistClick(false);
+              setShowUserDropdown(false);
+              setShowMobileMenu(false);
+            }}
+            className="flex items-center"
+          >
+            <img
               src="/logo.png" 
               alt="MovieRec Logo" 
               className="h-8 mr-2" 
@@ -332,7 +366,14 @@ const Header = memo(function Header({
             initial="initial"
             whileHover="hover"
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/blog')} // Use navigate directly
+            onClick={() => {
+              if (showSearch) onSearchClick(false);
+              if (showFavorites) onFavoritesClick(false);
+              if (showWatchlist) onWatchlistClick(false);
+              setShowUserDropdown(false);
+              setShowMobileMenu(false);
+              navigate('/blog');
+            }}
             onMouseEnter={() => setHoveredButton('blog')}
             onMouseLeave={() => setHoveredButton(null)}
             className="relative p-2.5 rounded-full text-gray-300 hover:bg-gray-800/70 hover:text-white transition-colors duration-200"
