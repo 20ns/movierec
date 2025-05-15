@@ -22,63 +22,86 @@ const CLIENT_CACHE_PREFIX = 'media_rec_cache_v2'; // Updated prefix for new logi
 export const fetchCachedMedia = async (options = {}) => {
   const {
     mediaType = 'both',
-    limit = 6, // *** Changed default limit to 6 ***
-    excludeIds = [],
+    limit = 6, // Default limit
+    excludeIds = [], // Exclusions for the current fetch operation
     token,
     preferences = {},
     favoriteIds = [],
     watchlistIds = [],
-    forceRefresh = false, // Destructure forceRefresh
+    forceRefresh = false,
   } = options;
 
-  // Ensure IDs are strings for consistency with backend/cache key
-  const excludeIdsStr = excludeIds.map(String);
-  const favoriteIdsStr = favoriteIds.map(String);
-  const watchlistIdsStr = watchlistIds.map(String);
+  const currentExcludeIdsStr = excludeIds.map(String).sort();
+  const favoriteIdsStr = favoriteIds.map(String).sort();
+  const watchlistIdsStr = watchlistIds.map(String).sort();
 
-  // build a unique client-cache key including all relevant params
-  const cacheKeyPayload = JSON.stringify({
-      v: 2, // Version identifier for the cache structure
-      mediaType,
-      limit, // Include limit in cache key
-      excludeIds: excludeIdsStr.sort(), // Sort for consistency
-      preferences, // Assuming preferences object is stable or stringified consistently
-      favoriteIds: favoriteIdsStr.sort(),
-      watchlistIds: watchlistIdsStr.sort()
-  });
-   // Use a more robust hashing or encoding if needed, btoa might have issues with complex chars
-  const cacheKey = CLIENT_CACHE_PREFIX + '_' + btoa(unescape(encodeURIComponent(cacheKeyPayload))); // Handle potential unicode
+  // Helper to generate cache keys
+  const generateCacheKey = (specificExcludeIds) => {
+    // Normalize preferences for cache key generation by sorting keys
+    const normalizedPreferences = {};
+    if (preferences && typeof preferences === 'object' && preferences !== null) {
+      Object.keys(preferences).sort().forEach(key => {
+        // Only include defined properties to avoid "undefined" in stringified object
+        if (preferences[key] !== undefined) {
+          normalizedPreferences[key] = preferences[key];
+        }
+      });
+    }
 
-  // try client cache ONLY if forceRefresh is false
+    const payload = JSON.stringify({
+      v: 2, mediaType, limit,
+      excludeIds: specificExcludeIds,
+      preferences: normalizedPreferences, // Use normalized (sorted keys) preferences
+      favoriteIds: favoriteIdsStr,
+      watchlistIds: watchlistIdsStr,
+    });
+    // Using btoa for simplicity. Ensure payload doesn't contain chars problematic for btoa, or use a more robust hash.
+    // The unescape(encodeURIComponent()) pattern is a common way to handle UTF-8 for btoa.
+    return CLIENT_CACHE_PREFIX + '_' + btoa(unescape(encodeURIComponent(payload)));
+  };
+
+  // Key for looking up in cache: uses the exact excludeIds provided for this call.
+  const lookupCacheKey = generateCacheKey(currentExcludeIdsStr);
+
+  // Key for writing to cache:
+  // If forceRefresh is true, we write to a "canonical" key (e.g., with empty excludes),
+  // making this fetched data the new standard for this query.
+  // Otherwise (not forceRefresh, just a cache miss), we write to the same key we looked up.
+  const canonicalExcludeIdsForWrite = []; // Represents the base query without one-time exclusions
+  const writeCacheKey = forceRefresh ? generateCacheKey(canonicalExcludeIdsForWrite) : lookupCacheKey;
+
+  // 1. Try client cache if not forceRefresh
   if (!forceRefresh) {
     try {
-      const raw = localStorage.getItem(cacheKey);
+      const raw = localStorage.getItem(lookupCacheKey);
       if (raw) {
-        const { timestamp, data } = JSON.parse(raw); // Expecting { timestamp, data: { items, source } }
+        const { timestamp, data } = JSON.parse(raw);
         if (!shouldRefreshCache(timestamp)) {
-          // Ensure returning the nested structure { items, source }
           if (data && data.items && data.source) {
-               return data;
+            console.log(`[MediaCache] Cache hit for key: ${lookupCacheKey}`);
+            return data;
           } else {
-               // Clear invalid cache entry
-               localStorage.removeItem(cacheKey);
+            console.warn(`[MediaCache] Invalid cache data for key: ${lookupCacheKey}`);
+            localStorage.removeItem(lookupCacheKey);
           }
         } else {
-           localStorage.removeItem(cacheKey);
+          console.log(`[MediaCache] Cache expired for key: ${lookupCacheKey}`);
+          localStorage.removeItem(lookupCacheKey);
         }
+      } else {
+        console.log(`[MediaCache] Cache miss for key: ${lookupCacheKey}`);
       }
     } catch (e) {
-        console.warn('[MediaCache] Error reading client cache:', e);
-        localStorage.removeItem(cacheKey); // Clear potentially corrupted cache
+      console.warn(`[MediaCache] Error reading client cache for key ${lookupCacheKey}:`, e);
+      localStorage.removeItem(lookupCacheKey); // Clear potentially corrupted cache
     }
   } else {
-      console.log('[MediaCache] Bypassing client cache (forceRefresh=true)');
+    console.log(`[MediaCache] Bypassing client cache (forceRefresh=true). Will write to: ${writeCacheKey}`);
   }
 
-
-  // Proceed to API call if cache was skipped (forceRefresh=true) or missed/expired
+  // 2. Proceed to API call
   try {
-    console.log(`[MediaCache] Attempting to fetch from Personalized API (forceRefresh=${forceRefresh})`);
+    console.log(`[MediaCache] Attempting to fetch from Personalized API (forceRefresh=${forceRefresh}, excludeIds=${currentExcludeIdsStr.join(',') || 'none'})`);
     if (!API_GATEWAY_URL) {
         console.error('[MediaCache] API_GATEWAY_URL is not defined. Check environment variables.');
         return { items: [], source: 'error' };
@@ -92,58 +115,51 @@ export const fetchCachedMedia = async (options = {}) => {
       {
         params: {
           mediaType,
-          // limit: limit, // Lambda now defaults to 6, no need to send unless overriding
-          // Pass user data for personalization
-          exclude: excludeIdsStr.join(','), // Keep param name 'exclude' as expected by Lambda
+          // limit: limit, // Lambda now defaults to 6
+          exclude: currentExcludeIdsStr.join(','), // Use currentExcludeIdsStr for the API call
           ...(Object.keys(preferences).length > 0 && { preferences: JSON.stringify(preferences) }),
           ...(favoriteIdsStr.length > 0 && { favorites: favoriteIdsStr.join(',') }),
           ...(watchlistIdsStr.length > 0 && { watchlist: watchlistIdsStr.join(',') }),
         },
-        headers: token
-          ? { Authorization: `Bearer ${token}` }
-          : {},
-         timeout: 15000 // Add a timeout (e.g., 15 seconds)
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        timeout: 25000, // 25 seconds timeout
       }
     );
 
     if (response.status === 200 && response.data && Array.isArray(response.data.items)) {
       const fetchedItems = response.data.items;
-      const source = response.data.source || 'personalized_lambda'; // Get source from response
-      console.log(`[MediaCache] Successfully fetched ${fetchedItems.length} items from ${source}`);
+      const source = response.data.source || 'personalized_lambda';
+      console.log(`[MediaCache] Successfully fetched ${fetchedItems.length} items from ${source}. Will cache with key: ${writeCacheKey}`);
 
-      // Map to frontend format (ensure keys match MediaCard expectations)
       const mappedItems = fetchedItems.map(item => ({
-        id: parseInt(item.mediaId, 10), // Ensure ID is number if needed by frontend
+        id: parseInt(item.mediaId, 10),
         media_type: item.mediaType,
         title: item.title,
-        name: item.title, // Keep 'name' for compatibility if used
+        name: item.title,
         overview: item.overview,
         poster_path: item.posterPath,
         backdrop_path: item.backdropPath,
         vote_average: item.voteAverage,
         release_date: item.releaseDate,
         popularity: item.popularity,
-        // Parse genre IDs if needed, assuming 'genres' is pipe-separated IDs
         genre_ids: item.genres
                       ? item.genres.split('|').map(g => parseInt(g, 10)).filter(Number.isFinite)
                       : [],
-        // Keep raw genre string if needed elsewhere
         genre: item.genre || null,
       }));
 
-      // Store result { items, source } in client cache
-      const cacheData = { items: mappedItems, source: source };
+      const cacheDataToStore = { items: mappedItems, source: source };
       try {
-        localStorage.setItem(cacheKey, JSON.stringify({
+        // Use writeCacheKey for storing the data
+        localStorage.setItem(writeCacheKey, JSON.stringify({
           timestamp: new Date().toISOString(),
-          data: cacheData
+          data: cacheDataToStore,
         }));
+        console.log(`[MediaCache] Data stored in cache with key: ${writeCacheKey}`);
       } catch (e) {
-          console.warn('[MediaCache] Error writing to client cache:', e);
-          // Consider clearing cache if quota exceeded: localStorage.clear();
+        console.warn(`[MediaCache] Error writing to client cache with key ${writeCacheKey}:`, e);
       }
-
-      return cacheData; // Return { items, source }
+      return cacheDataToStore;
     }
 
     console.log('[MediaCache] No valid response from API');

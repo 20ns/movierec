@@ -374,42 +374,25 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         return;
     }
 
-    // Check if we can simply show the next set of items
-    if (displayIndex === 0 && allRecommendations.length > MIN_RECOMMENDATION_COUNT) {
-      logMessage('Showing next set of recommendations from current batch');
-      safeSetState({
-        isThinking: true, // Briefly show thinking state for visual feedback
-        recommendations: allRecommendations.slice(MIN_RECOMMENDATION_COUNT, ITEMS_TO_FETCH),
-        displayIndex: 1,
-        refreshCounter: state.refreshCounter + 1, // Increment counter for animation key
-      });
-      // Reset thinking state after a short delay
-      setTimeout(() => safeSetState({ isThinking: false }), 300);
-    } else {
-      // Need to fetch a new batch from the backend
-      logMessage('Fetching new batch of recommendations from backend');
-      // Set loading states immediately before async call
-      safeSetState({
-          isLoading: true, // Use isLoading for the full fetch
-          isThinking: true,
-          isRefreshing: true, // Mark as a full refresh
-          refreshCounter: state.refreshCounter + 1,
-      });
-      // Reset display index for the new batch
-      // displayIndex will be reset inside fetchRecommendations on success
-      // safeSetState({ displayIndex: 0 }); // Not needed here
-
-      // Fetch new recommendations (will reset displayIndex on success)
-      await fetchRecommendations(true); // Pass true for forceRefresh
-    }
+    // Always fetch a new batch from the backend when "Get New Recommendations" is clicked.
+    logMessage('Forcing new batch fetch from backend due to handleRefresh call.');
+    // Set loading states immediately before async call
+    safeSetState({
+        isLoading: true, // Use isLoading for the full fetch
+        isThinking: true,
+        isRefreshing: true, // Mark as a full refresh
+        refreshCounter: state.refreshCounter + 1,
+    });
+    // displayIndex will be reset to 0 inside fetchRecommendations on successful fetch of new batch.
+    await fetchRecommendations(true); // Pass true for forceRefresh
   }, [
       userId,
       isAuthenticated,
-      displayIndex,
-      allRecommendations,
-      fetchRecommendations, // Ensure fetchRecommendations is stable or included
+      // displayIndex, // No longer needed as we always fetch
+      // allRecommendations, // No longer needed
+      fetchRecommendations,
       safeSetState,
-      state.refreshCounter // Include if needed, but refreshCounter update is within safeSetState
+      state.refreshCounter
   ]);
 
 
