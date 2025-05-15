@@ -17,7 +17,13 @@ const DEBUG_LOGGING = process.env.NODE_ENV === 'development';
 // --- Helper Functions ---
 const logMessage = (message, data) => {
   if (DEBUG_LOGGING) {
-    // console.log(`[PersonalRecs] ${message}`, data !== undefined ? data : ''); // Removed log
+    // Using JSON.parse(JSON.stringify(data)) to ensure objects are logged by value at the time of logging
+    // and to avoid issues with console logging mutable objects or Proxy objects directly.
+    try {
+      console.log(`[PersonalRecs] ${message}`, data !== undefined ? JSON.parse(JSON.stringify(data)) : '');
+    } catch (e) {
+      console.log(`[PersonalRecs] ${message} (raw data due to stringify error):`, data);
+    }
   }
 };
 
@@ -83,9 +89,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   // --- Lifecycle and Cleanup ---
   useEffect(() => {
     mountedRef.current = true;
+    const currentLoadingTimeout = loadingTimeoutRef.current; // Capture for cleanup
     return () => {
       mountedRef.current = false;
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      if (currentLoadingTimeout) clearTimeout(currentLoadingTimeout);
+      // Reset isFetchingRef on unmount to prevent stale state in fast refresh scenarios
+      // or if the component is unmounted while a fetch was in progress.
+      isFetchingRef.current = false;
     };
   }, []);
 
@@ -174,17 +184,18 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     async (forceRefresh = false) => {
       // console.log('[fetchRecommendations] Called.', { forceRefresh }); // <-- Remove log
       // console.log('[fetchRecommendations] Checking conditions:', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current }); // <-- Remove log
+      logMessage('fetchRecommendations: called', { forceRefresh, currentPrefsFromProps: propUserPreferences, isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
       // Prevent fetching if not authenticated, initial load not complete, or already fetching
       if (!isAuthenticated || !userId || !initialAppLoadComplete || isFetchingRef.current) {
         if (!isFetchingRef.current) { // Only reset loading state if not already fetching
              safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
         }
-        logMessage('Fetch skipped', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
+        logMessage('Fetch skipped (conditions not met or already fetching)', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
         // console.log('[fetchRecommendations] Exiting early due to conditions.'); // <-- Remove log
         return false;
       }
 
-      logMessage(`Starting fetchRecommendations (forceRefresh: ${forceRefresh})`);
+      logMessage(`Starting fetchRecommendations (forceRefresh: ${forceRefresh})`, { currentPrefsFromProps: propUserPreferences });
       isFetchingRef.current = true;
       dataLoadAttemptedRef.current = true; // Mark that a load was attempted
       retryCountRef.current = 0; // Reset retries for this fetch cycle
@@ -227,6 +238,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       try {
         const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
         const prefs = propUserPreferences || {};
+        logMessage('fetchRecommendations: using preferences for API call', { prefs });
 
         // Fetch favorite/watchlist IDs directly if needed by API (already passed in current setup)
         // For exclusion, we primarily use shownItemsHistory now, backend handles fav/watchlist exclusion
@@ -398,19 +410,48 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Initial Load ---
   useEffect(() => {
-    // Conditions to prevent initial load
-    if (!isAuthenticated || !userId || !initialAppLoadComplete || dataLoadAttemptedRef.current) {
-         logMessage('Skipping initial load', { isAuthenticated, userId, initialAppLoadComplete, dataLoadAttempted: dataLoadAttemptedRef.current });
-        return;
+    // Conditions to prevent initial load:
+    // - Not authenticated or no user ID
+    // - Initial app load (e.g., global configs, user session) is not yet complete
+    // - Data load has already been attempted for this component instance/user
+    // - Another fetch operation is already in progress (isFetchingRef.current)
+    if (
+      !isAuthenticated ||
+      !userId ||
+      !initialAppLoadComplete ||
+      dataLoadAttemptedRef.current ||
+      isFetchingRef.current // Don't start if already fetching
+    ) {
+      logMessage('Skipping initial load', {
+        isAuthenticated,
+        userId,
+        initialAppLoadComplete,
+        dataLoadAttempted: dataLoadAttemptedRef.current,
+        isFetching: isFetchingRef.current,
+      });
+      // If not fetching, but other conditions prevent load, ensure loading states are off.
+      // This handles cases where component might re-render and re-evaluate this effect.
+      if (!isFetchingRef.current) {
+        safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
+      }
+      return;
     }
 
-    logMessage('Attempting initial load');
-    // Set loading state immediately
-    safeSetState({ isLoading: true, isThinking: true });
-    fetchRecommendations(false); // Call fetch, don't force refresh
+    logMessage('Initial load useEffect: proceeding to call fetchRecommendations', { currentPrefs: propUserPreferences, dataLoadAttempted: dataLoadAttemptedRef.current, initialAppLoadComplete });
+    // fetchRecommendations will set its own loading states (isLoading, isThinking, isRefreshing)
+    // if it proceeds with the fetch. This useEffect's role is to trigger it.
+    fetchRecommendations(false); // Call fetch, don't force refresh (false)
 
-    // Cleanup for timeout is handled within fetchRecommendations now
-  }, [isAuthenticated, userId, initialAppLoadComplete, fetchRecommendations, safeSetState]); // Add fetchRecommendations and safeSetState
+    // Cleanup for timeout is handled within fetchRecommendations
+  }, [
+    isAuthenticated,
+    userId,
+    initialAppLoadComplete,
+    fetchRecommendations,
+    safeSetState,
+    // dataLoadAttemptedRef.current is not a dep as we only want to run once per "attempt" cycle
+    // isFetchingRef.current is also not a dep, it's a guard
+  ]);
 
 
   // --- Preference Changes ---
@@ -418,13 +459,32 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     // Only trigger refresh if questionnaire is complete and preferences actually change
     if (!initialAppLoadComplete || !propHasCompletedQuestionnaire) return;
 
-    const currentPrefs = JSON.stringify(propUserPreferences || null);
-    if (prevPreferencesRef.current !== null && prevPreferencesRef.current !== currentPrefs) {
-      logMessage('Preferences changed, triggering refresh');
-      // Don't set loading state here, handleRefresh will do it
-      handleRefresh();
+    const currentPrefs = JSON.stringify(propUserPreferences || {}); // Default to empty object for stringify
+    const previousPrefsString = prevPreferencesRef.current !== null ? prevPreferencesRef.current : JSON.stringify({});
+
+    if (previousPrefsString !== currentPrefs) {
+      logMessage('Preference change useEffect: detected change', {
+        prevStoredString: prevPreferencesRef.current, // Log what was stored
+        newPropPrefsObject: propUserPreferences,    // Log the new prop object
+        newPrefsString: currentPrefs,               // Log the new stringified version
+        initialAppLoadComplete,
+        propHasCompletedQuestionnaire
+      });
+      // Only trigger refresh if it's not the very first preference setting (prev was null)
+      // AND questionnaire is complete.
+      // The initial load useEffect should handle the first fetch.
+      if (prevPreferencesRef.current !== null && propHasCompletedQuestionnaire) {
+         logMessage('Preference change useEffect: Conditions met, calling handleRefresh.');
+        // Don't set loading state here, handleRefresh will do it
+        handleRefresh();
+      } else {
+        logMessage('Preference change useEffect: Conditions not met for handleRefresh or first pref setting.', {
+            wasPrevNull: prevPreferencesRef.current === null,
+            hasCompletedQuestionnaire: propHasCompletedQuestionnaire
+        });
+      }
     }
-    // Update ref *after* comparison
+    // Update ref *after* comparison, always store the stringified version of current props
     prevPreferencesRef.current = currentPrefs;
   }, [initialAppLoadComplete, propHasCompletedQuestionnaire, propUserPreferences, handleRefresh]); // Add handleRefresh dependency
 
