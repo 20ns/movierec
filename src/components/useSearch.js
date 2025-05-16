@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchWithRetry, fetchEnhancedRecommendations, axiosInstance } from './SearchBarUtils';
 
-// Log the API key at the start to verify it's being read
-// console.log("API Key from environment:", process.env.REACT_APP_TMDB_API_KEY); // Removed log
-
-// Updated genre maps for better tree-shaking
 const GENRE_MAP = {
   movie: new Map([
     [12, 'Adventure'], [14, 'Fantasy'], [16, 'Animation'],
@@ -39,10 +35,10 @@ export const useSearch = () => {
     genre: 'diverse',
     time: 'any',
     type: 'all',
-    releaseYear: 'any',     // New filter for specific years
-    popularity: 'any',      // New filter for popularity level
-    contentType: 'any',      // New filter for more specific content types
-    searchMode: 'smart' // New filter: 'smart' (default) or 'direct'
+    releaseYear: 'any',  
+    popularity: 'any',    
+    contentType: 'any',   
+    searchMode: 'smart' 
   });
 
   const abortControllerRef = useRef(new AbortController());
@@ -104,11 +100,8 @@ export const useSearch = () => {
       return subjects.filter(subject => lowerQuery.includes(subject));
     };
     
-    // Extract decade from patterns like "2020s", "80s", "90s"
     const decade = lowerQuery.match(/\b(20[0-9]0s|19[0-9]0s|[0-9]0s)\b/)?.[0];
-    // Extract specific year
     const year = lowerQuery.match(/\b(19|20)\d{2}\b/)?.[0];
-    // Extract decade from patterns like "2020s", "80s", "90s"
     let timeRange = null;
     if (decade) {
       const decadeMatch = decade.match(/\b(20|19)?([0-9])0s\b/);
@@ -799,11 +792,8 @@ const referenceDetails = detailsResponse.data;
 media_type: referenceMedia.media_type
 }));
 
-// console.log(`Similar results count from API: ${similarResults.length}`); // Removed log
 
-// If we don't have enough results, try recommendations
 if (similarResults.length < 5) {
-// console.log("Not enough similar results, trying recommendations"); // Removed log
 const recommendationsResponse = await fetchWithRetry(
 `https://api.themoviedb.org/3/${referenceMedia.media_type}/${referenceMedia.id}/recommendations`,
             { api_key: process.env.REACT_APP_TMDB_API_KEY },
@@ -824,12 +814,9 @@ const recommendationsResponse = await fetchWithRetry(
             }
 }
 
-// console.log(`Combined similar+recommendations count: ${similarResults.length}`); // Removed log
 }
 
-// For anime or shows with very few similar results, use broader genre matching
 if ((isAnime || similarResults.length < 3) && referenceDetails.genres) {
-// console.log("Using genre-based discovery for anime/low-result show"); // Removed log
 
 // Extract genres for discovery
           const genreIds = referenceDetails.genres.map(g => g.id).join(',');
@@ -886,12 +873,11 @@ if ((isAnime || similarResults.length < 3) && referenceDetails.genres) {
             }
 }
 
-// console.log(`Final results count after genre discovery: ${similarResults.length}`); // Removed log
+
 }
 
 // If we still have no similar content, use search by title
 if (similarResults.length === 0) {
-// console.log("No similar content found, falling back to title search"); // Removed log
 const fallbackSearch = await fetchWithRetry(
 'https://api.themoviedb.org/3/search/multi',
             {
@@ -911,12 +897,10 @@ const fallbackSearch = await fetchWithRetry(
               media_type: referenceMedia.media_type
 }));
 
-// console.log(`Last resort fallback results: ${similarResults.length}`); // Removed log
 }
 } catch (error) {
         console.warn('Error getting similar content, falling back to direct search:', error);
-        // If we can't get similar content, fall back to returning the reference media and
-        // potentially other search results
+
         similarResults = [
           { ...referenceMedia },
           ...referenceSearch.data.results
@@ -928,7 +912,6 @@ const fallbackSearch = await fetchWithRetry(
       
       // If we have a modifier, adjust the results
 if (queryIntent.modifierType && similarResults.length > 0) {
-// console.log("Applying modifier:", queryIntent.modifierType); // Removed log
 
 // Apply the modifier to filter/modify results
         switch(queryIntent.modifierType) {
@@ -993,7 +976,6 @@ if (queryIntent.modifierType && similarResults.length > 0) {
           .sort((a, b) => b.similarityScore - a.similarityScore)
 ];
 
-// console.log(`Returning ${formattedResults.length} results`); // Removed log
 setAllResults(formattedResults);
 
     } catch (error) {
@@ -1010,7 +992,6 @@ setAllResults(formattedResults);
   const handleDirectSearch = useCallback(async (query, signal) => {
 try {
 setIsLoading(true);
-// console.log("Performing direct title search for:", query); // Removed log
 
 const searchResponse = await fetchWithRetry(
         'https://api.themoviedb.org/3/search/multi',
@@ -1094,19 +1075,17 @@ const searchResponse = await fetchWithRetry(
   }, [fetchWithRetry, fetchPersonWorks]);
 
 const fetchCastRecommendations = useCallback(async (item) => {
-  // console.log("fetchCastRecommendations item:", item); // Log item at start // Removed log
   try {
   const credits = await fetchWithRetry(
         `https://api.themoviedb.org/3/${item.media_type}/${item.id}/credits`,
          { api_key: process.env.REACT_APP_TMDB_API_KEY }
 );
-// console.log('Credits response:', credits); // Log credits response // Removed log
 if (!credits?.data?.cast || !Array.isArray(credits.data.cast)) { // Enhanced error checks
 return [];
       }
       const topCast = credits.data.cast.slice(0, 3);
       return Promise.all(topCast.map(actor =>
-        actor.id ? fetchPersonWorks(actor.id) : [] // Check if actor.id exists
+        actor.id ? fetchPersonWorks(actor.id) : []
       ));
     } catch (error) {
       console.error('Cast recommendations error:', error);

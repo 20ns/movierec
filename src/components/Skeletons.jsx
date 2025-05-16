@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 export const MediaCardSkeleton = ({ isMini = false }) => (
   <motion.div
     className={`bg-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-md
-                ${isMini ? 'w-32 sm:w-36' : 'w-full'}`} // Adjusted mini width slightly
+                ${isMini ? 'w-32 sm:w-36' : 'w-full'}`} 
     initial={{ opacity: 0.6 }}
     animate={{
       opacity: [0.6, 0.8, 0.6],
@@ -38,7 +38,7 @@ export const RecommendationsSkeleton = () => (
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
       {[...Array(3)].map((_, i) => (
-         <MediaCardSkeleton key={i} /> // Use the MediaCardSkeleton
+         <MediaCardSkeleton key={i} />
       ))}
     </div>
   </div>

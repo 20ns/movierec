@@ -9,9 +9,9 @@ import {
   CheckCircleIcon,
   UserIcon,
   BoltIcon,
-  AcademicCapIcon, // Example for "Mood"
-  ArchiveBoxIcon,  // Example for "Genre"
-  SparklesIcon     // Example for "Curated"
+  AcademicCapIcon, 
+  ArchiveBoxIcon, 
+  SparklesIcon    
 } from '@heroicons/react/24/solid';
 
 // Placeholder data - Adjusted for DARK THEME
@@ -21,9 +21,9 @@ const howItWorksSteps = [
     icon: AdjustmentsHorizontalIcon,
     title: "Share Your Taste",
     description: "Tell us a bit about movies you enjoy.",
-    iconColor: "text-indigo-300", // Brighter for dark bg
-    bgColor: "bg-gray-700", // Darker section bg
-    gradient: "from-indigo-500 to-blue-500", // Icon container gradient
+    iconColor: "text-indigo-300",
+    bgColor: "bg-gray-700",
+    gradient: "from-indigo-500 to-blue-500", 
   },
   {
     id: 2,
@@ -193,26 +193,7 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
         </div>
       </motion.section>
 
-      {/* 5. Testimonials (Optional) - Placeholder for dark theme */}
-      {/* 
-      <motion.section variants={itemVariants} className="py-16 md:py-24">
-        <div className="text-center mb-12 md:mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            Loved by Movie Watchers
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {[1, 2].map(i => (
-            <motion.div key={i} variants={itemVariants} className="bg-gray-800/70 p-6 rounded-xl shadow-xl border border-gray-700/80">
-              <p className="text-gray-300 mb-4">"This made finding a movie so much easier! Highly recommend."</p>
-              <p className="text-indigo-400 font-semibold">- Casual User {i}</p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
-      */}
-
-      {/* 6. Final Call to Action */}
+      {/* 5. Final Call to Action */}
       <motion.section
         variants={itemVariants}
         className="py-20 md:py-28 text-center bg-gradient-to-br from-indigo-800 via-purple-800 to-pink-800 rounded-3xl my-16 shadow-2xl relative overflow-hidden"

@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // --- Utility Functions (No significant performance bottlenecks) ---
 export const hexToRgb = (hex) => {
-    hex = hex.substring(hex[0] === '#' ? 1 : 0); // More efficient substring and handles '#' optionally
+    hex = hex.substring(hex[0] === '#' ? 1 : 0); 
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
@@ -10,7 +10,7 @@ export const hexToRgb = (hex) => {
 };
 
 // --- Genre Color Mapping (Constant Lookup - Very Efficient) ---
-const genreColors = { // Define outside function for efficiency
+const genreColors = {
     28: '#7f1d1d',   12: '#14532d',   16: '#713f12',
     35: '#4c1d95',   80: '#1e293b',   18: '#1e3a8a',
     10751: '#134e4a', 14: '#581c87',  27: '#3c1513',
@@ -48,20 +48,18 @@ export const fetchWithRetry = async (url, params, retries = 2) => {
     if (cache.has(key)) {
         const cached = cache.get(key);
         if (cached.expiry > Date.now()) {
-          return { data: cached.data }; // Return a promise-like object, similar to Axios
+          return { data: cached.data };
         } else {
-          cache.delete(key); // Remove expired entry
+          cache.delete(key);
         }
     }
 
     try {
       const response = await axiosInstance.get(url, { params });
-      // Store in cache with a 5-minute expiry (adjust as needed)
       cache.set(key, { data: response.data, expiry: Date.now() + 300000 });
       return response;
     } catch (error) {
       if (retries > 0) {
-        // Simple exponential backoff: 100ms, 200ms, 400ms, etc.
         await new Promise(resolve => setTimeout(resolve, (1 << (2 - retries)) * 100));
         return fetchWithRetry(url, params, retries - 1);
       }
@@ -71,7 +69,7 @@ export const fetchWithRetry = async (url, params, retries = 2) => {
 
 
 // --- Recommendation Engine (Most Complex - Focus on Optimizations) ---
-const CREW_WEIGHTS = { // Define constants outside function
+const CREW_WEIGHTS = { 
     Director: 5,
     'Original Music Composer': 3,
     'Director of Photography': 2
@@ -96,8 +94,8 @@ export const extractTitleTerms = (title) => {
     // Remove common articles and prefixes that don't help with matching
     const cleanTitle = title.toLowerCase()
         .replace(/^(the|a|an) /, '')
-        .replace(/[^\w\s]/g, ' ') // Replace non-alphanumeric with spaces
-        .replace(/\s+/g, ' ')     // Normalize spaces
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
     
     // Split into meaningful terms (skip common words and short terms)
@@ -151,7 +149,7 @@ export const calculateMatchScore = (item, targetDetails) => {
         }
     }
 
-    // Genre Matching (Early exit if no genres match can be considered but might not be significant gain)
+
     const genreMatches = item.genre_ids.filter(id => targetDetails.genres.includes(id)).length;
     if (genreMatches > 0) { reasons.push(`Matched ${genreMatches} genres`); score += genreMatches * 5; }
 
@@ -188,11 +186,11 @@ export const calculateMatchScore = (item, targetDetails) => {
     const similarTastesCount = viewingHistory.filter(h => h.genre_ids?.some(g => item.genre_ids.includes(g))).length; // Renamed for clarity
     if (similarTastesCount > 0) { reasons.push(`Similar tastes boost`); score += similarTastesCount * 2; }
 
-    // Creative Team Score (Memoize CREW_WEIGHTS if it's very large and accessed frequently, but here it's small)
+
     const creativeTeamScore = item.credits?.crew?.reduce((crewScore, member) => crewScore + (CREW_WEIGHTS[member.job] || 0), 0) || 0;
     if (creativeTeamScore > 0) { reasons.push(`Creative team boost`); score += creativeTeamScore; }
 
-    // Seasonal Recommendation (Memoize getSeasonalBoostGenres() if called very frequently outside this function)
+
     if (item.genre_ids.some(g => getSeasonalBoostGenres().includes(g))) {
         reasons.push(`Seasonal recommendation`); score += 3;
     }

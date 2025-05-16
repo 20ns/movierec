@@ -31,19 +31,15 @@ const FavoritesModal = ({ currentUser, isAuthenticated, onClose, isOpen }) => {
   // Refs for UI elements
   const sortMenuRef = useRef(null);
   const favoritesScrollRef = useRef(null);
-  const modalContentRef = useRef(null); // Ref for the modal content itself
+  const modalContentRef = useRef(null);
 
   // Close sort menu when clicking outside
   useEffect(() => {
     function handleClickOutsideSort(event) {
-      // Close if sort menu is open and click is outside the sort menu button/dropdown area
       if (showSortMenu && sortMenuRef.current && !sortMenuRef.current.contains(event.target)) {
-         // Check if the click was also outside the button that opens the menu (optional, depends on exact trigger)
-         // For simplicity, just close if outside the dropdown content
         setShowSortMenu(false);
       }
     }
-    // Use 'click' to allow selecting an option
     document.addEventListener('click', handleClickOutsideSort);
     return () => document.removeEventListener('click', handleClickOutsideSort);
   }, [showSortMenu]);
@@ -212,18 +208,18 @@ const FavoritesModal = ({ currentUser, isAuthenticated, onClose, isOpen }) => {
                               id: item.mediaId,
                               media_type: item.mediaType,
                               title: item.title,
-                              name: item.title, // Ensure name is also passed
+                              name: item.title,
                               poster_path: item.posterPath,
                               backdrop_path: item.backdropPath,
-                              vote_average: item.voteAverage, // Already parsed in hook
+                              vote_average: item.voteAverage, 
                               popularity: item.popularity,
                               release_date: item.releaseDate,
-                              first_air_date: item.releaseDate, // Assuming same for TV/Movie
+                              first_air_date: item.releaseDate,
                               genre_ids: item.genreIds,
                             }}
                             currentUser={currentUser}
-                            isMiniCard={false} // Not mini in fullscreen mode
-                            initialIsFavorited={true} // Always true when rendered here
+                            isMiniCard={false} 
+                            initialIsFavorited={true} 
                             fromFavorites={true}
                             onFavoriteToggle={handleRemoveFavorite}
                           />

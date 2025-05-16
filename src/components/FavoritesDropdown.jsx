@@ -217,22 +217,22 @@ const FavoritesDropdown = ({ currentUser, isAuthenticated, onClose, isOpen }) =>
                   layout
                 >
                   <MediaCard
-                    result={{ // Map hook data structure to MediaCard props
+                    result={{
                       id: item.mediaId,
                       media_type: item.mediaType,
                       title: item.title,
-                      name: item.title, // Ensure name is also passed if MediaCard uses it
+                      name: item.title,
                       poster_path: item.posterPath,
                       backdrop_path: item.backdropPath,
-                      vote_average: item.voteAverage, // Already parsed in hook
+                      vote_average: item.voteAverage,
                       popularity: item.popularity,
                       release_date: item.releaseDate,
-                      first_air_date: item.releaseDate, // Assuming same for TV/Movie in favorites context
+                      first_air_date: item.releaseDate,
                       genre_ids: item.genreIds,
                     }}
                     currentUser={currentUser}
                     isMiniCard={true}
-                    initialIsFavorited={true} // Always true when rendered here
+                    initialIsFavorited={true}
                     fromFavorites={true}
                     // Pass the simplified remove handler
                     onFavoriteToggle={handleRemoveFavorite}

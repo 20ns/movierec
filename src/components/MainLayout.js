@@ -8,10 +8,10 @@ import Bg from './Bg';
 import Header from './Header';
 import OnboardingQuestionnaire from './OnboardingQuestionnaire';
 import AccountDetailsModal from './AccountDetailsModal';
-import FavoritesDropdown from './FavoritesDropdown'; // Import the new dropdown component
-import WatchlistSection from './WatchlistSection'; // Keep Watchlist for now
+import FavoritesDropdown from './FavoritesDropdown'; 
+import WatchlistSection from './WatchlistSection'; 
 import SearchBar from './SearchBar';
-import AppRoutes from '../AppRoutes'; // Corrected path
+import AppRoutes from '../AppRoutes'; 
 
 // Helper for logging (optional, but can be useful for debugging layout renders)
 const logLayout = (message, data) => {
@@ -23,16 +23,16 @@ function MainLayout({
   isAuthenticated,
   currentUser,
   handleSignout,
-  handleCustomSigninSuccess, // Needed for AppRoutes -> AuthPage
+  handleCustomSigninSuccess, 
 
   // Preference related
   userPreferences,
   hasCompletedQuestionnaire,
   hasBasicPreferencesOnly,
   showPreferencesPromptBanner,
-  setShowPreferencesPromptBanner, // To close banner
-  handleQuestionnaireComplete, // Needed for AppRoutes -> Onboarding & Modal
-  handlePreferencesUpdated, // Needed for AppRoutes -> Onboarding & Modal
+  setShowPreferencesPromptBanner,
+  handleQuestionnaireComplete,
+  handlePreferencesUpdated, 
 
   // Modal related
   modalState,
@@ -41,17 +41,17 @@ function MainLayout({
   toggleModal,
 
   // Navigation related
-  handleSignInClick, // Needed for AppRoutes -> LandingPage
-  handleSignUpClick, // Needed for AppRoutes -> LandingPage
+  handleSignInClick,
+  handleSignUpClick,
 
   // Content rendering
-  renderMainContent, // Expect renderMainContent (passed from AppContent)
-  initialAppLoadComplete, // Needed for AppRoutes
+  renderMainContent,
+  initialAppLoadComplete,
 
-  // Refs (if needed, e.g., for triggering actions in children)
-  personalizedRecommendationsRef, // Pass down if Onboarding modal needs it
+  // Refs
+  personalizedRecommendationsRef,
 }) {
-  const location = useLocation(); // Get location for conditional rendering (e.g., Header)
+  const location = useLocation();
 
   logLayout('Rendering MainLayout', { isAuthenticated, path: location.pathname });
 

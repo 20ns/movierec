@@ -28,27 +28,21 @@ const ScrollContainer = ({
     if (!containerRef.current || !showShadows) return;
     
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    // Show top shadow when scrolled down
     setShowTopShadow(scrollTop > 10);
-    // Show bottom shadow when not at the bottom
     setShowBottomShadow(scrollTop + clientHeight < scrollHeight - 10);
     
-    // Call the onScroll prop if provided
     if (onScroll) onScroll(containerRef.current);
   };
   
-  // Set initial shadows
   useEffect(() => {
     if (!containerRef.current || !showShadows) return;
     const { scrollHeight, clientHeight } = containerRef.current;
     
-    // Show bottom shadow if content is scrollable
     if (scrollHeight > clientHeight) {
       setShowBottomShadow(true);
     }
   }, [children, showShadows]);
   
-  // Get the correct shadow classes
   const shadowClasses = showShadows ? [
     showTopShadow ? 'shadow-inner-top' : '',
     showBottomShadow ? 'shadow-inner-bottom' : ''

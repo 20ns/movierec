@@ -1,12 +1,9 @@
-// src/components/ReviewsSection.jsx
 import React, { useState, useEffect } from 'react';
 
-// Placeholder function - replace with actual API call
+
 const fetchReviews = async (mediaId) => {
   console.log(`Fetching reviews for media ID: ${mediaId}`);
-  // Simulate API call
   await new Promise(resolve => setTimeout(resolve, 500));
-  // Return dummy data
   return [
     { id: 1, author: 'User123', rating: 4, comment: 'Great movie, really enjoyed the plot!', createdAt: new Date().toISOString() },
     { id: 2, author: 'Cinephile_Max', rating: 5, comment: 'A masterpiece! Must watch.', createdAt: new Date().toISOString() },
@@ -52,7 +49,7 @@ const ReviewsSection = ({ mediaId, currentUser, onReviewsLoaded }) => { // Add o
     };
 
     loadReviews();
-  // Add onReviewsLoaded to dependency array (ensure it's stable via useCallback if passed from parent)
+
   }, [mediaId, onReviewsLoaded]);
 
   const handleRatingChange = (rating) => {

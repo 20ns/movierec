@@ -36,7 +36,6 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
       // Combined check - need to meet multiple criteria
       if ((hasEnoughElements && hasEnoughText) || (hasScrollableContent && hasEnoughText) || (hasEnoughElements && hasMedia && textContent.length > 800)) {
         if (!contentReady) {
-          // console.log('AdSense: Sufficient content detected - starting visibility timer'); // Removed log
           setContentReady(true);
           
           // Start timer to ensure content has been visible for a few seconds
@@ -47,7 +46,6 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
         }
       } else {
         if (contentReady) {
-          // console.warn('AdSense: Content became insufficient after being detected'); // Removed log
           setContentReady(false);
           setVisibleForDuration(false);
           if (timeoutRef.current) {
@@ -82,11 +80,9 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
       !adLoaded
     ) {
       try {
-        // console.log("AdSense: Content ready and visible, pushing ad"); // Removed log
         (window.adsbygoogle = window.adsbygoogle || []).push({});
         setAdLoaded(true);
       } catch (error) {
-        // console.error('AdSense: Error pushing ad:', error); // Removed log
         setHasError(true);
       }
     }
@@ -94,17 +90,14 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
 
   // Don't render anything until content is ready AND visible for minimum duration
   if (!contentReady || !visibleForDuration) {
-    // console.log("AdSense: Not rendering ad container - waiting for content stability"); // Removed log
     return null;
   }
 
   if (hasError) {
-    // console.log("AdSense: Not rendering due to error"); // Removed log
     return null;
   }
 
   // Only render the ad once content is verified and has been visible for the minimum time
-  // console.log("AdSense: Rendering ad container"); // Removed log
   return (
     <div className={`ad-container mx-auto ${adLoaded ? '' : 'min-h-0'} ${className}`} style={style}>
       {contentBefore && <div className="ad-content-before mb-4">{contentBefore}</div>}

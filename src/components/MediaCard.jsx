@@ -6,7 +6,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
-// import { useToast } from './ToastManager'; // Removed useToast import
+
 
 // Extract the year from a date string or return empty string if invalid
 const extractYear = (dateString) => {
@@ -40,7 +40,6 @@ const extractToken = (user) => {
   if (typeof user === 'string' && user.split('.').length === 3) {
     return user;
   }
-  // console.log("Could not extract token from user object:", user); // Removed log
   return null;
 };
 

@@ -1,9 +1,9 @@
 // src/components/MediaDetailModal.jsx
-import React, { useState, useCallback, useEffect } from 'react'; // Consolidated React imports
-import { motion, AnimatePresence } from 'framer-motion'; // Keep one framer-motion import
-import { XMarkIcon, StarIcon, CalendarIcon } from '@heroicons/react/24/solid'; // Keep one heroicons import
-import ReviewsSection from './ReviewsSection'; // Import the reviews component
-import AdUnit from './AdUnit'; // Import AdUnit
+import React, { useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion'; 
+import { XMarkIcon, StarIcon, CalendarIcon } from '@heroicons/react/24/solid';
+import ReviewsSection from './ReviewsSection'; 
+import AdUnit from './AdUnit';
 
 // Helper to extract year
 const extractYear = (dateString) => {
@@ -13,7 +13,7 @@ const extractYear = (dateString) => {
 };
 
 const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
-  const [hasReviews, setHasReviews] = useState(false); // State to track if reviews exist
+  const [hasReviews, setHasReviews] = useState(false); 
 
   // Callback for ReviewsSection
   const handleReviewsLoaded = useCallback((reviewsExist) => {
@@ -21,14 +21,14 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
   }, []);
 
   // Reset hasReviews when the modal item changes or closes
-  useEffect(() => { // Use useEffect directly
+  useEffect(() => {
     if (!isOpen || !item) {
       setHasReviews(false);
     }
   }, [isOpen, item]);
 
 
-  if (!item) return null; // Don't render if no item is selected
+  if (!item) return null; 
 
   const {
     id, title, name, poster_path, backdrop_path, overview, vote_average,
@@ -40,7 +40,7 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
   const rating = vote_average ? Math.round(vote_average * 10) / 10 : 'N/A';
   const posterUrl = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/placeholder.png';
   const backdropUrl = backdrop_path ? `https://image.tmdb.org/t/p/w1280${backdrop_path}` : null;
-  const mediaId = id?.toString(); // Ensure mediaId is a string for ReviewsSection
+  const mediaId = id?.toString();
 
   return (
     <AnimatePresence>
@@ -59,7 +59,7 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30, duration: 0.3 }}
             className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden relative border border-gray-700"
-            onMouseDown={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+            onMouseDown={(e) => e.stopPropagation()} 
           >
             {/* Header with Backdrop */}
             <div className="relative h-48 sm:h-64 flex-shrink-0">
@@ -112,14 +112,12 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
                 </div>
               )}
 
-              {/* Ad Unit - Placed within the modal content */}
-              {/* Condition: Only show if modal is open AND reviews exist */}
+
               {isOpen && hasReviews && (
                 <div className="my-6"> {/* Add some margin */}
                   <AdUnit
                     className="w-full rounded-lg overflow-hidden"
-                    // Optional: Add specific ad slot ID if needed for modal context
-                    // adSlot="YOUR_MODAL_AD_SLOT_ID"
+
                   />
                 </div>
               )}
@@ -132,12 +130,6 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
                   onReviewsLoaded={handleReviewsLoaded} // Pass the callback
                 />
               )}
-
-              {/* Placeholder for other details (Cast, Crew, etc.) */}
-              {/* <div className="mt-6">
-                <h3 className="text-lg font-semibold text-white mb-2">More Details</h3>
-                <p className="text-gray-400 text-sm">Cast, crew, and other information could go here.</p>
-              </div> */}
             </div>
           </motion.div>
         </motion.div>

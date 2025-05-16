@@ -24,14 +24,12 @@ import { formatQueryIntentSummary } from './SearchBarUtils';
 
 const LazyMediaCard = lazy(() => import('./MediaCard'));
 
-export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClick prop
-  // State management
+export const SearchBar = ({ currentUser, onMediaClick }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const searchContainerRef = useRef(null);
   
-  // Search functionality from custom hook
   const {
     query,
     setQuery,
@@ -55,10 +53,8 @@ export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClic
     setResultsToShow
   } = useSearch();
 
-  // Add ref to track if initial URL search is being performed
   const isInitialUrlSearch = useRef(false);
 
-  // Effect to lock/unlock body scroll when search results are expanded/collapsed
   useEffect(() => {
     const body = document.body;
     // Lock body scroll when search is expanded and has results or is loading
@@ -66,26 +62,23 @@ export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClic
       const originalOverflow = body.style.overflow;
       body.style.overflow = 'hidden';
       
-      // Cleanup function to restore original overflow style
       return () => {
-        body.style.overflow = originalOverflow || ''; // Restore or set to default
+        body.style.overflow = originalOverflow || ''; 
       };
     } else {
       // Ensure body scroll is enabled if conditions are not met
       body.style.overflow = ''; 
     }
-  }, [isExpanded, hasSearched, isLoading]); // Re-run effect when these states change
+  }, [isExpanded, hasSearched, isLoading]); 
   
   // Function to handle search with URL update
   const handleSearchWithUrlUpdate = useCallback((e) => {
     e?.preventDefault();
     
-    // Auto-expand search interface when search is performed
     setIsExpanded(true);
     
     handleSearch(e);
     
-    // Update URL after search but not for initial URL-triggered search
     if (!isInitialUrlSearch.current) {
       setTimeout(() => {
         const searchParams = new URLSearchParams();
@@ -114,18 +107,17 @@ export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClic
     if (onMediaClick) {
       onMediaClick(item);
     }
-    // No longer redirecting
-    // setTimeout(() => { window.location.href = '/'; }, 100);
-  }, [handleResultClick, onMediaClick]); // Add onMediaClick dependency
+
+  }, [handleResultClick, onMediaClick]); 
   
-  // Read URL parameters on component mount
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlQuery = urlParams.get('q');
     
     if (urlQuery) {
       isInitialUrlSearch.current = true;
-      setIsExpanded(true); // Expand search interface if URL has query
+      setIsExpanded(true);
       
       // Set query from URL
       setQuery(urlQuery);
@@ -306,11 +298,6 @@ export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClic
 
   // Add debugging effect
   useEffect(() => {
-    // console.log("Current search results:", filteredResults); // Removed log
-    // console.log("Search error state:", error); // Removed log
-    
-    // Debug MediaCard import - Ensure MediaCard is correctly imported if LazyMediaCard fails
-    // console.log("LazyMediaCard component available:", typeof LazyMediaCard); 
   }, [filteredResults, error]);
 
   // Create error boundary component
@@ -386,13 +373,12 @@ export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClic
           </motion.div>
         );
       }
-        // Main results rendering logic
+
       return (
-        // Apply custom scrollbar styles here if needed, or rely on global styles
+
         <div 
           className="search-results-container w-full max-h-[calc(100vh-250px)] sm:max-h-[calc(100vh-280px)] overflow-y-auto overscroll-contain custom-scrollbar" 
-          // Adjusted max-h calculation to leave space for search bar, padding, etc.
-          // Added custom-scrollbar class if specific styling is desired for this container
+
         >
           {/* Exact Match Section */}
           {exactMatches.length > 0 && hasSearched && (
@@ -551,7 +537,6 @@ export const SearchBar = ({ currentUser, onMediaClick }) => { // Add onMediaClic
                     // Pass the modal click handler to MediaResults
                     handleResultClick={handleResultClickWithModal}
                     currentUser={currentUser}
-                    // Pass the main onMediaClick handler as well, if MediaResults needs it directly
                     onMediaClick={onMediaClick}
                   />
                   <PaginationControls
