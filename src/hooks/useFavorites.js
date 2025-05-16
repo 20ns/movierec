@@ -56,9 +56,9 @@ function useFavorites(currentUser, isAuthenticated) {
   const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [sortOption, setSortOption] = useState('dateAdded'); // Default sort
+  const [sortOption, setSortOption] = useState('dateAdded'); 
   const lastFetchTimeRef = useRef(0);
-  const isFetchingRef = useRef(false); // Prevent concurrent fetches
+  const isFetchingRef = useRef(false);
 
   const userId = getUserId(currentUser);
 
