@@ -4,7 +4,7 @@
 
 ![Sci-Fi Collage](backdrop_tmdbid:438631)
 
-The last ten years have been a golden age for science fiction cinema, delivering mind-bending concepts, stunning visuals, and compelling stories. From dystopian futures to interstellar adventures, filmmakers have pushed the boundaries of imagination. Here's our pick for the top 5 sci-fi movies released between 2015 and 2024 that you absolutely shouldn't miss.
+The decade spanning 2015 to 2024 wasn't just another period for science fiction; it was an era where the genre seemed to introspectively dissect humanity's rapidly evolving relationship with technology, time, and the very definition of consciousness. While spectacle remained, the most resonant sci-fi films pushed beyond dazzling visuals, daring to ask uncomfortable questions and present complex, often morally ambiguous, narratives. This list celebrates five such films – chosen not just for their critical acclaim or box office success, but for their significant contribution to the genre's intellectual depth and their lasting power to provoke thought long after the credits roll. These are the sci-fi experiences from the last decade that we believe offer more than just an escape; they offer a reflection.
 
 ## 1. Arrival (2016)
 

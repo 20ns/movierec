@@ -32,7 +32,8 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
 
   const {
     id, title, name, poster_path, backdrop_path, overview, vote_average,
-    release_date, first_air_date, media_type
+    release_date, first_air_date, media_type,
+    curator_notes /* New field for curated content */
   } = item;
 
   const displayTitle = title || name || 'Untitled';
@@ -109,6 +110,14 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold text-white mb-2">Overview</h3>
                   <p className="text-gray-300 text-sm leading-relaxed">{overview}</p>
+                </div>
+              )}
+
+              {/* Curator's Notes/Why We Recommend It Section */}
+              {curator_notes && (
+                <div className="my-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700/70">
+                  <h3 className="text-lg font-semibold text-indigo-300 mb-2">Curator's Notes</h3>
+                  <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{curator_notes}</p>
                 </div>
               )}
 

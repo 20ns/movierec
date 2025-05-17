@@ -9,9 +9,12 @@ import {
   CheckCircleIcon,
   UserIcon,
   BoltIcon,
-  AcademicCapIcon, 
-  ArchiveBoxIcon, 
-  SparklesIcon    
+  AcademicCapIcon,
+  ArchiveBoxIcon,
+  SparklesIcon,
+  FilmIcon, // Added for Featured Recommendations
+  NewspaperIcon, // Added for Latest Blog
+  HeartIcon // Added for Our Mission
 } from '@heroicons/react/24/solid';
 
 // Placeholder data - Adjusted for DARK THEME
@@ -56,6 +59,20 @@ const benefits = [
   { icon: UserIcon, text: "Truly Personalized Picks", iconColor: "text-purple-300" },
   { icon: BoltIcon, text: "Easy 30-Second Setup", iconColor: "text-rose-300" },
   { icon: ShieldCheckIcon, text: "No Credit Card Required", iconColor: "text-teal-300" },
+];
+
+// Placeholder data for Featured Recommendations
+const featuredMovies = [
+  { id: 1, title: "Inception", year: "2010", genre: "Sci-Fi, Thriller", posterUrl: "https://image.tmdb.org/t/p/w342/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", description: "A mind-bending thriller about dream invasion that will leave you questioning reality." },
+  { id: 2, title: "Parasite", year: "2019", genre: "Thriller, Drama", posterUrl: "https://image.tmdb.org/t/p/w342/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", description: "A darkly comic masterpiece about class struggle and deception." },
+  { id: 3, title: "Spirited Away", year: "2001", genre: "Animation, Fantasy", posterUrl: "https://image.tmdb.org/t/p/w342/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", description: "A breathtaking animated journey into a mysterious world of spirits." },
+];
+
+// Placeholder data for Latest Blog Posts
+const latestBlogPosts = [
+  { id: 1, title: "Top 5 Sci-Fi Movies of the Last Decade", date: "May 6, 2025", snippet: "The 2015-2024 period saw sci-fi cinema grapple with humanity's evolving relationship with technology, time, and consciousness...", link: "/blog/top-5-sci-fi-movies-last-decade", image: "https://image.tmdb.org/t/p/w780/xJHokMbljvjADYdit5fK5VQsXEG.jpg" },
+  { id: 2, title: "Hidden Gem TV Shows You Might Have Missed", date: "April 28, 2025", snippet: "Beyond the mainstream hits, a treasure trove of unique and compelling TV series awaits discovery...", link: "/blog/hidden-gem-tv-shows", image: "https://image.tmdb.org/t/p/w780/56v2KjBlU4XaOv9rVYEQypROD7P.jpg" },
+  { id: 3, title: "The New Wave of International Horror", date: "April 15, 2025", snippet: "Exploring how filmmakers from around the globe are redefining the horror genre with fresh perspectives...", link: "/blog/new-wave-international-horror", image: "https://image.tmdb.org/t/p/w780/uS9A5M23524Y2x2K2kE9b8QAPv1.jpg" },
 ];
 
 const LandingPage = ({ onSignInClick, onSignUpClick }) => {
@@ -139,6 +156,15 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
         </div>
       </motion.section>
 
+      {/* New: Our Mission Section */}
+      <motion.section variants={itemVariants} className="py-16 md:py-24 text-center">
+        <HeartIcon className="w-12 h-12 text-rose-400 mx-auto mb-4" />
+        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Mission</h2>
+        <p className="text-gray-300 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
+          At Movierec, we believe finding your next favorite film shouldn't feel like a chore. Our mission is to cut through the noise of endless streaming libraries and algorithm fatigue. We combine smart technology with a genuine passion for cinema to deliver personalized, insightful recommendations that connect you with movies and shows you'll truly love, making every movie night an adventure.
+        </p>
+      </motion.section>
+
       {/* 3. Visual Exploration Section */}
       <motion.section variants={itemVariants} className="py-16 md:py-24">
         <div className="text-center mb-12 md:mb-16">
@@ -165,6 +191,76 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
                 <button onClick={onSignUpClick} className="text-indigo-400 hover:text-indigo-300 font-medium text-sm flex items-center group-hover:text-indigo-200">
                   Explore Now <ArrowRightIcon className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
                 </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* New: Featured Recommendations Section */}
+      <motion.section variants={itemVariants} className="py-16 md:py-24">
+        <div className="text-center mb-12 md:mb-16">
+          <FilmIcon className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+            Featured Recommendations
+          </h2>
+          <p className="text-gray-300 max-w-xl mx-auto text-base md:text-lg">
+            A glimpse into the diverse world of movies we help you discover.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+          {featuredMovies.map((movie) => (
+            <motion.div
+              key={movie.id}
+              variants={itemVariants}
+              className="bg-gray-800 p-5 rounded-xl shadow-xl border border-gray-700/80 group hover:border-purple-500/70 transition-all duration-300 flex flex-col"
+            >
+              <img src={movie.posterUrl} alt={movie.title} className="w-full h-72 object-cover rounded-lg mb-4 shadow-md" />
+              <h3 className="text-xl font-semibold text-white mb-2">{movie.title} ({movie.year})</h3>
+              <p className="text-purple-300 text-sm mb-2">{movie.genre}</p>
+              <p className="text-gray-400 text-sm mb-4 flex-grow">{movie.description}</p>
+              <button
+                onClick={onSignUpClick} // Or a link to the movie details if available for guests
+                className="mt-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm shadow-md hover:scale-105 transform transition-transform duration-300"
+              >
+                Learn More
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* New: Latest From The Blog Section */}
+      <motion.section variants={itemVariants} className="py-16 md:py-24">
+        <div className="text-center mb-12 md:mb-16">
+          <NewspaperIcon className="w-10 h-10 text-teal-400 mx-auto mb-3" />
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+            Latest From Our Blog
+          </h2>
+          <p className="text-gray-300 max-w-xl mx-auto text-base md:text-lg">
+            Deeper dives, curated lists, and cinematic explorations.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+          {latestBlogPosts.map((post) => (
+            <motion.div
+              key={post.id}
+              variants={itemVariants}
+              className="bg-gray-800 rounded-xl shadow-xl border border-gray-700/80 group hover:border-teal-500/70 transition-all duration-300 flex flex-col overflow-hidden"
+            >
+              {post.image && <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />}
+              <div className="p-5 flex flex-col flex-grow">
+                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-teal-300 transition-colors">{post.title}</h3>
+                <p className="text-gray-500 text-xs mb-2">{post.date}</p>
+                <p className="text-gray-400 text-sm mb-4 flex-grow">{post.snippet}</p>
+                <a
+                  href={post.link} // Assuming you have routing for blog posts
+                  target="_blank" // Open in new tab if it's an external link or for now
+                  rel="noopener noreferrer"
+                  className="mt-auto text-teal-400 hover:text-teal-300 font-medium text-sm flex items-center group-hover:text-teal-200"
+                >
+                  Read More <ArrowRightIcon className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
+                </a>
               </div>
             </motion.div>
           ))}
