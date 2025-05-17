@@ -61,14 +61,12 @@ const benefits = [
   { icon: ShieldCheckIcon, text: "No Credit Card Required", iconColor: "text-teal-300" },
 ];
 
-// Placeholder data for Featured Recommendations
 const featuredMovies = [
   { id: 1, title: "Inception", year: "2010", genre: "Sci-Fi, Thriller", posterUrl: "https://image.tmdb.org/t/p/w342/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", description: "A mind-bending thriller about dream invasion that will leave you questioning reality." },
   { id: 2, title: "Parasite", year: "2019", genre: "Thriller, Drama", posterUrl: "https://image.tmdb.org/t/p/w342/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", description: "A darkly comic masterpiece about class struggle and deception." },
   { id: 3, title: "Spirited Away", year: "2001", genre: "Animation, Fantasy", posterUrl: "https://image.tmdb.org/t/p/w342/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", description: "A breathtaking animated journey into a mysterious world of spirits." },
 ];
 
-// Placeholder data for Latest Blog Posts
 const latestBlogPosts = [
   { id: 1, title: "Top 5 Sci-Fi Movies of the Last Decade", date: "May 6, 2025", snippet: "The 2015-2024 period saw sci-fi cinema grapple with humanity's evolving relationship with technology, time, and consciousness...", link: "/blog/top-5-sci-fi-movies-last-decade", image: "https://image.tmdb.org/t/p/w780/xJHokMbljvjADYdit5fK5VQsXEG.jpg" },
   { id: 2, title: "Hidden Gem TV Shows You Might Have Missed", date: "April 28, 2025", snippet: "Beyond the mainstream hits, a treasure trove of unique and compelling TV series awaits discovery...", link: "/blog/hidden-gem-tv-shows", image: "https://image.tmdb.org/t/p/w780/56v2KjBlU4XaOv9rVYEQypROD7P.jpg" },
