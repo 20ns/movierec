@@ -12,9 +12,9 @@ import {
   AcademicCapIcon,
   ArchiveBoxIcon,
   SparklesIcon,
-  FilmIcon, // Added for Featured Recommendations
-  NewspaperIcon, // Added for Latest Blog
-  HeartIcon // Added for Our Mission
+  FilmIcon,
+  NewspaperIcon,
+  HeartIcon
 } from '@heroicons/react/24/solid';
 
 // Placeholder data - Adjusted for DARK THEME
