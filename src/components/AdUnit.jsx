@@ -25,7 +25,7 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
       // Look for app-specific content containers and meaningful text
       const mainContent = document.querySelector('#root') || document.body;
       const textContent = mainContent ? mainContent.innerText : '';
-      const hasEnoughText = textContent.trim().length > 1000; // Increased from 500
+      const hasEnoughText = textContent.trim().length > 1200; // Increased from 1000
       
       // Check if scrollable content exists (indicates substantial content)
       const hasScrollableContent = document.body.scrollHeight > window.innerHeight * 1.5;
@@ -34,7 +34,8 @@ const AdUnit = ({ className = "", style = {}, contentBefore = "", contentAfter =
       const hasMedia = mediaItems.length > 0;
       
       // Combined check - need to meet multiple criteria
-      if ((hasEnoughElements && hasEnoughText) || (hasScrollableContent && hasEnoughText) || (hasEnoughElements && hasMedia && textContent.length > 800)) {
+      // Stricter combined check: ensure scrollable content also has some paragraph structure
+      if ((hasEnoughElements && hasEnoughText) || (hasScrollableContent && hasEnoughText && paragraphs.length >= 2)) {
         if (!contentReady) {
           setContentReady(true);
           
