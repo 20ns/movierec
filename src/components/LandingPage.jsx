@@ -93,7 +93,7 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
       animate="visible"
       exit={{ opacity: 0 }}
       variants={containerVariants}
-      className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-white" // Removed explicit dark background
+      className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-white"
     >
       {/* 1. Hero Section */}
       <motion.section
