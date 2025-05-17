@@ -62,15 +62,15 @@ const benefits = [
 ];
 
 const featuredMovies = [
-  { id: 1, title: "Inception", year: "2010", genre: "Sci-Fi, Thriller", posterUrl: "https://image.tmdb.org/t/p/w342/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", description: "A mind-bending thriller about dream invasion that will leave you questioning reality." },
-  { id: 2, title: "Parasite", year: "2019", genre: "Thriller, Drama", posterUrl: "https://image.tmdb.org/t/p/w342/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", description: "A darkly comic masterpiece about class struggle and deception." },
-  { id: 3, title: "Spirited Away", year: "2001", genre: "Animation, Fantasy", posterUrl: "https://image.tmdb.org/t/p/w342/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", description: "A breathtaking animated journey into a mysterious world of spirits." },
+  { id: 1, title: "Inception", year: "2010", genre: "Sci-Fi, Thriller", posterUrl: "https://www.themoviedb.org/t/p/w342/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", description: "A mind-bending thriller about dream invasion that will leave you questioning reality." },
+  { id: 2, title: "Parasite", year: "2019", genre: "Thriller, Drama", posterUrl: "https://www.themoviedb.org/t/p/w342/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", description: "A darkly comic masterpiece about class struggle and deception." },
+  { id: 3, title: "Spirited Away", year: "2001", genre: "Animation, Fantasy", posterUrl: "https://www.themoviedb.org/t/p/w342/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", description: "A breathtaking animated journey into a mysterious world of spirits." },
 ];
 
 const latestBlogPosts = [
-  { id: 1, title: "Top 5 Sci-Fi Movies of the Last Decade", date: "May 6, 2025", snippet: "The 2015-2024 period saw sci-fi cinema grapple with humanity's evolving relationship with technology, time, and consciousness...", link: "/blog/top-5-sci-fi-movies-last-decade", image: "https://image.tmdb.org/t/p/w780/xJHokMbljvjADYdit5fK5VQsXEG.jpg" },
-  { id: 2, title: "Hidden Gem TV Shows You Might Have Missed", date: "April 28, 2025", snippet: "Beyond the mainstream hits, a treasure trove of unique and compelling TV series awaits discovery...", link: "/blog/hidden-gem-tv-shows", image: "https://image.tmdb.org/t/p/w780/56v2KjBlU4XaOv9rVYEQypROD7P.jpg" },
-  { id: 3, title: "The New Wave of International Horror", date: "April 15, 2025", snippet: "Exploring how filmmakers from around the globe are redefining the horror genre with fresh perspectives...", link: "/blog/new-wave-international-horror", image: "https://image.tmdb.org/t/p/w780/uS9A5M23524Y2x2K2kE9b8QAPv1.jpg" },
+  { id: 1, title: "Top 5 Sci-Fi Movies of the Last Decade", date: "May 6, 2025", snippet: "The 2015-2024 period saw sci-fi cinema grapple with humanity's evolving relationship with technology, time, and consciousness...", link: "/blog/top-5-sci-fi-movies-last-decade", image: "https://www.themoviedb.org/t/p/w780/xJHokMbljvjADYdit5fK5VQsXEG.jpg" },
+  { id: 2, title: "Hidden Gem TV Shows You Might Have Missed", date: "April 28, 2025", snippet: "Beyond the mainstream hits, a treasure trove of unique and compelling TV series awaits discovery...", link: "/blog/hidden-gem-tv-shows", image: "https://www.themoviedb.org/t/p/w780/56v2KjBlU4XaOv9rVYEQypROD7P.jpg" },
+  { id: 3, title: "Animated Movies Aren't Just For Kids", date: "May 10, 2025", snippet: "Discover a world of sophisticated storytelling and stunning visuals in animation geared towards adult audiences...", link: "/blog/animated-movies-for-adults", image: "https://www.themoviedb.org/t/p/w780/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg", imagePosition: "object-bottom" },
 ];
 
 const LandingPage = ({ onSignInClick, onSignUpClick }) => {
@@ -246,7 +246,7 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
               variants={itemVariants}
               className="bg-gray-800 rounded-xl shadow-xl border border-gray-700/80 group hover:border-teal-500/70 transition-all duration-300 flex flex-col overflow-hidden"
             >
-              {post.image && <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />}
+              {post.image && <img src={post.image} alt={post.title} className={`w-full h-48 object-cover ${post.imagePosition || 'object-center'}`} />}
               <div className="p-5 flex flex-col flex-grow">
                 <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-teal-300 transition-colors">{post.title}</h3>
                 <p className="text-gray-500 text-xs mb-2">{post.date}</p>
