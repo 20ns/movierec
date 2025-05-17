@@ -58,7 +58,6 @@ const benefits = [
   { icon: ClockIcon, text: "Save Time Searching", iconColor: "text-indigo-300" },
   { icon: UserIcon, text: "Truly Personalized Picks", iconColor: "text-purple-300" },
   { icon: BoltIcon, text: "Easy 30-Second Setup", iconColor: "text-rose-300" },
-  { icon: ShieldCheckIcon, text: "No Credit Card Required", iconColor: "text-teal-300" },
 ];
 
 const featuredMovies = [
@@ -275,7 +274,7 @@ const LandingPage = ({ onSignInClick, onSignUpClick }) => {
             We focus on making movie discovery easy and enjoyable.
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 px-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 px-6">
           {benefits.map((benefit, index) => (
             <motion.div key={index} variants={itemVariants} className="text-center">
               <div className={`w-14 h-14 bg-gradient-to-br ${howItWorksSteps[index % 3].gradient} rounded-full flex items-center justify-center mx-auto mb-4 shadow-md`}>
