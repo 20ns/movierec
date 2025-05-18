@@ -5,6 +5,56 @@ import { CalendarIcon, ArrowRightIcon, NewspaperIcon, PhotoIcon } from '@heroico
 
 const initialPosts = [
   {
+    slug: 'mind-bending-movies-question-reality',
+    title: 'Mind-Benders: 7 Movies That Will Make You Question Reality Long After the Credits Roll',
+    date: 'May 19, 2025',
+    excerpt: "Some films don't just entertain; they burrow into your mind, twisting your perception of reality and leaving you pondering their mysteries for days.",
+    readTime: '5 min read',
+    category: 'Psychological Thrillers',
+    imageUrl: 'backdrop_tmdbid:157336', // Inception backdrop
+    altText: 'Abstract Reality Concept'
+  },
+  {
+    slug: 'scene-stealing-character-actors',
+    title: 'Beyond the Lead: 7 Scene-Stealing Character Actors Who Deserve the Spotlight',
+    date: 'May 19, 2025',
+    excerpt: 'Highlighting versatile performers who consistently deliver unforgettable performances and elevate every film they are in, even without top billing.',
+    readTime: '6 min read',
+    category: 'Actor Spotlight',
+    imageUrl: 'backdrop_tmdbid:13', // Forrest Gump backdrop as a placeholder for a collage
+    altText: 'Collage of Character Actors'
+  },
+  {
+    slug: 'practical-effects-comeback',
+    title: 'The Tactile Touch: How Practical Effects Are Making a Stunning Comeback in Modern Blockbusters',
+    date: 'May 19, 2025',
+    excerpt: 'Exploring the resurgence of practical effects in an era of CGI, and how they create a unique sense of realism and immersion in film.',
+    readTime: '6 min read',
+    category: 'Film Techniques',
+    imageUrl: 'backdrop_tmdbid:76341', // Mad Max: Fury Road
+    altText: 'Mad Max Fury Road Practical Effects'
+  },
+  {
+    slug: 'cinematic-comfort-feel-good-flicks',
+    title: 'Cinematic Comfort: 10 Feel-Good Flicks for a Perfect Cozy Night In',
+    date: 'May 19, 2025',
+    excerpt: 'A list of heartwarming, funny, and uplifting movies perfect for unwinding and lifting your spirits on a cozy night in.',
+    readTime: '7 min read',
+    category: 'Feel-Good',
+    imageUrl: 'backdrop_tmdbid:10195', // Paddington backdrop
+    altText: 'Person cozy on couch watching movie'
+  },
+  {
+    slug: 'tv-masterpieces-cancelled-too-soon',
+    title: 'Gone Too Soon: 6 TV Masterpieces That Were Cancelled Before Their Time',
+    date: 'May 19, 2025',
+    excerpt: 'A look at brilliant TV series that were cut short, leaving storylines unresolved and fans heartbroken, exploring what made them special.',
+    readTime: '6 min read',
+    category: 'Retrospectives',
+    imageUrl: 'backdrop_tmdbtvid:1396', // Breaking Bad backdrop as a placeholder
+    altText: 'Cancelled TV Show Concept'
+  },
+  {
     slug: 'indie-sci-fi-gems-2020s',
     title: 'Beyond the Blockbusters: Indie Sci-Fi Gems You Missed in the 2020s',
     date: 'May 11, 2025',
