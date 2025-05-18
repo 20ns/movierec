@@ -281,6 +281,18 @@ function MainLayout({
           hasBasicPreferencesOnly={hasBasicPreferencesOnly}
         />
       </main>
+      <footer className="relative z-10 mt-auto py-6 text-center text-gray-500 text-xs">
+        <p>&copy; {new Date().getFullYear()} MovieRec. All rights reserved.</p>
+        <p>
+          <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
+            Terms and Conditions
+          </a>
+          <span className="mx-2">|</span>
+          <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
+            Privacy Policy
+          </a>
+        </p>
+      </footer>
     </>
   );
 }
