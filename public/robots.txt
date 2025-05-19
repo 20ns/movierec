@@ -1,0 +1,6 @@
+# Allow all user agents to crawl all content
+User-agent: *
+Allow: /
+
+# Sitemap location (to be updated once sitemap.xml is generated)
+Sitemap: https://www.movierec.net/sitemap.xml

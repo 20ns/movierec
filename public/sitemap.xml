@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://www.movierec.net/blog</loc>
+    <lastmod>2025-05-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/</loc>
+    <lastmod>2025-05-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/animated-movies-for-adults</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/anthology-series-comeback</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/cinematic-comfort-feel-good-flicks</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/hidden-gem-tv-shows</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/highest-grossing-movies</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/indie-sci-fi-gems-2020s</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/mind-bending-movies-question-reality</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/new-wave-international-horror</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/practical-effects-comeback</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/scene-stealing-character-actors</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/top-5-sci-fi-movies-last-decade</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/tv-anti-heroes-we-love</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/tv-masterpieces-cancelled-too-soon</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.movierec.net/blog/video-game-adaptations-got-good</loc>
+    <lastmod>2025-05-19</lastmod> {/* Or get actual lastmod from file system */}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>

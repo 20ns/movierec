@@ -229,7 +229,8 @@ function BlogPostPage() {
   const firstH2Rendered = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [metadata, setMetadata] = useState({ title: '', date: '', readTime: '' });
+  const [metadata, setMetadata] = useState({ title: '', date: '', readTime: '', description: '', isoDate: '' });
+  const [articleSchema, setArticleSchema] = useState(null);
 
   useEffect(() => {
     firstH2Rendered.current = false;
@@ -250,13 +251,49 @@ function BlogPostPage() {
       .then(text => {
         setMarkdown(text);
         const titleMatch = text.match(/^#\s+(.*)/m);
-        const dateMatch = text.match(/^Date:\s*(.*)/m);
+        const dateMatch = text.match(/^(\*\*Date:\*\*|Date:)\s*(.*)/m);
+        const descriptionMatch = text.match(/^(\*\*Description:\*\*|Description:)\s*(.*)/m);
+
+        let extractedDescription = '';
+        if (descriptionMatch && descriptionMatch[2]) {
+          extractedDescription = descriptionMatch[2].trim();
+        } else {
+          const contentStart = text.substring(text.indexOf('## ') > 0 ? text.indexOf('## ') : (titleMatch ? titleMatch[0].length : 0));
+          const plainText = contentStart.replace(/!\[.*?\]\(.*?\)/g, '')
+                                     .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+                                     .replace(/<\/?[^>]+(>|$)/g, "")
+                                     .replace(/#+\s*/g, '')
+                                     .replace(/[*_`~]/g, '')
+                                     .replace(/\s\s+/g, ' ')
+                                     .trim();
+          extractedDescription = plainText.substring(0, 155);
+          if (plainText.length > 155) extractedDescription += '...';
+        }
+
+        const finalDescription = extractedDescription || `Read more about ${titleMatch ? titleMatch[1] : 'this topic'}.`;
+        const displayDate = dateMatch ? dateMatch[2] : 'Recent';
+        
+        let isoDate = '';
+        if (dateMatch && dateMatch[2] && dateMatch[2] !== 'Recent') {
+          try {
+            const parsedDate = new Date(dateMatch[2]);
+            if (!isNaN(parsedDate)) {
+              isoDate = parsedDate.toISOString().split('T')[0];
+            }
+          } catch (e) {
+            console.warn("Could not parse date for ISO conversion:", dateMatch[2]);
+          }
+        }
+
         const words = text.split(/\s+/).length;
         const minutes = Math.max(1, Math.ceil(words / 200));
+        
         setMetadata({
           title: titleMatch ? titleMatch[1] : 'Blog Post',
-          date: dateMatch ? dateMatch[1] : 'Recent',
-          readTime: `${minutes} min read`
+          date: displayDate,
+          readTime: `${minutes} min read`,
+          description: finalDescription,
+          isoDate: isoDate
         });
         setLoading(false);
       })
@@ -265,6 +302,41 @@ function BlogPostPage() {
         setLoading(false);
       });
   }, [slug]);
+
+  useEffect(() => {
+    if (metadata.title && metadata.description && metadata.isoDate) {
+      const schema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": metadata.title,
+        "description": metadata.description,
+        "datePublished": metadata.isoDate,
+        "dateModified": metadata.isoDate, // Can be same as datePublished or updated if content changes
+        "author": {
+          "@type": "Organization",
+          "name": "MovieRec"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "MovieRec",
+          "logo": { // It's good practice to include a logo for the publisher
+            "@type": "ImageObject",
+            "url": "https://www.movierec.net/logo.png" // Assuming your logo is at this URL
+          }
+        },
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": window.location.href
+        }
+        // TODO: Consider adding "image" property with URL(s) of representative image(s)
+        // "image": [
+        //   "URL_TO_IMAGE_1.jpg",
+        //   "URL_TO_IMAGE_2.jpg"
+        // ]
+      };
+      setArticleSchema(schema);
+    }
+  }, [metadata]);
 
   if (loading) {
     return (
@@ -300,9 +372,18 @@ function BlogPostPage() {
     <>
       <SafeHelmet>
         <title>{metadata.title}</title>
-        <meta name="description" content={`${metadata.title} – ${metadata.readTime}`} />
+        <meta name="description" content={metadata.description} />
         <meta property="og:title" content={metadata.title} />
-        <meta property="og:description" content={`Read time: ${metadata.readTime}`} />
+        <meta property="og:description" content={metadata.description} />
+        <meta property="og:type" content="article" />
+        {metadata.isoDate && <meta property="article:published_time" content={metadata.isoDate} />}
+        {/* <meta property="og:url" content={window.location.href} /> */}
+        {/* An og:image would be beneficial here */}
+        {articleSchema && (
+          <script type="application/ld+json">
+            {JSON.stringify(articleSchema)}
+          </script>
+        )}
       </SafeHelmet>
       <motion.div
         className="min-h-screen py-12 px-4"
