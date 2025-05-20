@@ -229,7 +229,7 @@ function BlogPostPage() {
   const firstH2Rendered = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [metadata, setMetadata] = useState({ title: '', date: '', readTime: '', description: '', isoDate: '' });
+  const [metadata, setMetadata] = useState({ title: '', date: '', readTime: '', description: '', isoDate: '', firstImageMarkdownUrl: null });
   const [articleSchema, setArticleSchema] = useState(null);
 
   useEffect(() => {
@@ -250,6 +250,24 @@ function BlogPostPage() {
       })
       .then(text => {
         setMarkdown(text);
+
+        // Extract first image URL from markdown
+        let firstImageSrc = null;
+        const imageRegex = /!\[.*?\]\(([^)]+)\)/;
+        const imageMatch = text.match(imageRegex);
+        if (imageMatch && imageMatch[1]) {
+          let rawSrc = imageMatch[1];
+          if (rawSrc.startsWith('/')) { // Handle relative paths
+            firstImageSrc = `${window.location.origin}${rawSrc}`;
+          } else if (rawSrc.startsWith('http:') || rawSrc.startsWith('https:') || rawSrc.startsWith('data:')) { // Absolute or data URLs
+            firstImageSrc = rawSrc;
+          } else {
+            // For custom schemes like 'tmdbid:', use as is.
+            // Ideally, these should be resolved to full URLs for schema.org.
+            firstImageSrc = rawSrc;
+          }
+        }
+
         const titleMatch = text.match(/^#\s+(.*)/m);
         const dateMatch = text.match(/^(\*\*Date:\*\*|Date:)\s*(.*)/m);
         const descriptionMatch = text.match(/^(\*\*Description:\*\*|Description:)\s*(.*)/m);
@@ -293,7 +311,8 @@ function BlogPostPage() {
           date: displayDate,
           readTime: `${minutes} min read`,
           description: finalDescription,
-          isoDate: isoDate
+          isoDate: isoDate,
+          firstImageMarkdownUrl: firstImageSrc
         });
         setLoading(false);
       })
@@ -327,12 +346,14 @@ function BlogPostPage() {
         "mainEntityOfPage": {
           "@type": "WebPage",
           "@id": window.location.href
-        }
-        // TODO: Consider adding "image" property with URL(s) of representative image(s)
-        // "image": [
-        //   "URL_TO_IMAGE_1.jpg",
-        //   "URL_TO_IMAGE_2.jpg"
-        // ]
+        },
+        // Add image property if available
+        ...(metadata.firstImageMarkdownUrl && {
+          "image": [metadata.firstImageMarkdownUrl]
+          // TODO: The URL in schema.image should ideally be a fully resolved, absolute image URL.
+          // If firstImageMarkdownUrl is a custom scheme (e.g., 'tmdbid:'), it's not standard for schema.org.
+          // Consider resolving this to a full image URL before adding to the schema for best SEO results.
+        })
       };
       setArticleSchema(schema);
     }
