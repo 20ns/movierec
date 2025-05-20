@@ -4,13 +4,13 @@
 
 ![Collage of Character Actors](backdrop_tmdbid:13) 
 
-In the constellation of Hollywood stars, lead actors often shine the brightest. But cinema is also rich with incredible character actors, versatile performers who may not always have their names above the title, yet consistently deliver unforgettable performances that elevate every film they're in. These are the actors who steal scenes, create memorable side characters, and often become fan favorites. Let's shine a spotlight on seven such talents.
+In the constellation of Hollywood stars, lead actors often shine the brightest. But cinema is also rich with incredible character actors, versatile performers who may not always have their names above the title, yet consistently deliver unforgettable performances that elevate every film they're in. These are the actors who steal scenes, create memorable side characters, and often become fan favorites. Let's shine a spotlight on seven such talents. You might also be interested in how [practical effects are making a comeback](/blog/practical-effects-comeback), often championed by the detailed work of such actors and crews.
 
 ## 1. Walton Goggins
 
 ![Walton Goggins as Boyd Crowder](tmdbid:19885) 
 
-With his distinctive look and intense screen presence, Walton Goggins has a knack for playing charismatic villains and complex anti-heroes. From his iconic role as Boyd Crowder in *Justified* to scene-stealing turns in films like *Django Unchained* and *The Hateful Eight*, Goggins brings a captivating energy to every performance. He's currently gaining even wider recognition for his role in the *Fallout* series.
+With his distinctive look and intense screen presence, Walton Goggins has a knack for playing charismatic villains and complex anti-heroes. From his iconic role as Boyd Crowder in *Justified* to scene-stealing turns in films like *Django Unchained* and *The Hateful Eight*, Goggins brings a captivating energy to every performance. He's currently gaining even wider recognition for his role in the *Fallout* series, a great example of how [video game adaptations have gotten good](/blog/video-game-adaptations-got-good).
 
 ## 2. Margo Martindale
 
@@ -28,7 +28,7 @@ From the mumbling Milton Waddams in *Office Space* to the menacing Fuches in *Ba
 
 ![Shea Whigham in Boardwalk Empire](tmdbtvid:32720)
 
-Shea Whigham is one of those actors whose face you instantly recognize, even if you can't always place the name. He consistently delivers powerful supporting performances in critically acclaimed films and series like *Boardwalk Empire*, *True Detective*, *Joker*, and *Mission: Impossible - Dead Reckoning Part One*. He brings a grounded intensity to his roles, often playing lawmen or conflicted figures.
+Shea Whigham is one of those actors whose face you instantly recognize, even if you can't always place the name. He consistently delivers powerful supporting performances in critically acclaimed films and series like *Boardwalk Empire*, *True Detective*, *Joker* (a film that certainly could [make you question reality](/blog/mind-bending-movies-question-reality)), and *Mission: Impossible - Dead Reckoning Part One*. He brings a grounded intensity to his roles, often playing lawmen or conflicted figures.
 
 ## 5. Hong Chau
 
@@ -46,7 +46,7 @@ Scoot McNairy is a master of understated performances, often playing intelligent
 
 ![CCH Pounder in The Shield](tmdbtvid:2672)
 
-With her authoritative voice and commanding presence, CCH Pounder has made a career of playing strong, intelligent women, often in positions of power. She's known for her roles as Captain Claudette Wyms in *The Shield*, Dr. Loretta Wade in *NCIS: New Orleans*, and Mo'at in the *Avatar* films. She brings gravitas and integrity to every role.
+With her authoritative voice and commanding presence, CCH Pounder has made a career of playing strong, intelligent women, often in positions of power. She's known for her roles as Captain Claudette Wyms in *The Shield*, Dr. Loretta Wade in *NCIS: New Orleans*, and Mo'at in the *Avatar* films, which are also notable for their stunning visuals, a topic we touch on when discussing how [practical effects are making a comeback](/blog/practical-effects-comeback) in modern cinema. She brings gravitas and integrity to every role.
 
 ---
 

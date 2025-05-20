@@ -10,7 +10,7 @@ Sometimes, all you need is a movie that wraps you in a warm hug. Feel-good films
 
 ![Paddington Bear](tmdbid:109424) 
 
-Yes, it's a two-for-one! Both *Paddington* films are utter delights. Overflowing with charm, wit, and kindness, these movies about a polite bear from Darkest Peru finding a home in London are genuinely heartwarming for all ages. They are beautifully crafted, funny, and have a core message of acceptance and looking for the good in others.
+Yes, it's a two-for-one! Both *Paddington* films are utter delights. Overflowing with charm, wit, and kindness, these movies about a polite bear from Darkest Peru finding a home in London are genuinely heartwarming for all ages. They are beautifully crafted, funny, and have a core message of acceptance and looking for the good in others, much like many beloved [animated movies that resonate with adults](/blog/animated-movies-for-adults).
 
 ## 2. Amélie (Le Fabuleux Destin d'Amélie Poulain) (2001)
 
@@ -28,7 +28,7 @@ Jack Black is at his energetic best as Dewey Finn, a wannabe rock star who poses
 
 ![The Princess Bride Poster](tmdbid:2493)
 
-A beloved classic for a reason, *The Princess Bride* is a perfect blend of adventure, romance, comedy, and fantasy. With its endlessly quotable dialogue, memorable characters, and swashbuckling fun, it's a film that never fails to entertain and charm. "As you wish."
+A beloved classic for a reason, *The Princess Bride* is a perfect blend of adventure, romance, comedy, and fantasy. With its endlessly quotable dialogue, memorable characters (many of whom could be considered [scene-stealing character actors](/blog/scene-stealing-character-actors)), and swashbuckling fun, it's a film that never fails to entertain and charm. "As you wish."
 
 ## 5. Chef (2014)
 
@@ -40,7 +40,7 @@ Jon Favreau directs and stars in this delightful film about a renowned chef who 
 
 ![Little Miss Sunshine Van](tmdbid:773)
 
-This quirky indie comedy follows the dysfunctional Hoover family on a road trip to get their young daughter into the finals of a beauty pageant. Despite its melancholic undertones, *Little Miss Sunshine* is a hilarious and ultimately heartwarming film about family, acceptance, and embracing imperfections.
+This quirky indie comedy follows the dysfunctional Hoover family on a road trip to get their young daughter into the finals of a beauty pageant. Despite its melancholic undertones, *Little Miss Sunshine* is a hilarious and ultimately heartwarming film about family, acceptance, and embracing imperfections, brought to life by a cast of fantastic [scene-stealing character actors](/blog/scene-stealing-character-actors).
 
 ## 7. Singin' in the Rain (1952)
 
@@ -52,7 +52,7 @@ A true Hollywood classic, *Singin' in the Rain* is a joyous and exuberant musica
 
 ![Totoro and girls](tmdbid:16859)
 
-From Studio Ghibli, *My Neighbor Totoro* is a gentle and enchanting animated film about two young sisters who move to the countryside and befriend magical forest spirits. It's a beautiful, nostalgic, and wonderfully imaginative film that captures the wonder of childhood.
+From Studio Ghibli, *My Neighbor Totoro* is a gentle and enchanting animated film about two young sisters who move to the countryside and befriend magical forest spirits. It's a beautiful, nostalgic, and wonderfully imaginative film that captures the wonder of childhood, and a prime example of [animated movies for adults](/blog/animated-movies-for-adults) that offer deep emotional resonance.
 
 ## 9. Ferris Bueller's Day Off (1986)
 
