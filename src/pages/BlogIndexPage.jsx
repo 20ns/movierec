@@ -5,6 +5,56 @@ import { CalendarIcon, ArrowRightIcon, NewspaperIcon, PhotoIcon } from '@heroico
 
 const initialPosts = [
   {
+    slug: 'sound-design-horror-thrillers',
+    title: 'Soundscapes of Suspense: The Unsung Hero of Horror and Thrillers - Modern Sound Design',
+    date: 'May 21, 2025',
+    excerpt: "Delving into how innovative sound design creates terror and tension in modern cinema.",
+    readTime: '6 min read',
+    category: 'Film Craft',
+    imageUrl: 'backdrop_tmdbid:49018', // A Quiet Place
+    altText: 'Abstract image representing sound waves and suspense'
+  },
+  {
+    slug: 'second-screen-tv-viewing',
+    title: "The 'Second Screen' Phenomenon: How Companion Apps and Live Chats Are Changing TV Viewing",
+    date: 'May 21, 2025',
+    excerpt: 'How using smartphones and tablets while watching TV is transforming audience engagement.',
+    readTime: '5 min read',
+    category: 'Media Habits',
+    imageUrl: 'backdrop_tmdbtvid:85271', // The Witcher
+    altText: 'Person watching TV while engaging with a phone/tablet'
+  },
+  {
+    slug: 'social-media-shapes-hollywood',
+    title: 'From TikTok Trends to Tentpole Releases: How Social Media is Actively Shaping Hollywood',
+    date: 'May 21, 2025',
+    excerpt: 'Investigating the profound influence of social media on the film and TV industry.',
+    readTime: '6 min read',
+    category: 'Industry Trends',
+    imageUrl: 'backdrop_tmdbid:615656', // Meg 2
+    altText: 'Social media icons merging with Hollywood imagery'
+  },
+  {
+    slug: 'art-of-tv-title-sequences',
+    title: 'More Than Just an Intro: The Art and Evolution of the Modern TV Title Sequence',
+    date: 'May 21, 2025',
+    excerpt: 'Explore how TV opening credits have evolved into powerful, artistic statements.',
+    readTime: '7 min read',
+    category: 'TV Analysis',
+    imageUrl: 'backdrop_tmdbtvid:1399', // Game of Thrones
+    altText: 'Abstract image representing TV title sequence art'
+  },
+  {
+    slug: 'niche-streaming-gems',
+    title: 'Beyond the Algorithm: Unearthing Must-See Films on Niche Streaming Services',
+    date: 'May 21, 2025',
+    excerpt: 'Discover curated cinematic treasures on specialized streaming platforms beyond the mainstream.',
+    readTime: '6 min read',
+    category: 'Streaming',
+    imageUrl: 'backdrop_tmdbid:94952', // Everything Everywhere All at Once
+    altText: 'Collage of niche streaming service logos'
+  },
+  {
     slug: 'mind-bending-movies-question-reality',
     title: 'Mind-Benders: 7 Movies That Will Make You Question Reality Long After the Credits Roll',
     date: 'May 19, 2025',
