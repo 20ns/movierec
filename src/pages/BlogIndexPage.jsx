@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarIcon, ArrowRightIcon, NewspaperIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { StarIcon } from '@heroicons/react/24/solid';
 
 const initialPosts = [
   {
@@ -12,7 +13,8 @@ const initialPosts = [
     readTime: '6 min read',
     category: 'Film Craft',
     imageUrl: 'backdrop_tmdbid:49018', // A Quiet Place
-    altText: 'Abstract image representing sound waves and suspense'
+    altText: 'Abstract image representing sound waves and suspense',
+    isHero: true,
   },
   {
     slug: 'second-screen-tv-viewing',
@@ -22,7 +24,8 @@ const initialPosts = [
     readTime: '5 min read',
     category: 'Media Habits',
     imageUrl: 'backdrop_tmdbtvid:85271', // The Witcher
-    altText: 'Person watching TV while engaging with a phone/tablet'
+    altText: 'Person watching TV while engaging with a phone/tablet',
+    isFeatured: true,
   },
   {
     slug: 'social-media-shapes-hollywood',
@@ -32,7 +35,8 @@ const initialPosts = [
     readTime: '6 min read',
     category: 'Industry Trends',
     imageUrl: 'backdrop_tmdbid:615656', // Meg 2
-    altText: 'Social media icons merging with Hollywood imagery'
+    altText: 'Social media icons merging with Hollywood imagery',
+    isFeatured: true,
   },
   {
     slug: 'art-of-tv-title-sequences',
@@ -56,7 +60,7 @@ const initialPosts = [
   },
   {
     slug: 'mind-bending-movies-question-reality',
-    title: 'Mind-Benders: 7 Movies That Will Make You Question Reality Long After the Credits Roll',
+    title: 'Mind-Bendeeeers: 7 Movies That Will Make You Question Reality Long After the Credits Roll',
     date: 'May 19, 2025',
     excerpt: "Some films don't just entertain; they burrow into your mind, twisting your perception of reality and leaving you pondering their mysteries for days.",
     readTime: '5 min read',
@@ -112,7 +116,8 @@ const initialPosts = [
     readTime: '6 min read',
     category: 'Indie Films',
     imageUrl: 'backdrop_tmdbid:893030',
-    altText: 'Something in the Dirt Still'
+    altText: 'Something in the Dirt Still',
+    isFeatured: true,
   },
   {
     slug: 'new-wave-international-horror',
@@ -202,7 +207,8 @@ const initialPosts = [
     readTime: '8 min read',
     category: 'Future Tech',
     imageUrl: 'backdrop_tmdbid:406759', // Blade Runner 2049
-    altText: 'AI and digital technology in entertainment'
+    altText: 'AI and digital technology in entertainment',
+    isFeatured: true,
   },
   {
     slug: 'celebrity-scandals-box-office-impact',
@@ -346,11 +352,12 @@ const BlogCardImage = ({ src, alt, className, imageClassName }) => {
 
 
 function BlogIndexPage() {
-  const [posts, setPosts] = useState(initialPosts);
+  const [posts, setPosts] = useState(initialPosts.map(p => ({...p, isHero: p.isHero || false, isFeatured: p.isFeatured || false })));
   const [hoveredCard, setHoveredCard] = useState(null);
 
-  const featuredPost = posts.length > 0 ? posts[0] : null;
-  const remainingPosts = posts.length > 0 ? posts.slice(1) : [];
+  const heroPost = posts.find(p => p.isHero) || (posts.length > 0 ? posts[0] : null);
+  const regularPosts = heroPost ? posts.filter(p => p.slug !== heroPost.slug) : posts;
+
 
   // Animation variants
   const containerVariants = {
@@ -373,65 +380,68 @@ function BlogIndexPage() {
       transition={{ duration: 0.5 }}
     >
       <div className="max-w-7xl mx-auto">
-        {/* Featured Post */}
-        {featuredPost && (
+        {/* Hero Post Section */}
+        {heroPost && (
           <motion.section
-            className="mb-16 md:mb-24"
+            className="mb-20 md:mb-28" // Increased bottom margin
             variants={itemVariants}
             initial="hidden"
             animate="visible"
-            transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
+            transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
           >
-            <h2 className="text-3xl font-semibold text-gray-100 mb-8 text-center sm:text-left">
-              Featured Article
-            </h2>
+            <div className="flex items-center mb-10">
+              <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500 mr-4">
+                Spotlight
+              </h2>
+              <StarIcon className="w-8 h-8 md:w-10 md:h-10 text-yellow-400" />
+            </div>
             <Link
-              to={`/blog/${featuredPost.slug}`}
+              to={`/blog/${heroPost.slug}`}
               className="block group"
-              onMouseEnter={() => setHoveredCard(featuredPost.slug)}
+              onMouseEnter={() => setHoveredCard(heroPost.slug)}
               onMouseLeave={() => setHoveredCard(null)}
             >
               <motion.div
-                className="bg-gray-800/80 rounded-xl border border-gray-700/70 shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 ease-out overflow-hidden flex flex-col lg:flex-row group"
-                whileHover={{ y: -5, borderColor: 'rgba(129, 140, 248, 0.6)' }} // indigo-400 equivalent
+                className="bg-gradient-to-br from-gray-800 via-gray-800/90 to-indigo-900/60 rounded-xl border border-indigo-700/50 shadow-2xl shadow-indigo-500/20 hover:shadow-indigo-400/40 transition-all duration-300 ease-out overflow-hidden flex flex-col lg:flex-row group"
+                whileHover={{ y: -8, borderColor: 'rgba(129, 140, 248, 0.8)' }} // indigo-400 equivalent
               >
                 <BlogCardImage
-                  src={featuredPost.imageUrl}
-                  alt={featuredPost.altText || featuredPost.title}
-                  className="lg:w-3/5 h-64 md:h-72 lg:h-auto relative rounded-t-xl lg:rounded-l-xl lg:rounded-tr-none overflow-hidden"
+                  src={heroPost.imageUrl}
+                  alt={heroPost.altText || heroPost.title}
+                  className="lg:w-3/5 h-72 md:h-80 lg:h-auto relative rounded-t-xl lg:rounded-l-xl lg:rounded-tr-none overflow-hidden"
                   imageClassName="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
                 >
-                  {!featuredPost.imageUrl && <PhotoIcon className="w-24 h-24 text-gray-500" />}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 lg:bg-gradient-to-r lg:from-black/50 lg:via-transparent"></div>
+                  {!heroPost.imageUrl && <PhotoIcon className="w-24 h-24 text-gray-500" />}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 lg:bg-gradient-to-r lg:from-black/60 lg:via-transparent"></div>
                 </BlogCardImage>
                 
-                <div className="p-6 md:p-8 flex flex-col justify-center lg:w-2/5 relative z-10">
+                <div className="p-6 md:p-10 flex flex-col justify-center lg:w-2/5 relative z-10">
                   <div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3">
-                      <span className="px-3 py-1 text-xs font-medium bg-indigo-600 text-indigo-100 rounded-full shadow-sm">
-                        {featuredPost.category}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
+                      <span className="px-3.5 py-1.5 text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-md">
+                        {heroPost.category}
                       </span>
-                      <div className="flex items-center text-gray-400 text-sm">
-                        <CalendarIcon className="h-4 w-4 mr-1.5 text-indigo-400" />
-                        <span>{featuredPost.date}</span>
+                      <div className="flex items-center text-gray-300 text-sm">
+                        <CalendarIcon className="h-5 w-5 mr-2 text-indigo-400" />
+                        <span>{heroPost.date}</span>
                       </div>
                     </div>
-                    <h3 className="text-2xl lg:text-3xl font-bold text-white mb-3 line-clamp-3 group-hover:text-indigo-300 transition-colors duration-300">
-                      {featuredPost.title}
+                    <h3 className="text-3xl lg:text-4xl font-bold text-white mb-4 line-clamp-3 group-hover:text-indigo-300 transition-colors duration-300">
+                      {heroPost.title}
                     </h3>
-                    <p className="text-gray-300 mb-5 line-clamp-3 leading-relaxed">
-                      {featuredPost.excerpt}
+                    <p className="text-gray-300 mb-6 line-clamp-4 leading-relaxed text-base">
+                      {heroPost.excerpt}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-700/50">
-                    <span className="text-sm text-gray-400">{featuredPost.readTime}</span>
-                    <div className="inline-flex items-center text-md text-indigo-400 group-hover:text-indigo-300 font-semibold transition-colors duration-300">
-                      Read More
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-700/60">
+                    <span className="text-sm text-gray-400">{heroPost.readTime}</span>
+                    <div className="inline-flex items-center text-lg text-indigo-300 group-hover:text-indigo-200 font-semibold transition-colors duration-300">
+                      Read Article
                       <motion.span
-                        animate={{ x: hoveredCard === featuredPost.slug ? 5 : 0 }}
+                        animate={{ x: hoveredCard === heroPost.slug ? 6 : 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                       >
-                        <ArrowRightIcon className="h-4.5 w-4.5 ml-2" />
+                        <ArrowRightIcon className="h-5 w-5 ml-2.5" />
                       </motion.span>
                     </div>
                   </div>
@@ -441,44 +451,49 @@ function BlogIndexPage() {
           </motion.section>
         )}
   
-        {/* Remaining Blog Posts Grid */}
-        {remainingPosts.length > 0 && (
+        {/* Regular Blog Posts Grid */}
+        {regularPosts.length > 0 && (
           <section>
-            <h2 className="text-3xl font-semibold text-gray-100 mb-8 text-center sm:text-left">
-              {featuredPost ? 'More Articles' : 'All Articles'}
+            <h2 className="text-3xl md:text-4xl font-semibold text-gray-100 mb-10 text-center sm:text-left">
+              {heroPost ? 'More Articles' : 'All Articles'}
             </h2>
             <motion.div
-              className="grid gap-8 md:grid-cols-2 lg:grid-cols-3"
+              className="grid gap-10 md:grid-cols-2 lg:grid-cols-3" // Increased gap
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              transition={{ delay: featuredPost ? 0.3 : 0.2, staggerChildren: 0.07 }}
+              transition={{ delay: heroPost ? 0.3 : 0.2, staggerChildren: 0.07 }}
             >
-              {remainingPosts.map((post) => (
+              {regularPosts.map((post) => (
                 <motion.div
                   key={post.slug}
                   variants={itemVariants}
-                  className="flex flex-col group"
+                  className="flex flex-col group relative" // Added relative for badge positioning
                   onMouseEnter={() => setHoveredCard(post.slug)}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
                   <Link to={`/blog/${post.slug}`} className="block h-full">
                     <motion.div
-                      className="bg-gray-800/70 rounded-xl border border-gray-700/60 shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 ease-out flex flex-col h-full overflow-hidden"
-                      whileHover={{ y: -5, borderColor: 'rgba(165, 180, 252, 0.7)' }} // indigo-300 equivalent
+                      className="bg-gray-800/80 rounded-xl border border-gray-700/70 shadow-lg hover:shadow-indigo-500/40 transition-all duration-300 ease-out flex flex-col h-full overflow-hidden"
+                      whileHover={{ y: -6, borderColor: 'rgba(165, 180, 252, 0.75)' }} // indigo-300 equivalent, slightly more pronounced
                     >
+                      {post.isFeatured && (
+                        <div className="absolute top-3 right-3 z-10 p-1 bg-yellow-400 rounded-full shadow-lg">
+                           <StarIcon className="w-5 h-5 text-gray-900" />
+                        </div>
+                      )}
                       <BlogCardImage
                         src={post.imageUrl}
                         alt={post.altText || post.title}
-                        className="h-48 relative overflow-hidden rounded-t-xl"
+                        className="h-52 relative overflow-hidden rounded-t-xl" // Slightly increased height
                         imageClassName="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
                       >
                         {!post.imageUrl && <PhotoIcon className="w-16 h-16 text-gray-500" />}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10"></div>
                       </BlogCardImage>
                       <div className="p-5 md:p-6 flex flex-col flex-grow">
-                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mb-2.5">
-                          <span className="px-2.5 py-1 text-xs font-medium bg-indigo-700 text-indigo-200 rounded-full shadow-sm">
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mb-3">
+                          <span className={`px-2.5 py-1 text-xs font-medium ${post.isFeatured ? 'bg-yellow-500 text-yellow-900' : 'bg-indigo-700 text-indigo-200'} rounded-full shadow-sm`}>
                             {post.category}
                           </span>
                           <div className="flex items-center text-gray-400 text-xs">
@@ -486,13 +501,13 @@ function BlogIndexPage() {
                             <span>{post.date}</span>
                           </div>
                         </div>
-                        <h3 className="text-lg lg:text-xl font-semibold text-white mb-2.5 line-clamp-2 group-hover:text-indigo-300 transition-colors duration-300">
+                        <h3 className="text-lg lg:text-xl font-semibold text-white mb-3 line-clamp-2 group-hover:text-indigo-300 transition-colors duration-300">
                           {post.title}
                         </h3>
                         <p className="text-gray-300/90 text-sm mb-4 line-clamp-3 flex-grow leading-relaxed">
                           {post.excerpt}
                         </p>
-                        <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-gray-700/40">
+                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-700/50">
                           <span className="text-xs text-gray-400">{post.readTime}</span>
                           <div className="inline-flex items-center text-sm text-indigo-400 group-hover:text-indigo-300 font-medium transition-colors duration-300">
                             Read More
