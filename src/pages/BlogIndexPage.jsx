@@ -193,7 +193,57 @@ const initialPosts = [
     category: 'Recommendations',
     imageUrl: 'backdrop_tmdbtvid:63174',
     altText: 'Person watching TV in a cozy room'
-  }
+  },
+  {
+    slug: 'ai-deepfakes-entertainment-future',
+    title: 'Digital Resurrection: How AI and Deepfakes Are Revolutionizing (and Threatening) Entertainment',
+    date: 'May 22, 2025',
+    excerpt: 'From bringing dead actors back to screen to creating entirely synthetic performers, AI is reshaping Hollywood in ways that are both amazing and terrifying.',
+    readTime: '8 min read',
+    category: 'Future Tech',
+    imageUrl: 'backdrop_tmdbid:406759', // Blade Runner 2049
+    altText: 'AI and digital technology in entertainment'
+  },
+  {
+    slug: 'celebrity-scandals-box-office-impact',
+    title: 'Cancel Culture vs. Box Office: How Celebrity Scandals Actually Affect Movie Success',
+    date: 'May 22, 2025',
+    excerpt: 'Analyzing real data on whether scandals actually hurt films financially, and which controversies audiences care about versus which they ignore.',
+    readTime: '7 min read',
+    category: 'Industry Analysis',
+    imageUrl: 'backdrop_tmdbid:324857', // Fantastic Beasts
+    altText: 'Hollywood controversy and box office impact'
+  },
+  {
+    slug: 'streaming-wars-2025-winners-losers',
+    title: 'The Streaming Wars Heat Up: Who\'s Winning and Who\'s Getting Cancelled in 2025',
+    date: 'May 22, 2025',
+    excerpt: 'With new players entering and established services struggling, the streaming landscape is more brutal than ever. Here\'s who\'s actually making money.',
+    readTime: '6 min read',
+    category: 'Streaming Wars',
+    imageUrl: 'backdrop_tmdbid:496243', // Parasite
+    altText: 'Streaming service logos and competition'
+  },
+  {
+    slug: 'tiktok-micro-movies-new-cinema',
+    title: 'Movies in Minutes: How TikTok\'s Micro-Cinema is Creating a New Generation of Filmmakers',
+    date: 'May 22, 2025',
+    excerpt: 'Vertical videos, 60-second stories, and viral film techniques - how TikTok creators are reinventing cinematic language and getting Hollywood\'s attention.',
+    readTime: '5 min read',
+    category: 'Digital Trends',
+    imageUrl: 'backdrop_tmdbid:354912', // Coco
+    altText: 'TikTok and modern filmmaking'
+  },
+  {
+    slug: 'reality-tv-psychological-manipulation',
+    title: 'Behind the Drama: The Shocking Psychology Tricks Reality TV Uses to Manipulate Contestants',
+    date: 'May 22, 2025',
+    excerpt: 'Former reality TV producers reveal the dark psychological tactics used to create drama, from sleep deprivation to emotional manipulation.',
+    readTime: '9 min read',
+    category: 'Reality TV Exposed',
+    imageUrl: 'backdrop_tmdbid:646207', // The Power of the Dog
+    altText: 'Reality TV production behind the scenes'
+  },
   // Add more posts as they are created
 ];
 

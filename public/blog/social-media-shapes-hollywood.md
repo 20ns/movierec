@@ -2,7 +2,7 @@
 
 **Date:** May 21, 2025
 
-![Image depicting social media icons merging with Hollywood imagery](placeholder_image_social_hollywood.jpg)
+![Image depicting social media icons merging with Hollywood imagery](backdrop_tmdbid:615656)
 
 The relationship between Hollywood and its audience has been fundamentally reshaped by the rise of social media. Platforms like TikTok, Twitter, Instagram, and YouTube are no longer just marketing channels; they are active forces influencing everything from casting decisions and script development to box office performance and the very types of stories being told.
 
