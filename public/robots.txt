@@ -1,6 +1,40 @@
-# Allow all user agents to crawl all content
+# Movie Recommendation App - Robots.txt
+# https://www.movierec.net/robots.txt
+
+# Allow all crawlers access to public content
 User-agent: *
 Allow: /
+Allow: /blog/
+Allow: /movies/
+Allow: /recommendations/
 
-# Sitemap location (to be updated once sitemap.xml is generated)
+# Prevent crawling of admin/dev areas if they exist
+Disallow: /admin/
+Disallow: /dev/
+Disallow: /_dev/
+Disallow: /api/private/
+
+# Prevent crawling of non-indexable files
+Disallow: /*.json$
+Disallow: /manifest.json
+Disallow: /service-worker.js
+
+# Crawl delay for politeness (1 second)
+Crawl-delay: 1
+
+# Sitemap locations
 Sitemap: https://www.movierec.net/sitemap.xml
+Sitemap: https://www.movierec.net/blog-sitemap.xml
+
+# Additional search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /

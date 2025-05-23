@@ -1,6 +1,18 @@
 // src/AppRoutes.js
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
+// Enhanced loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-900">
+    <div className="text-center">
+      <div className="inline-block w-12 h-12 border-4 border-t-indigo-500 border-gray-700 rounded-full animate-spin mb-4"></div>
+      <p className="text-gray-400">Loading content...</p>
+    </div>
+  </div>
+);
+
+// Lazy load components for better performance
 const AuthPage = lazy(() => import('./auth/authPage.jsx'));
 const OnboardingQuestionnaire = lazy(() => import('./components/OnboardingQuestionnaire'));
 const BlogIndexPage = lazy(() => import('./pages/BlogIndexPage'));
@@ -31,7 +43,7 @@ function AppRoutes({
   }
 
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="inline-block w-12 h-12 border-4 border-t-indigo-500 border-gray-700 rounded-full animate-spin"></div></div>}>
+    <Suspense fallback={<LoadingSpinner />}>
       <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         {/* Blog Pages */}
         <Route path="/blog" element={<BlogIndexPage />} />

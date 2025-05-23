@@ -5,16 +5,52 @@ const Dotenv = require('dotenv-webpack');
 const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { SubresourceIntegrityPlugin } = require('webpack-subresource-integrity');
+const TerserPlugin = require('terser-webpack-plugin');
 
-module.exports = {
-mode: 'production',
-  entry: './src/index.js',
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.[contenthash].js',
-    publicPath: '/',
-    crossOriginLoading: 'anonymous'
-  },
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === 'production';
+  
+  return {
+    mode: isProduction ? 'production' : 'development',
+    entry: './src/index.js',
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: isProduction ? '[name].[contenthash].js' : '[name].js',
+      chunkFilename: isProduction ? '[name].[contenthash].js' : '[name].js',
+      publicPath: '/',
+      crossOriginLoading: 'anonymous',
+      clean: true
+    },
+    optimization: {
+      minimizer: isProduction ? [
+        new TerserPlugin({
+          terserOptions: {
+            compress: {
+              drop_console: true,
+              drop_debugger: true
+            }
+          }
+        })
+      ] : [],
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+            priority: 10
+          },
+          common: {
+            name: 'common',
+            minChunks: 2,
+            chunks: 'all',
+            priority: 5
+          }
+        }
+      },
+      runtimeChunk: 'single'
+    },
   module: {
     rules: [
       {
@@ -26,27 +62,96 @@ mode: 'production',
         test: /\.(js|jsx)$/,
         exclude: /node_modules/,
         use: 'babel-loader'
+      },      {
+        test: /\.css$/,
+        use: [
+          isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+          'css-loader',
+          'postcss-loader'
+        ]
       },
       {
-              test: /\.css$/,
-              use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader']
+        test: /\.(png|jpe?g|gif|svg|webp|avif)$/i,
+        type: 'asset/resource',
+        generator: {
+          filename: 'images/[name].[contenthash][ext]'
+        },
+        use: [
+          {
+            loader: 'image-webpack-loader',
+            options: {
+              disable: !isProduction,
+              mozjpeg: {
+                progressive: true,
+                quality: 85
+              },
+              optipng: {
+                enabled: false
+              },
+              pngquant: {
+                quality: [0.8, 0.9],
+                speed: 4
+              },
+              gifsicle: {
+                interlaced: false
+              },
+              webp: {
+                quality: 85
+              }
             }
+          }
+        ]
+      },
+      {
+        test: /\.(woff|woff2|eot|ttf|otf)$/i,
+        type: 'asset/resource',
+        generator: {
+          filename: 'fonts/[name].[contenthash][ext]'
+        }
+      }
     ]
-  },
-  plugins: [
+  },  plugins: [
     new HtmlWebpackPlugin({
-      template: './public/index.html'
+      template: './public/index.html',
+      minify: isProduction ? {
+        removeComments: true,
+        collapseWhitespace: true,
+        removeRedundantAttributes: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        keepClosingSlash: true,
+        minifyJS: true,
+        minifyCSS: true,
+        minifyURLs: true
+      } : false,
+      inject: true
     }),
     new Dotenv({ path: path.resolve(__dirname, '.env'), silent: true, systemvars: true }),
     new webpack.ProvidePlugin({
       process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer']
     }),
-    new SubresourceIntegrityPlugin({
-      hashFuncNames: ['sha256', 'sha384']
+    ...(isProduction ? [
+      new SubresourceIntegrityPlugin({
+        hashFuncNames: ['sha256', 'sha384']
+      }),
+      new MiniCssExtractPlugin({ 
+        filename: 'css/[name].[contenthash].css',
+        chunkFilename: 'css/[id].[contenthash].css'
+      })
+    ] : []),
+    new CopyPlugin({ 
+      patterns: [
+        { from: 'public/blog', to: 'blog' },
+        { from: 'public/robots.txt', to: 'robots.txt' },
+        { from: 'public/sitemap.xml', to: 'sitemap.xml', noErrorOnMissing: true },
+        { from: 'public/manifest.json', to: 'manifest.json', noErrorOnMissing: true }
+      ] 
     }),
-    new MiniCssExtractPlugin({ filename: '[name].[contenthash].css' }),
-    new CopyPlugin({ patterns: [{ from: 'public/blog', to: 'blog' }] })
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development')
+    })
   ],
   resolve: {
     extensions: ['.mjs', '.js', '.jsx'],
@@ -65,14 +170,22 @@ mode: 'production',
       os: require.resolve('os-browserify/browser'),
       fs: false
     }
-  },
-  devServer: {
+  },  devServer: {
     static: [
       { directory: path.resolve(__dirname, 'dist') },
       { directory: path.resolve(__dirname, 'public'), publicPath: '/' }
     ],
     historyApiFallback: true,
     hot: true,
-    port: 3000
+    port: 3000,
+    compress: true,
+    headers: {
+      'Cache-Control': 'public, max-age=31536000'
+    }
+  },
+  performance: {
+    hints: isProduction ? 'warning' : false,
+    maxEntrypointSize: 512000,
+    maxAssetSize: 512000
   }
 };

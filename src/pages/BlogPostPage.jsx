@@ -8,6 +8,8 @@ import { motion } from 'framer-motion';
 import { ArrowLeftIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import AdUnit from '../components/AdUnit';
 import SafeHelmet from '../components/SafeHelmet';
+import Breadcrumb from '../components/Breadcrumb';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const placeholderImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -388,31 +390,49 @@ function BlogPostPage() {
       </motion.div>
     );
   }
-
   return (
     <>
       <SafeHelmet>
-        <title>{metadata.title}</title>
+        <title>{metadata.title} | MovieRec Blog</title>
         <meta name="description" content={metadata.description} />
-        <meta property="og:title" content={metadata.title} />
+        <meta name="keywords" content={`${metadata.title}, movie analysis, TV show review, entertainment, cinema, streaming`} />
+        <link rel="canonical" href={`https://www.movierec.net/blog/${slug}`} />
+        
+        {/* Open Graph tags */}
+        <meta property="og:title" content={`${metadata.title} | MovieRec Blog`} />
         <meta property="og:description" content={metadata.description} />
         <meta property="og:type" content="article" />
+        <meta property="og:url" content={`https://www.movierec.net/blog/${slug}`} />
+        <meta property="og:site_name" content="MovieRec" />
         {metadata.isoDate && <meta property="article:published_time" content={metadata.isoDate} />}
-        {/* <meta property="og:url" content={window.location.href} /> */}
-        {/* An og:image would be beneficial here */}
+        {metadata.firstImageMarkdownUrl && (
+          <meta property="og:image" content={metadata.firstImageMarkdownUrl.startsWith('http') 
+            ? metadata.firstImageMarkdownUrl 
+            : `https://www.movierec.net${metadata.firstImageMarkdownUrl}`} />
+        )}
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${metadata.title} | MovieRec Blog`} />
+        <meta name="twitter:description" content={metadata.description} />
+        
+        {/* Article schema */}
         {articleSchema && (
           <script type="application/ld+json">
             {JSON.stringify(articleSchema)}
           </script>
         )}
-      </SafeHelmet>
-      <motion.div
+      </SafeHelmet>      <motion.div
         className="min-h-screen py-12 px-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
         <div className="max-w-3xl mx-auto">
+          <ErrorBoundary minimal>
+            <Breadcrumb pageTitle={metadata.title} />
+          </ErrorBoundary>
+          
           <Link to="/blog" className="inline-flex items-center text-indigo-400 hover:underline mb-6">
             <ArrowLeftIcon className="w-4 h-4 mr-1" />
             Back to all posts

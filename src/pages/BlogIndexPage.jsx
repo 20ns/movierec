@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarIcon, ArrowRightIcon, NewspaperIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
+import SafeHelmet from '../components/SafeHelmet';
+import Breadcrumb from '../components/Breadcrumb';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const initialPosts = [
   {
@@ -333,8 +336,7 @@ const BlogCardImage = ({ src, alt, className, imageClassName }) => {
         <div className="absolute inset-0 flex items-center justify-center bg-slate-700/50">
           <PhotoIcon className="w-12 h-12 text-slate-500 animate-pulse" />
         </div>
-      )}
-      <img
+      )}      <img
         src={imgSrc}
         alt={alt}
         className={`transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${imageClassName || ''}`}
@@ -345,6 +347,9 @@ const BlogCardImage = ({ src, alt, className, imageClassName }) => {
           e.currentTarget.src = placeholderImage;
           setIsLoaded(true); // Ensure loading state is cleared even on error
         }}
+        width="780"
+        height="440"
+        decoding="async"
       />
     </div>
   );
@@ -358,6 +363,39 @@ function BlogIndexPage() {
   const heroPost = posts.find(p => p.isHero) || (posts.length > 0 ? posts[0] : null);
   const regularPosts = heroPost ? posts.filter(p => p.slug !== heroPost.slug) : posts;
 
+  // Generate structured data for the blog index
+  const generateBlogSchema = () => {
+    return {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      "name": "MovieRec Blog",
+      "description": "Insights, reviews, and analysis about movies, TV shows, and entertainment industry trends",
+      "url": "https://www.movierec.net/blog",
+      "publisher": {
+        "@type": "Organization",
+        "name": "MovieRec",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://www.movierec.net/logo.png"
+        }
+      },
+      "blogPost": posts.slice(0, 10).map(post => ({
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "description": post.excerpt,
+        "url": `https://www.movierec.net/blog/${post.slug}`,
+        "datePublished": new Date(post.date).toISOString(),
+        "author": {
+          "@type": "Organization",
+          "name": "MovieRec"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "MovieRec"
+        }
+      }))
+    };
+  };
 
   // Animation variants
   const containerVariants = {
@@ -372,14 +410,42 @@ function BlogIndexPage() {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 }
   };
+
   return (
-    <motion.div
+    <>
+      <SafeHelmet>
+        <title>MovieRec Blog - Movie & TV Show Insights, Reviews & Analysis</title>
+        <meta name="description" content="Explore our comprehensive blog with movie reviews, TV show analysis, industry insights, and entertainment trends. Discover hidden gems, box office analysis, and streaming recommendations." />
+        <meta name="keywords" content="movie blog, TV show reviews, film analysis, entertainment news, streaming guides, cinema insights, movie recommendations blog" />
+        <link rel="canonical" href="https://www.movierec.net/blog" />
+        
+        {/* Open Graph tags */}
+        <meta property="og:title" content="MovieRec Blog - Movie & TV Show Insights, Reviews & Analysis" />
+        <meta property="og:description" content="Explore our comprehensive blog with movie reviews, TV show analysis, industry insights, and entertainment trends." />
+        <meta property="og:url" content="https://www.movierec.net/blog" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.movierec.net/logo.png" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MovieRec Blog - Movie & TV Show Insights" />
+        <meta name="twitter:description" content="Explore our comprehensive blog with movie reviews, TV show analysis, and entertainment trends." />
+        
+        {/* Structured Data */}        <script type="application/ld+json">
+          {JSON.stringify(generateBlogSchema())}
+        </script>
+      </SafeHelmet>
+        <motion.div
       className="min-h-screen text-gray-100 py-16 md:py-24 px-4 sm:px-6 lg:px-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
       <div className="max-w-7xl mx-auto">
+        <ErrorBoundary minimal>
+          <Breadcrumb pageTitle="Blog" />
+        </ErrorBoundary>
+        
         {/* Hero Post Section */}
         {heroPost && (
           <motion.section
@@ -545,10 +611,10 @@ function BlogIndexPage() {
             <p className="text-gray-400 text-md max-w-md mx-auto leading-relaxed">
               We're busy crafting insightful articles and news. Please check back later for exciting updates!
             </p>
-          </motion.div>
-        )}
+          </motion.div>        )}
       </div>
     </motion.div>
+    </>
   );
 }
 
