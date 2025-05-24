@@ -47,11 +47,10 @@ module.exports = (env, argv) => {
             chunks: 'all',
             priority: 5
           }
-        }
-      },
+        }      },
       runtimeChunk: 'single'
     },
-  module: {
+    module: {
     rules: [
       {
         test: /\.mjs$/,
@@ -107,10 +106,10 @@ module.exports = (env, argv) => {
         type: 'asset/resource',
         generator: {
           filename: 'fonts/[name].[contenthash][ext]'
-        }
-      }
+        }      }
     ]
-  },  plugins: [
+  },
+  plugins: [
     new HtmlWebpackPlugin({
       template: './public/index.html',
       minify: isProduction ? {
@@ -167,10 +166,10 @@ module.exports = (env, argv) => {
       url: require.resolve('url/'),
       vm: require.resolve('vm-browserify'),
       path: require.resolve('path-browserify'),
-      os: require.resolve('os-browserify/browser'),
-      fs: false
+      os: require.resolve('os-browserify/browser'),      fs: false
     }
-  },  devServer: {
+  },
+  devServer: {
     static: [
       { directory: path.resolve(__dirname, 'dist') },
       { directory: path.resolve(__dirname, 'public'), publicPath: '/' }
@@ -182,10 +181,10 @@ module.exports = (env, argv) => {
     headers: {
       'Cache-Control': 'public, max-age=31536000'
     }
-  },
-  performance: {
+  },  performance: {
     hints: isProduction ? 'warning' : false,
     maxEntrypointSize: 512000,
     maxAssetSize: 512000
   }
+  };
 };

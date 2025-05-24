@@ -23,6 +23,8 @@ import AdScript from './components/AdScript';
 import MediaDetailModal from './components/MediaDetailModal';
 import BlogIndexPage from './pages/BlogIndexPage'; 
 import BlogPostPage from './pages/BlogPostPage';
+import ErrorBoundary from './components/ErrorBoundary';
+import PerformanceDashboard from './components/PerformanceDashboard';
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -116,6 +118,8 @@ useEffect(() => {
   // State for Media Detail Modal
   const [selectedMediaItem, setSelectedMediaItem] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  // State for Performance Dashboard
+  const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
 
   // Calculate if user has only completed basic preferences but not detailed ones
   const hasBasicPreferencesOnly = userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted;
@@ -144,6 +148,19 @@ useEffect(() => {
       }
     }
   }, [authLoading, isAuthenticated]);
+
+  // --- Effect: Performance Dashboard Keyboard Shortcut ---
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey && event.shiftKey && event.key === 'P') {
+        event.preventDefault();
+        setShowPerformanceDashboard(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // --- Effect: Detect User Change ---
   useEffect(() => {
@@ -752,6 +769,23 @@ useEffect(() => {
         currentUser={currentUser}
       />
 
+      {/* Performance Dashboard */}
+      <AnimatePresence>
+        {showPerformanceDashboard && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed bottom-4 right-4 z-50"
+          >
+            <PerformanceDashboard 
+              onClose={() => setShowPerformanceDashboard(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="relative z-10 pt-20 transition-transform duration-300 ease-in-out">
         <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Route
@@ -817,12 +851,14 @@ useEffect(() => {
 
 function App() {
   return (
-    // <ToastProvider> // Removed ToastProvider wrapper
+    <ErrorBoundary>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AppContent />
+        <ErrorBoundary minimal>
+          <AppContent />
+        </ErrorBoundary>
         <AdScript />
       </BrowserRouter>
-    // </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

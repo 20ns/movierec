@@ -9,6 +9,7 @@ import { SearchInput } from './SearchInput';
 import { MediaResults } from './MediaResults';
 import { ErrorMessage } from './ErrorMessage';
 import { useSearch } from './useSearch';
+import { markPerformance, measurePerformance } from '../utils/webVitals';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import { FunnelIcon as FunnelSolidIcon } from '@heroicons/react/24/solid';
 import { 
@@ -70,14 +71,21 @@ export const SearchBar = ({ currentUser, onMediaClick }) => {
       body.style.overflow = ''; 
     }
   }, [isExpanded, hasSearched, isLoading]); 
-  
-  // Function to handle search with URL update
+    // Function to handle search with URL update
   const handleSearchWithUrlUpdate = useCallback((e) => {
     e?.preventDefault();
+    
+    // Mark search performance start
+    markPerformance('search-interaction-start');
     
     setIsExpanded(true);
     
     handleSearch(e);
+    
+    // Measure search interaction time after a short delay
+    setTimeout(() => {
+      measurePerformance('search-interaction-duration', 'search-interaction-start');
+    }, 100);
     
     if (!isInitialUrlSearch.current) {
       setTimeout(() => {

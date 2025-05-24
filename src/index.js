@@ -6,6 +6,9 @@ import awsconfig from './aws-config'; // Changed import
 import App from './App';
 import './index.css';
 
+// Initialize Web Vitals monitoring
+import './utils/webVitals';
+
 Amplify.configure(awsconfig); // Use the dynamic config
 
 // Service Worker Registration

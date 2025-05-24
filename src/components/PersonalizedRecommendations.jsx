@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import MediaCard from './MediaCard';
 import { ArrowPathIcon, LightBulbIcon, FilmIcon, TvIcon, VideoCameraIcon } from '@heroicons/react/24/solid';
 import { fetchCachedMedia } from '../services/mediaCache';
+import { markPerformance, measurePerformance } from '../utils/webVitals';
 
 // --- Constants ---
 const MIN_RECOMMENDATION_COUNT = 3;
@@ -167,10 +168,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, [currentUser]);
 
-
   // Main function to fetch recommendations
   const fetchRecommendations = useCallback(
     async (forceRefresh = false) => {
+      // Mark the start of recommendation fetching
+      markPerformance('recommendations-fetch-start');
+      
       logMessage('fetchRecommendations: called', { forceRefresh, currentPrefsFromProps: propUserPreferences, isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
       
       if (!isAuthenticated || !userId || !initialAppLoadComplete || isFetchingRef.current) {
@@ -229,6 +232,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         const favoriteIdsList = [];
         const watchlistIdsList = [];
 
+        // Mark API call start
+        markPerformance('recommendations-api-start');
+        
         logMessage('Attempting fetch via fetchFromPersonalizedApi');
         const apiResult = await fetchFromPersonalizedApi(
           contentTypeFilter,
@@ -239,12 +245,16 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           forceRefresh
         );
 
+        // Mark API call end and measure duration
+        markPerformance('recommendations-api-end');
+        const apiDuration = measurePerformance('recommendations-api-duration', 'recommendations-api-start', 'recommendations-api-end');
+        
         if (apiResult.success && apiResult.recommendations.length > 0) {
           fetchedRecs = apiResult.recommendations;
           resultDataSource = apiResult.dataSource;
           resultReason = apiResult.reason;
           fetchSuccessful = true;
-          logMessage(`Fetch successful, received ${fetchedRecs.length} items. Source: ${resultDataSource}`);
+          logMessage(`Fetch successful, received ${fetchedRecs.length} items. Source: ${resultDataSource}. API Duration: ${apiDuration}ms`);
 
           const newHistory = new Set([...Array.from(shownItemsHistory), ...fetchedRecs.map((r) => r.id?.toString())].slice(-SHOWN_ITEMS_LIMIT));
 
@@ -293,9 +303,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           hasError: true,
           errorMessage: error.message || 'An unexpected error occurred',
         });
-        fetchSuccessful = false;
-
-      } finally {
+        fetchSuccessful = false;      } finally {
+          // Mark the end of recommendation fetching and measure total duration
+          markPerformance('recommendations-fetch-end');
+          const totalDuration = measurePerformance('recommendations-fetch-total', 'recommendations-fetch-start', 'recommendations-fetch-end');
+          
+          if (totalDuration) {
+            logMessage(`Total recommendation fetch duration: ${totalDuration}ms`);
+          }
+          
           if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
           if (mountedRef.current) {
               safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
