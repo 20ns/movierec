@@ -2,8 +2,7 @@
   "name": "movierec",
   "version": "1.0.0",
   "description": "Personalized movie and TV show recommendation platform built with React and AWS",
-  "main": "index.js",
-  "scripts": {
+  "main": "index.js",  "scripts": {
     "start": "webpack serve --mode development",
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
@@ -11,7 +10,13 @@
     "generate-sitemap": "node generate-sitemap.js",
     "audit": "npm audit --audit-level=high",
     "audit:fix": "npm audit fix",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node tests/aws/aws-test-runner.js",
+    "test:aws": "node tests/aws/aws-test-runner.js",
+    "test:aws:endpoints": "node tests/aws/endpoint-tests.js",
+    "test:aws:lambda": "node tests/aws/lambda-tests.js",
+    "test:aws:dynamodb": "node tests/aws/dynamodb-tests.js",
+    "test:aws:parallel": "node tests/aws/aws-test-runner.js --parallel",
+    "test:aws:sequential": "node tests/aws/aws-test-runner.js --sequential",
     "deploy:infrastructure": "cd infrastructure && cdk deploy",
     "deploy:diff": "cd infrastructure && cdk diff",
     "deploy:destroy": "cd infrastructure && cdk destroy"

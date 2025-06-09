@@ -1,0 +1,26 @@
+{
+  "name": "movierec-aws-tests",
+  "version": "1.0.0",
+  "description": "AWS integration tests for MovieRec application",
+  "main": "aws/aws-test-runner.js",
+  "scripts": {
+    "test": "node aws/aws-test-runner.js",
+    "test:endpoints": "node aws/endpoint-tests.js",
+    "test:lambda": "node aws/lambda-tests.js",
+    "test:dynamodb": "node aws/dynamodb-tests.js",
+    "test:parallel": "node aws/aws-test-runner.js --parallel",
+    "test:sequential": "node aws/aws-test-runner.js --sequential"
+  },
+  "keywords": [
+    "aws",
+    "testing",
+    "api-gateway",
+    "lambda",
+    "dynamodb",
+    "cognito",
+    "integration-tests"
+  ],
+  "dependencies": {
+    "https": "^1.0.0"
+  }
+}

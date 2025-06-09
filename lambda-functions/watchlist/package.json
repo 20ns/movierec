@@ -1,5 +1,5 @@
 {
-  "name": "lambda-user-preferences",
+  "name": "lambda-watchlist",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {

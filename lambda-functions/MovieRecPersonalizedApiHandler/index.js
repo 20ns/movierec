@@ -1,5 +1,13 @@
 const AWS = require('aws-sdk');
 const axios = require('axios');
+const { CognitoJwtVerifier } = require("aws-jwt-verify");
+
+// Create a Cognito JWT verifier
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.USER_POOL_ID,
+  tokenUse: "access",
+  clientId: process.env.COGNITO_CLIENT_ID,
+});
 
 // Allowed origins for CORS
 const allowedOrigins = [
