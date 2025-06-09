@@ -12,20 +12,40 @@ const verifier = CognitoJwtVerifier.create({
   clientId: process.env.COGNITO_CLIENT_ID,
 });
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Credentials": "true",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+// CORS headers helper
+const generateCorsHeaders = (requestOrigin) => {
+  const allowedOrigins = [
+    'https://movierec.net',
+    'https://www.movierec.net',
+    'http://localhost:3000',
+    'http://localhost:8080'
+  ];
+  
+  const headers = {
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Max-Age': '86400',
+  };
+  
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    headers['Access-Control-Allow-Origin'] = requestOrigin;
+  } else {
+    headers['Access-Control-Allow-Origin'] = allowedOrigins[0];
+  }
+  
+  return headers;
 };
 
 exports.handler = async (event) => {
+  const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
+  const corsHeaders = generateCorsHeaders(requestOrigin);
+
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
-      statusCode: 200,
+      statusCode: 204,
       headers: corsHeaders,
-      body: JSON.stringify({ message: "CORS preflight successful" })
+      body: ''
     };
   }
 

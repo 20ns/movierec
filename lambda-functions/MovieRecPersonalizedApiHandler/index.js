@@ -260,9 +260,34 @@ exports.handler = async (event) => {
     }
     if (event.httpMethod !== 'GET') {
         return { statusCode: 405, headers: corsHeaders, body: JSON.stringify({ message: `Unsupported method: ${event.httpMethod}` }) };
-    }
+    }    try {
+        // Extract and verify JWT token
+        const authHeader = event.headers.Authorization || event.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return {
+                statusCode: 401,
+                headers: corsHeaders,
+                body: JSON.stringify({ message: "Unauthorized" })
+            };
+        }
 
-    try {
+        const token = authHeader.substring(7);
+        let payload;
+        
+        try {
+            payload = await verifier.verify(token);
+        } catch (error) {
+            console.error("Token verification failed:", error);
+            return {
+                statusCode: 401,
+                headers: corsHeaders,
+                body: JSON.stringify({ message: "Unauthorized" })
+            };
+        }
+
+        const userId = payload.sub;
+        console.log("Authenticated user:", userId);
+
         const startTime = Date.now();
         
         // Parse parameters
