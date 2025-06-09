@@ -5,10 +5,10 @@ const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AW
 
 // CORS headers configuration
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://account.d1akezqpdr5wgr.amplifyapp.com',
+  'https://movierec.net',
   'https://www.movierec.net',
-  'https://dev.d1akezqpdr5wgr.amplifyapp.com'
+  'http://localhost:3000',
+  'http://localhost:8080'
 ];
 
 const getHeaders = (origin) => ({

@@ -4,11 +4,10 @@ const AWS = require('aws-sdk');
 const axios = require('axios');
 
 const allowedOrigins = [
-    'https://account.d1akezqpdr5wgr.amplifyapp.com',
-    'https://main.d1akezqpdr5wgr.amplifyapp.com',
+    'https://movierec.net',
     'https://www.movierec.net',
-    'https://dev.d1akezqpdr5wgr.amplifyapp.com',
-    'http://localhost:3000'              // Added for local development
+    'http://localhost:3000',
+    'http://localhost:8080'
 ];
 
 // Initialize the DynamoDB Document Client

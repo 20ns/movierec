@@ -11,11 +11,10 @@ const verifier = CognitoJwtVerifier.create({
 
 // Allowed origins for CORS
 const allowedOrigins = [
-    'https://account.d1akezqpdr5wgr.amplifyapp.com',
-    'https://main.d1akezqpdr5wgr.amplifyapp.com',
+    'https://movierec.net',
     'https://www.movierec.net',
-    'https://dev.d1akezqpdr5wgr.amplifyapp.com',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:8080'
 ];
 
 // Initialize DynamoDB with retry configuration

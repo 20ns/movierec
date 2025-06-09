@@ -10,13 +10,11 @@ const {
   
   const CLIENT_ID = process.env.COGNITO_CLIENT_ID;
   const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
-  
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'https://account.d1akezqpdr5wgr.amplifyapp.com',
-    'https://main.d1akezqpdr5wgr.amplifyapp.com',
+    const allowedOrigins = [
+    'https://movierec.net',
     'https://www.movierec.net',
-    'https://dev.d1akezqpdr5wgr.amplifyapp.com'
+    'http://localhost:3000',
+    'http://localhost:8080'
   ];
   
   const getHeaders = (origin) => ({
