@@ -1,0 +1,8 @@
+{
+  "name": "jwt-layer",
+  "version": "1.0.0",
+  "description": "JWT verification layer for Lambda functions",
+  "dependencies": {
+    "aws-jwt-verify": "^4.0.1"
+  }
+}

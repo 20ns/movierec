@@ -248,7 +248,7 @@ useEffect(() => {
 
       const token = currentUser.signInUserSession.accessToken.jwtToken;
       const userId = currentUser.attributes.sub;
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences`, {
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         mode: 'cors',
       });

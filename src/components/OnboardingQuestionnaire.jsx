@@ -526,7 +526,7 @@ const OnboardingQuestionnaire = ({
       }
       
       const apiName = 'api';
-      const path = '/preferences';
+      const path = '/user/preferences';
       const init = {
         headers: { Authorization: `Bearer ${token}` },
         body: prefsToSave

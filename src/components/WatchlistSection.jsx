@@ -35,7 +35,7 @@ export default function WatchlistSection(props) {
       currentUser={props.currentUser}
       isAuthenticated={props.isAuthenticated}
       cacheKey="user_watchlist_cache"
-      endpoint="/watchlist"
+      endpoint="/user/watchlist"
       mapItem={mapWatchlistItem}
       eventKey="watchlist-updated"
       cardPropsFactory={item => ({

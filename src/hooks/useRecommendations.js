@@ -313,7 +313,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
     if (!apiKey) return { favorites: [], genres: [], contentTypeRatio: { movies: 0.5, tv: 0.5 } };
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`, {
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
       if (!response.ok) throw new Error('Favorites fetch failed');
@@ -354,7 +354,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
   const fetchUserWatchlist = useCallback(async (token) => {
     if (!token) return [];
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`, {
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
       if (!response.ok) {

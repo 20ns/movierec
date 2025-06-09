@@ -29,7 +29,7 @@ export default function FavoritesSection(props) {
       currentUser={props.currentUser}
       isAuthenticated={props.isAuthenticated}
       cacheKey="user_favorites_cache"
-      endpoint="/favourite"
+      endpoint="/user/favourites"
       mapItem={mapFavoritesItem}
       eventKey="favorites-updated"
       cardPropsFactory={item => ({

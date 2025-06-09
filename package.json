@@ -1,19 +1,35 @@
 {
   "name": "movierec",
   "version": "1.0.0",
+  "description": "Personalized movie and TV show recommendation platform built with React and AWS",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "webpack serve --mode development",
-    "build": "webpack --mode production",
     "dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "build:watch": "webpack --mode production --watch",
+    "generate-sitemap": "node generate-sitemap.js",
     "audit": "npm audit --audit-level=high",
-    "generate-sitemap": "node generate-sitemap.js"
+    "audit:fix": "npm audit fix",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy:infrastructure": "cd infrastructure && cdk deploy",
+    "deploy:diff": "cd infrastructure && cdk diff",
+    "deploy:destroy": "cd infrastructure && cdk destroy"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "react",
+    "movie-recommendations",
+    "tv-shows",
+    "aws",
+    "lambda",
+    "dynamodb",
+    "cognito",
+    "tmdb",
+    "entertainment",
+    "streaming"
+  ],
+  "author": "MovieRec Team",
+  "license": "MIT",
   "dependencies": {
     "@aws-amplify/auth": "^5.6.5",
     "@aws-amplify/core": "^5.6.5",

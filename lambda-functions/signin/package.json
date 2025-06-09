@@ -1,0 +1,9 @@
+{
+  "name": "signin-lambda",
+  "version": "1.0.0",
+  "description": "User signin Lambda function",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0"
+  }
+}

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_GATEWAY_URL = 'https://n09230hhhj.execute-api.eu-north-1.amazonaws.com/prod';
+const API_GATEWAY_URL = 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
 const CLIENT_CACHE_PREFIX = 'media_rec_cache_v2';
 
@@ -85,7 +85,7 @@ export const fetchCachedMedia = async (options = {}) => {
         return { items: [], source: 'error' };
     }
 
-    const apiUrl = `${API_GATEWAY_URL}/media-recommendations`;
+    const apiUrl = `${API_GATEWAY_URL}/recommendations`;
     const response = await axios.get(
       apiUrl,
       {

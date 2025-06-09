@@ -1,0 +1,10 @@
+{
+    "name": "lambda-user-preferences",
+    "type": "module",
+    "version": "1.0.0",
+    "dependencies": {
+      "@aws-sdk/client-dynamodb": "^3.x.x",
+      "@aws-sdk/lib-dynamodb": "^3.x.x",
+      "aws-jwt-verify": "^4.0.0"
+    }
+  }

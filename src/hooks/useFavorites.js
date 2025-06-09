@@ -96,9 +96,8 @@ function useFavorites(currentUser, isAuthenticated) {
     setError(null);
     isFetchingRef.current = true;
 
-    try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
+    try {      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
         {
           headers: {
             Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
@@ -170,9 +169,8 @@ function useFavorites(currentUser, isAuthenticated) {
     setFavorites(updatedFavorites);
     cacheFavorites(userId, updatedFavorites); // Update cache optimistically
 
-    try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
+    try {      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
         {
           method: 'DELETE',
           headers: {

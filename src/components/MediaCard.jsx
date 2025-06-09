@@ -147,9 +147,8 @@ const MediaCard = ({
 
         if (globalFavoritesFetched) return;
 
-        setIsLoadingFavorite(true);
-        const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
+        setIsLoadingFavorite(true);        const response = await fetch(
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -222,9 +221,8 @@ const MediaCard = ({
 
         if (globalWatchlistFetched) return;
 
-        setIsLoadingWatchlist(true);
-        const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`,
+        setIsLoadingWatchlist(true);        const response = await fetch(
+          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -334,9 +332,8 @@ const MediaCard = ({
     const method = previousState ? 'DELETE' : 'POST';
     setIsFavorited(!previousState);
 
-    try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/favourite`,
+    try {      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
         {
           method,
           headers: {
@@ -426,9 +423,8 @@ const MediaCard = ({
     const method = previousState ? 'DELETE' : 'POST';
     setIsInWatchlist(!previousState);
 
-    try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/watchlist`,
+    try {      const response = await fetch(
+        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`,
         {
           method,
           headers: {

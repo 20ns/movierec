@@ -18,7 +18,7 @@ const AccountDetailsModal = ({ isOpen, onClose, email, currentUser }) => {
     
     try {
       const token = currentUser.signInUserSession.accessToken.jwtToken;
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/preferences/reset`, {
+      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences/reset`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
