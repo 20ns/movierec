@@ -272,16 +272,20 @@ exports.handler = async (event) => {
 
         const token = authHeader.substring(7);
         let payload;
-        
-        try {
-            payload = await verifier.verify(token);
-        } catch (error) {
-            console.error("Token verification failed:", error);
-            return {
-                statusCode: 401,
-                headers: corsHeaders,
-                body: JSON.stringify({ message: "Unauthorized" })
-            };
+        if (process.env.IS_OFFLINE) {
+            // Bypass JWT verification in offline mode
+            payload = { sub: 'offline-user-id', email: 'offline@example.com' };
+        } else {
+            try {
+                payload = await verifier.verify(token);
+            } catch (error) {
+                console.error("Token verification failed:", error);
+                return {
+                    statusCode: 401,
+                    headers: corsHeaders,
+                    body: JSON.stringify({ message: "Unauthorized" })
+                };
+            }
         }
 
         const userId = payload.sub;

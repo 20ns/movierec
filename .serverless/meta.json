@@ -1,0 +1,347 @@
+{
+  "C:\\Users\\xboxo\\Desktop\\movierec\\serverless.yml": {
+    "versionFramework": "4.17.1",
+    "servicePath": "C:\\Users\\xboxo\\Desktop\\movierec\\serverless.yml",
+    "serviceConfigFileName": "serverless.yml",
+    "service": {
+      "service": "movierec-backend",
+      "frameworkVersion": "3",
+      "provider": {
+        "name": "aws",
+        "runtime": "nodejs18.x",
+        "region": "eu-north-1",
+        "stage": "dev",
+        "environment": {
+          "USER_POOL_ID": "eu-north-1_x2FwI0mFK",
+          "COGNITO_CLIENT_ID": "4gob38of1s9tu7h9ciik5unjrl",
+          "USER_PREFERENCES_TABLE": "UserPreferences",
+          "RECOMMENDATIONS_CACHE_TABLE": "MovieRecCache",
+          "USER_FAVORITES_TABLE": "Favourites",
+          "USER_WATCHLIST_TABLE": "Watchlist",
+          "TMDB_API_KEY": "<REDACTED>",
+          "IS_OFFLINE": true
+        }
+      },
+      "plugins": [
+        "serverless-offline",
+        "serverless-dynamodb-local",
+        "serverless-dotenv-plugin"
+      ],
+      "custom": {
+        "serverless-offline": {
+          "httpPort": 3001,
+          "lambdaPort": 3002
+        },
+        "dynamodb": {
+          "start": {
+            "port": 8000,
+            "inMemory": true,
+            "migrate": true
+          },
+          "stages": [
+            "dev"
+          ],
+          "tables": [
+            "UserPreferences",
+            "MovieRecCache",
+            "Favourites",
+            "Watchlist"
+          ]
+        }
+      },
+      "functions": {
+        "signin": {
+          "handler": "lambda-functions/signin/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "auth/signin",
+                "method": "post",
+                "cors": true
+              }
+            }
+          ]
+        },
+        "signup": {
+          "handler": "lambda-functions/SignupHandler/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "auth/signup",
+                "method": "post",
+                "cors": true
+              }
+            }
+          ]
+        },
+        "refreshToken": "<REDACTED>",
+        "userPreferences": {
+          "handler": "lambda-functions/UserPreferencesFunction/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "user/preferences",
+                "method": "get",
+                "cors": true
+              }
+            },
+            {
+              "http": {
+                "path": "user/preferences",
+                "method": "post",
+                "cors": true
+              }
+            }
+          ]
+        },
+        "favourites": {
+          "handler": "lambda-functions/FavouritesFunction/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "user/favourites",
+                "method": "get",
+                "cors": true
+              }
+            },
+            {
+              "http": {
+                "path": "user/favourites",
+                "method": "post",
+                "cors": true
+              }
+            },
+            {
+              "http": {
+                "path": "user/favourites",
+                "method": "delete",
+                "cors": true
+              }
+            }
+          ]
+        },
+        "watchlist": {
+          "handler": "lambda-functions/watchlist/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "user/watchlist",
+                "method": "get",
+                "cors": true
+              }
+            },
+            {
+              "http": {
+                "path": "user/watchlist",
+                "method": "post",
+                "cors": true
+              }
+            },
+            {
+              "http": {
+                "path": "user/watchlist",
+                "method": "delete",
+                "cors": true
+              }
+            }
+          ]
+        },
+        "recommendations": {
+          "handler": "lambda-functions/MovieRecPersonalizedApiHandler/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "recommendations",
+                "method": "get",
+                "cors": true
+              }
+            }
+          ]
+        },
+        "mediaCache": {
+          "handler": "lambda-functions/MediaCache/index.handler",
+          "events": [
+            {
+              "http": {
+                "path": "media",
+                "method": "get",
+                "cors": true
+              }
+            }
+          ]
+        }
+      },
+      "resources": {
+        "Resources": {
+          "UserPreferencesTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "UserPreferences",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "userId",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "userId",
+                  "KeyType": "HASH"
+                }
+              ],
+              "BillingMode": "PAY_PER_REQUEST"
+            }
+          },
+          "MovieRecCacheTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "MovieRecCache",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "mediaId",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "mediaType",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "genre",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "mediaId",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "mediaType",
+                  "KeyType": "RANGE"
+                }
+              ],
+              "GlobalSecondaryIndexes": [
+                {
+                  "IndexName": "genre-index",
+                  "KeySchema": [
+                    {
+                      "AttributeName": "genre",
+                      "KeyType": "HASH"
+                    }
+                  ],
+                  "Projection": {
+                    "ProjectionType": "ALL"
+                  }
+                }
+              ],
+              "BillingMode": "PAY_PER_REQUEST"
+            }
+          },
+          "FavouritesTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "Favourites",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "userId",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "movieId",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "userId",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "movieId",
+                  "KeyType": "RANGE"
+                }
+              ],
+              "BillingMode": "PAY_PER_REQUEST"
+            }
+          },
+          "WatchlistTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "Watchlist",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "userId",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "movieId",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "userId",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "movieId",
+                  "KeyType": "RANGE"
+                }
+              ],
+              "BillingMode": "PAY_PER_REQUEST"
+            }
+          }
+        }
+      }
+    },
+    "provider": {
+      "name": "aws",
+      "runtime": "nodejs18.x",
+      "region": "eu-north-1",
+      "stage": "dev",
+      "environment": {
+        "USER_POOL_ID": "eu-north-1_x2FwI0mFK",
+        "COGNITO_CLIENT_ID": "4gob38of1s9tu7h9ciik5unjrl",
+        "USER_PREFERENCES_TABLE": "UserPreferences",
+        "RECOMMENDATIONS_CACHE_TABLE": "MovieRecCache",
+        "USER_FAVORITES_TABLE": "Favourites",
+        "USER_WATCHLIST_TABLE": "Watchlist",
+        "TMDB_API_KEY": "<REDACTED>",
+        "IS_OFFLINE": true
+      }
+    },
+    "dashboard": {
+      "isEnabledForService": false,
+      "requiredAuthentication": false,
+      "orgFeaturesInUse": null,
+      "orgObservabilityIntegrations": null,
+      "serviceAppId": null,
+      "serviceProvider": null,
+      "instanceParameters": null
+    },
+    "error": {
+      "message": "The Serverless version (4.17.1) does not satisfy the \"frameworkVersion\" (3) in serverless",
+      "stack": "ServerlessError2: The Serverless version (4.17.1) does not satisfy the \"frameworkVersion\" (3) in serverless\n    at Service.loadServiceFileParam (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1378:9199)\n    at Service.load (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1378:6841)\n    at Serverless.init (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1384:9813)\n    at runFramework (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1411:856)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async TraditionalRunner.run (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1407:28336)\n    at async route (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1582:2878)\n    at async Object.run (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1583:3661)\n    at async run2 (file:///C:/Users/xboxo/.serverless/releases/4.17.1/package/dist/sf-core.js:1583:4815)",
+      "code": "FRAMEWORK_VERSION_MISMATCH"
+    },
+    "serviceRawFile": "\nservice: movierec-backend\n\nframeworkVersion: '3'\n\nprovider:\n  name: aws\n  runtime: nodejs18.x\n  region: eu-north-1 # Ensure this matches your deployed region\n  stage: dev\n  environment:\n    USER_POOL_ID: ${env:REACT_APP_COGNITO_USER_POOL_ID}\n    COGNITO_CLIENT_ID: ${env:REACT_APP_COGNITO_CLIENT_ID}\n    USER_PREFERENCES_TABLE: UserPreferences\n    RECOMMENDATIONS_CACHE_TABLE: MovieRecCache\n    USER_FAVORITES_TABLE: Favourites\n    USER_WATCHLIST_TABLE: Watchlist\n    TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment\n    IS_OFFLINE: true # Flag for local development\n\nplugins:\n  - serverless-offline\n  - serverless-dynamodb-local\n  - serverless-dotenv-plugin\n\ncustom:\n  serverless-offline:\n    httpPort: 3001\n    lambdaPort: 3002\n  dynamodb:\n    start:\n      port: 8000\n      inMemory: true\n      migrate: true\n    stages:\n      - dev\n    tables:\n      - UserPreferences\n      - MovieRecCache\n      - Favourites\n      - Watchlist\n\nfunctions:\n  signin:\n    handler: lambda-functions/signin/index.handler\n    events:\n      - http:\n          path: auth/signin\n          method: post\n          cors: true\n\n  signup:\n    handler: lambda-functions/SignupHandler/index.handler\n    events:\n      - http:\n          path: auth/signup\n          method: post\n          cors: true\n\n  refreshToken:\n    handler: lambda-functions/RefreshTokenLambda/index.handler\n    events:\n      - http:\n          path: auth/refresh\n          method: post\n          cors: true\n\n  userPreferences:\n    handler: lambda-functions/UserPreferencesFunction/index.handler\n    events:\n      - http:\n          path: user/preferences\n          method: get\n          cors: true\n      - http:\n          path: user/preferences\n          method: post\n          cors: true\n\n  favourites:\n    handler: lambda-functions/FavouritesFunction/index.handler\n    events:\n      - http:\n          path: user/favourites\n          method: get\n          cors: true\n      - http:\n          path: user/favourites\n          method: post\n          cors: true\n      - http:\n          path: user/favourites\n          method: delete\n          cors: true\n\n  watchlist:\n    handler: lambda-functions/watchlist/index.handler\n    events:\n      - http:\n          path: user/watchlist\n          method: get\n          cors: true\n      - http:\n          path: user/watchlist\n          method: post\n          cors: true\n      - http:\n          path: user/watchlist\n          method: delete\n          cors: true\n\n  recommendations:\n    handler: lambda-functions/MovieRecPersonalizedApiHandler/index.handler\n    events:\n      - http:\n          path: recommendations\n          method: get\n          cors: true\n\n  mediaCache:\n    handler: lambda-functions/MediaCache/index.handler\n    events:\n      - http:\n          path: media\n          method: get\n          cors: true\n\n# Define DynamoDB tables for local development\nresources:\n  Resources:\n    UserPreferencesTable:\n      Type: AWS::DynamoDB::Table\n      Properties:\n        TableName: UserPreferences\n        AttributeDefinitions:\n          - AttributeName: userId\n            AttributeType: S\n        KeySchema:\n          - AttributeName: userId\n            KeyType: HASH\n        BillingMode: PAY_PER_REQUEST\n\n    MovieRecCacheTable:\n      Type: AWS::DynamoDB::Table\n      Properties:\n        TableName: MovieRecCache\n        AttributeDefinitions:\n          - AttributeName: mediaId\n            AttributeType: S\n          - AttributeName: mediaType\n            AttributeType: S\n          - AttributeName: genre\n            AttributeType: S\n        KeySchema:\n          - AttributeName: mediaId\n            KeyType: HASH\n          - AttributeName: mediaType\n            KeyType: RANGE\n        GlobalSecondaryIndexes:\n          - IndexName: genre-index\n            KeySchema:\n              - AttributeName: genre\n                KeyType: HASH\n            Projection:\n              ProjectionType: ALL\n        BillingMode: PAY_PER_REQUEST\n\n    FavouritesTable:\n      Type: AWS::DynamoDB::Table\n      Properties:\n        TableName: Favourites\n        AttributeDefinitions:\n          - AttributeName: userId\n            AttributeType: S\n          - AttributeName: movieId\n            AttributeType: S\n        KeySchema:\n          - AttributeName: userId\n            KeyType: HASH\n          - AttributeName: movieId\n            KeyType: RANGE\n        BillingMode: PAY_PER_REQUEST\n\n    WatchlistTable:\n      Type: AWS::DynamoDB::Table\n      Properties:\n        TableName: Watchlist\n        AttributeDefinitions:\n          - AttributeName: userId\n            AttributeType: S\n          - AttributeName: movieId\n            AttributeType: S\n        KeySchema:\n          - AttributeName: userId\n            KeyType: HASH\n          - AttributeName: movieId\n            KeyType: RANGE\n        BillingMode: PAY_PER_REQUEST\n",
+    "command": [
+      "offline",
+      "start"
+    ],
+    "options": {
+      "stage": "dev",
+      "host": "0.0.0.0"
+    },
+    "orgId": "66316c8b-1e9e-4719-93c5-7c11832db0ee",
+    "orgName": "nav107",
+    "userId": "Y1Qg03TKLlNWzgM5KR",
+    "userName": "nav107",
+    "serviceProviderAwsAccountId": "272942077493",
+    "serviceProviderAwsCfStackId": null,
+    "serviceProviderAwsCfStackCreated": null,
+    "serviceProviderAwsCfStackUpdated": null,
+    "serviceProviderAwsCfStackStatus": null,
+    "serviceProviderAwsCfStackOutputs": null
+  }
+}
