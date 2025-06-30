@@ -46,6 +46,13 @@ exports.handler = async (event) => {
   const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
   const corsHeaders = generateCorsHeaders(requestOrigin);
 
+  console.log('Received event:', JSON.stringify(event, null, 2));
+  console.log('Environment variables:', {
+    USER_POOL_ID: process.env.USER_POOL_ID,
+    COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID,
+    USER_FAVORITES_TABLE: process.env.USER_FAVORITES_TABLE
+  });
+
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -209,10 +216,19 @@ exports.handler = async (event) => {
     }
   } catch (error) {
     console.error("Unexpected error:", error);
+    console.error("Error stack:", error.stack);
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ message: "Internal server error" })
+      body: JSON.stringify({ 
+        message: "Internal server error",
+        error: error.message,
+        requestDetails: {
+          httpMethod: event.httpMethod,
+          headers: event.headers,
+          pathParameters: event.pathParameters
+        }
+      })
     };
   }
 };

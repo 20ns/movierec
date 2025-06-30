@@ -1,0 +1,81 @@
+service: movierec-tables
+
+frameworkVersion: '^4.0.0'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: eu-north-1
+  stage: dev
+
+# Define only DynamoDB tables for deployment
+resources:
+  Resources:
+    UserPreferencesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: UserPreferences
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    MovieRecCacheTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: MovieRecCache
+        AttributeDefinitions:
+          - AttributeName: mediaId
+            AttributeType: S
+          - AttributeName: mediaType
+            AttributeType: S
+          - AttributeName: genre
+            AttributeType: S
+        KeySchema:
+          - AttributeName: mediaId
+            KeyType: HASH
+          - AttributeName: mediaType
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: genre-index
+            KeySchema:
+              - AttributeName: genre
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    FavouritesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Favourites
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: movieId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: movieId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    WatchlistTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Watchlist
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: movieId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: movieId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
