@@ -99,7 +99,15 @@ functions:
       - http:
           path: auth/signin
           method: post
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   signup:
     handler: lambda-functions/SignupHandler/index.handler
@@ -109,7 +117,15 @@ functions:
       - http:
           path: auth/signup
           method: post
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   refreshToken:
     handler: lambda-functions/RefreshTokenLambda/index.handler
@@ -119,7 +135,15 @@ functions:
       - http:
           path: auth/refresh
           method: post
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   userPreferences:
     handler: lambda-functions/UserPreferencesFunction/index.handler
@@ -129,11 +153,27 @@ functions:
       - http:
           path: user/preferences
           method: get
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       - http:
           path: user/preferences
           method: post
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   favourites:
     handler: lambda-functions/FavouritesFunction/index.handler
@@ -143,15 +183,39 @@ functions:
       - http:
           path: user/favourites
           method: get
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       - http:
           path: user/favourites
           method: post
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       - http:
           path: user/favourites
           method: delete
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   watchlist:
     handler: lambda-functions/watchlist/index.handler
@@ -161,15 +225,39 @@ functions:
       - http:
           path: user/watchlist
           method: get
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       - http:
           path: user/watchlist
           method: post
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
       - http:
           path: user/watchlist
           method: delete
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   recommendations:
     handler: lambda-functions/MovieRecPersonalizedApiHandler/index.handler
@@ -179,7 +267,15 @@ functions:
       - http:
           path: recommendations
           method: get
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
   mediaCache:
     handler: lambda-functions/MediaCache/index.handler
@@ -189,7 +285,15 @@ functions:
       - http:
           path: media
           method: get
-          cors: true
+          cors:
+            origin: 'http://localhost:3000,https://movierec.net,https://www.movierec.net'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Amz-Date
+              - X-Api-Key
+              - X-Amz-Security-Token
+            allowCredentials: true
 
 # Define DynamoDB tables for local development
 resources:
