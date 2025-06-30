@@ -101,6 +101,21 @@ npm run start
 
 The application will be available at `http://localhost:3000`
 
+### Development Commands
+
+The project includes a helpful development script (`dev.js`) that provides easy commands:
+
+```bash
+npm run dev           # Start both frontend and backend
+npm run dev:frontend  # Start only frontend
+npm run dev:backend   # Start only backend
+npm run dev:test      # Run tests
+npm run dev:install   # Install all dependencies
+npm run dev:clean     # Clean and reinstall dependencies
+npm run dev:cleanup   # Clean up project structure
+npm run dev:status    # Check server status
+```
+
 ## 📁 Project Structure
 
 ```
@@ -201,27 +216,51 @@ Before you begin, ensure you have the following installed:
 
 ## 🚀 Getting Started
 
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+- AWS Account (for deployment)
+
+### Installation
+
 1.  **Clone the repository:**
     ```bash
     git clone <your-repository-url>
     cd movierec
     ```
+
 2.  **Install dependencies:**
     ```bash
     npm install
-    # or
-    yarn install
+    # or use the development helper
+    npm run dev:install
     ```
+
 3.  **Set up environment variables:**
-    Create a `.env` file in the root directory and add your AWS Cognito, API Gateway, and TMDB API keys:
-    ```plaintext
-    REACT_APP_COGNITO_USER_POOL_ID=your_user_pool_id
-    REACT_APP_COGNITO_CLIENT_ID=your_client_id
-    REACT_APP_API_GATEWAY_INVOKE_URL=your_api_gateway_url
-    REACT_APP_TMDB_API_KEY=your_tmdb_api_key
-    REACT_APP_REDIRECT_SIGN_IN=http://localhost:8080/ # Or your dev URL
-    REACT_APP_REDIRECT_SIGN_OUT=http://localhost:8080/ # Or your dev URL
+    ```bash
+    # Copy the example environment file
+    cp .env.example .env
+    
+    # Edit .env and fill in your actual values
+    # Get these from AWS Console and TMDB
     ```
+
+4.  **Clean up and organize project (optional):**
+    ```bash
+    npm run dev:cleanup
+    ```
+
+5.  **Run the development server:**
+    ```bash
+    # Start both frontend and backend
+    npm run dev
+    
+    # Or start individually
+    npm run dev:frontend  # Frontend only
+    npm run dev:backend   # Backend only
+    ```
+
+    The application will be available at `http://localhost:3000`
     *(Note: You might need to configure AWS Amplify CLI and set up the backend resources if deploying from scratch)*
 
 4.  **Run the development server:**

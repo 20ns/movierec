@@ -17,6 +17,7 @@ const commands = {
   'test:coverage': 'Run API tests with coverage',
   'install': 'Install all dependencies',
   'clean': 'Clean all node_modules and reinstall',
+  'cleanup': 'Clean up project structure',
   'lint': 'Run linting checks',
   'build': 'Build the frontend for production',
   'deploy': 'Deploy infrastructure',
@@ -160,7 +161,7 @@ async function main() {
 
       case 'install':
         console.log('📦 Installing dependencies...');
-        await runCommand('npm', ['install', '--legacy-peer-deps']);
+        await runCommand('npm', ['install']);
         console.log('📦 Installing test dependencies...');
         await runCommand('npm', ['install'], { cwd: 'tests' });
         break;
@@ -174,8 +175,13 @@ async function main() {
           await runCommand('rm', ['-rf', 'tests/node_modules']);
         }
         console.log('📦 Reinstalling dependencies...');
-        await runCommand('npm', ['install', '--legacy-peer-deps']);
+        await runCommand('npm', ['install']);
         await runCommand('npm', ['install'], { cwd: 'tests' });
+        break;
+
+      case 'cleanup':
+        console.log('🧹 Running project cleanup...');
+        await runCommand('node', ['scripts/cleanup.js']);
         break;
 
       case 'lint':

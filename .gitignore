@@ -6,7 +6,7 @@ lambda-layers/*/node_modules/
 dist/
 build/
 
-# Claude AI and MCP servers
+# Claude AI and MCP servers (comment out if needed for development)
 .claude/
 mcp-servers/
 # Environment variables
@@ -58,8 +58,10 @@ serverless.log*
 coverage/
 .nyc_output/
 test-results/
+*.test.log
 
 # Temporary files
 *.tmp
 *.temp
 .cache/
+undefined/
