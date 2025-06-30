@@ -63,7 +63,6 @@ exports.handler = async (event) => {
     const token = authHeader.substring(7);
     let payload;
     
-    let payload;
     if (process.env.IS_OFFLINE) {
       // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
