@@ -131,10 +131,20 @@ const MediaCard = ({
     }
 
     const checkFavoriteStatus = async () => {
-      if (!isAuthenticated || !currentUser) return;
+      if (!isAuthenticated || !currentUser) {
+        setIsFavorited(false);
+        hasFetchedRef.current = true;
+        setIsLoadingFavorite(false);
+        return;
+      }
 
       const token = extractToken(currentUser);
-      if (!token) return;
+      if (!token) {
+        setIsFavorited(false);
+        hasFetchedRef.current = true;
+        setIsLoadingFavorite(false);
+        return;
+      }
 
       try {
         const now = Date.now();
@@ -205,10 +215,20 @@ const MediaCard = ({
     }
 
     const checkWatchlistStatus = async () => {
-      if (!isAuthenticated || !currentUser) return;
+      if (!isAuthenticated || !currentUser) {
+        setIsInWatchlist(false);
+        hasWatchlistFetchedRef.current = true;
+        setIsLoadingWatchlist(false);
+        return;
+      }
 
       const token = extractToken(currentUser);
-      if (!token) return;
+      if (!token) {
+        setIsInWatchlist(false);
+        hasWatchlistFetchedRef.current = true;
+        setIsLoadingWatchlist(false);
+        return;
+      }
 
       try {
         const now = Date.now();

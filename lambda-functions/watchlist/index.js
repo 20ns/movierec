@@ -10,11 +10,16 @@ const client = new DynamoDBClient(dynamoDbClientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
 // Create a Cognito JWT verifier
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.USER_POOL_ID,
-  tokenUse: "access",
-  clientId: process.env.COGNITO_CLIENT_ID,
-});
+let verifier;
+try {
+  verifier = CognitoJwtVerifier.create({
+    userPoolId: process.env.USER_POOL_ID,
+    tokenUse: "access",
+    clientId: process.env.COGNITO_CLIENT_ID,
+  });
+} catch (error) {
+  console.error("Failed to create Cognito JWT verifier:", error);
+}
 
 // CORS headers helper
 const generateCorsHeaders = (requestOrigin) => {
@@ -53,6 +58,16 @@ exports.handler = async (event) => {
     USER_WATCHLIST_TABLE: process.env.USER_WATCHLIST_TABLE
   });
 
+  // Validate required environment variables
+  if (!process.env.USER_WATCHLIST_TABLE) {
+    console.error("USER_WATCHLIST_TABLE environment variable is not set");
+    return {
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ message: "Server configuration error" })
+    };
+  }
+
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -80,6 +95,14 @@ exports.handler = async (event) => {
       // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
+      if (!verifier) {
+        console.error("JWT verifier not available");
+        return {
+          statusCode: 500,
+          headers: corsHeaders,
+          body: JSON.stringify({ message: "JWT verifier configuration error" })
+        };
+      }
       try {
         payload = await verifier.verify(token);
       } catch (error) {
@@ -215,14 +238,20 @@ exports.handler = async (event) => {
       };
     }
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("=== UNEXPECTED ERROR IN WATCHLIST FUNCTION ===");
+    console.error("Error:", error);
+    console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
+    console.error("Event:", JSON.stringify(event, null, 2));
+    console.error("Environment:", JSON.stringify(process.env, null, 2));
+    console.error("=== END ERROR DETAILS ===");
     return {
       statusCode: 500,
       headers: corsHeaders,
       body: JSON.stringify({ 
         message: "Internal server error",
         error: error.message,
+        stack: error.stack,
         requestDetails: {
           httpMethod: event.httpMethod,
           headers: event.headers,
