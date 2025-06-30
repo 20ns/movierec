@@ -130,11 +130,17 @@ exports.handler = async (event) => {
 
         const result = await docClient.send(command);
         
+        // Map movieId to mediaId for frontend compatibility
+        const items = (result.Items || []).map(item => ({
+          ...item,
+          mediaId: item.movieId
+        }));
+        
         return {
           statusCode: 200,
           headers: corsHeaders,
           body: JSON.stringify({
-            favourites: result.Items || []
+            items: items
           })
         };
       } catch (error) {
