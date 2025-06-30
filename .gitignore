@@ -5,10 +5,12 @@ lambda-layers/*/node_modules/
 # Build artifacts
 dist/
 build/
+*.tsbuildinfo
 
-# Claude AI and MCP servers (comment out if needed for development)
+# Claude AI and MCP servers
 .claude/
 mcp-servers/
+
 # Environment variables
 .env
 .env.local
@@ -32,11 +34,21 @@ lambda-functions/**/function-info.json
 
 # IDE
 .vscode/settings.json
+.vscode/launch.json
 .idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
 # Logs
 *.log
@@ -59,9 +71,41 @@ coverage/
 .nyc_output/
 test-results/
 *.test.log
+junit.xml
+.jest/
 
 # Temporary files
 *.tmp
 *.temp
 .cache/
 undefined/
+.next/
+.nuxt/
+.vuepress/dist
+
+# Security
+.env.backup
+*.pem
+*.key
+*.p12
+*.p8
+auth_keys/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# Package managers
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+.pnpm-store/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
