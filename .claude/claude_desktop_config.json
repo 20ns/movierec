@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "node",
+      "args": ["/mnt/c/Users/xboxo/Desktop/movierec/mcp-servers/memory/dist/index.js"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"]
+    },
+    "git": {
+      "command": "python",
+      "args": ["/mnt/c/Users/xboxo/Desktop/movierec/mcp-servers/git/src/mcp_server_git/__main__.py"],
+      "env": {
+        "PYTHONPATH": "/mnt/c/Users/xboxo/Desktop/movierec/mcp-servers/git/src"
+      }
+    }
+  }
+}

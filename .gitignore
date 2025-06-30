@@ -6,6 +6,9 @@ lambda-layers/*/node_modules/
 dist/
 build/
 
+# Claude AI and MCP servers
+.claude/
+mcp-servers/
 # Environment variables
 .env
 .env.local
@@ -43,3 +46,20 @@ yarn-error.log*
 
 # Runtime
 .awcache/
+
+# Serverless
+.serverless/
+serverless.log*
+
+# DynamoDB Local
+.dynamodb/
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

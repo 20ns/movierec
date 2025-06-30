@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(npx:*)",
+      "Bash(git clone:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(source:*)",
+      "Bash(uv sync:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(echo $HOME)",
+      "Bash(rm:*)",
+      "Bash(node:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(claude mcp:*)",
+      "Bash(npm run start:offline:*)",
+      "Bash(npm run dev:*)",
+      "Bash(serverless:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(timeout:*)",
+      "Bash(java:*)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(echo $PATH)",
+      "Bash(REACT_APP_COGNITO_USER_POOL_ID=eu-north-1_x2FwI0mFK REACT_APP_COGNITO_CLIENT_ID=4gob38of1s9tu7h9ciik5unjrl REACT_APP_TMDB_API_KEY=b484a8d608caf759d5d575db3ec03bbc npx --yes serverless@3 dynamodb install)",
+      "mcp__sequential-thinking__sequentialthinking"
+    ],
+    "deny": []
+  }
+}

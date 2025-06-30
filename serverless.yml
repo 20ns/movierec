@@ -1,7 +1,7 @@
 
 service: movierec-backend
 
-frameworkVersion: '3'
+frameworkVersion: '^4.0.0'
 
 provider:
   name: aws
@@ -20,25 +20,25 @@ provider:
 
 plugins:
   - serverless-offline
-  - serverless-dynamodb-local
+  # - serverless-dynamodb-local  # Temporarily disabled
   - serverless-dotenv-plugin
 
 custom:
   serverless-offline:
     httpPort: 3001
     lambdaPort: 3002
-  dynamodb:
-    start:
-      port: 8000
-      inMemory: true
-      migrate: true
-    stages:
-      - dev
-    tables:
-      - UserPreferences
-      - MovieRecCache
-      - Favourites
-      - Watchlist
+  # dynamodb:  # Temporarily disabled
+  #   start:
+  #     port: 8000
+  #     inMemory: true
+  #     migrate: true
+  #   stages:
+  #     - dev
+  #   tables:
+  #     - UserPreferences
+  #     - MovieRecCache
+  #     - Favourites
+  #     - Watchlist
 
 functions:
   signin:
