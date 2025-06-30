@@ -1,10 +1,16 @@
 {
-  "name": "movierec-aws-tests",
+  "name": "movierec-tests",
   "version": "1.0.0",
-  "description": "AWS integration tests for MovieRec application",
-  "main": "aws/aws-test-runner.js",
+  "description": "Test suite for MovieRec application",
+  "main": "api.test.js",
   "scripts": {
-    "test": "node aws/aws-test-runner.js",
+    "test": "jest --config=jest.config.js api-simple.test.js",
+    "test:all": "jest --config=jest.config.js",
+    "test:watch": "jest --config=jest.config.js api-simple.test.js --watch",
+    "test:coverage": "jest --config=jest.config.js --coverage",
+    "test:api": "jest --config=jest.config.js api.test.js",
+    "test:simple": "jest --config=jest.config.js api-simple.test.js",
+    "test:aws": "node aws/aws-test-runner.js",
     "test:endpoints": "node aws/endpoint-tests.js",
     "test:lambda": "node aws/lambda-tests.js",
     "test:dynamodb": "node aws/dynamodb-tests.js",
@@ -12,15 +18,20 @@
     "test:sequential": "node aws/aws-test-runner.js --sequential"
   },
   "keywords": [
-    "aws",
     "testing",
-    "api-gateway",
+    "jest",
+    "api-testing",
+    "integration-tests",
+    "aws",
     "lambda",
     "dynamodb",
-    "cognito",
-    "integration-tests"
+    "cognito"
   ],
   "dependencies": {
+    "axios": "^1.8.4",
     "https": "^1.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
