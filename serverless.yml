@@ -1,7 +1,40 @@
-
 service: movierec-backend
 
 frameworkVersion: '^4.0.0'
+
+# Package configuration to reduce deployment size
+package:
+  patterns:
+    - '!lambda-functions/**/node_modules/**'
+    - '!node_modules/**'
+    - '!.git/**'
+    - '!README.md'
+    - '!.env'
+    - '!package-lock.json'
+    - '!tests/**'
+    - '!scripts/**'
+    - '!public/**'
+    - '!src/**'
+    - '!.vscode/**'
+    - '!infrastructure/**'
+    - '!mcp-servers/**'
+    - '!undefined/**'
+    - '!*.md'
+    - '!jest.config.js'
+    - '!postcss.config.js'
+    - '!tailwind.config.js'
+    - '!webpack.config.js'
+    - '!dev.js'
+    - '!movierec.code-workspace'
+
+layers:
+  awsSdkLayer:
+    path: lambda-layers/aws-sdk-layer
+    name: ${self:provider.stage}-aws-sdk-layer
+    description: AWS SDK v3 and JWT verification dependencies
+    compatibleRuntimes:
+      - nodejs18.x
+    retain: false
 
 provider:
   name: aws
@@ -16,7 +49,20 @@ provider:
     USER_FAVORITES_TABLE: Favourites
     USER_WATCHLIST_TABLE: Watchlist
     TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment
-    IS_OFFLINE: true # Flag for local development
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/UserPreferences"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/MovieRecCache"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/Favourites"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/Watchlist"
 
 plugins:
   - serverless-offline
@@ -27,6 +73,7 @@ custom:
   serverless-offline:
     httpPort: 3001
     lambdaPort: 3002
+    noAuth: true
   dynamodb:
     start:
       port: 8000
@@ -46,6 +93,8 @@ custom:
 functions:
   signin:
     handler: lambda-functions/signin/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: auth/signin
@@ -54,6 +103,8 @@ functions:
 
   signup:
     handler: lambda-functions/SignupHandler/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: auth/signup
@@ -62,6 +113,8 @@ functions:
 
   refreshToken:
     handler: lambda-functions/RefreshTokenLambda/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: auth/refresh
@@ -70,6 +123,8 @@ functions:
 
   userPreferences:
     handler: lambda-functions/UserPreferencesFunction/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: user/preferences
@@ -82,6 +137,8 @@ functions:
 
   favourites:
     handler: lambda-functions/FavouritesFunction/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: user/favourites
@@ -98,6 +155,8 @@ functions:
 
   watchlist:
     handler: lambda-functions/watchlist/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: user/watchlist
@@ -114,6 +173,8 @@ functions:
 
   recommendations:
     handler: lambda-functions/MovieRecPersonalizedApiHandler/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: recommendations
@@ -122,6 +183,8 @@ functions:
 
   mediaCache:
     handler: lambda-functions/MediaCache/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
     events:
       - http:
           path: media

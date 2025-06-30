@@ -2,23 +2,9 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-// In-memory storage for local development (persists during session)
-const localDataStore = {
-  favourites: {},
-  watchlist: {},
-  preferences: {}
-};
-
-// Configure DynamoDB client for local vs production
+// Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
-if (process.env.IS_OFFLINE) {
-  dynamoDbClientConfig.region = 'localhost';
-  dynamoDbClientConfig.endpoint = 'http://localhost:8000';
-  dynamoDbClientConfig.credentials = {
-    accessKeyId: 'MockAccessKeyId',
-    secretAccessKey: 'MockSecretAccessKey'
-  };
-}
+// We always use cloud DynamoDB for this demo - no local DynamoDB setup needed
 
 const client = new DynamoDBClient(dynamoDbClientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
@@ -42,13 +28,15 @@ const generateCorsHeaders = (requestOrigin) => {
   const headers = {
     'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
   };
   
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     headers['Access-Control-Allow-Origin'] = requestOrigin;
   } else {
-    headers['Access-Control-Allow-Origin'] = allowedOrigins[0];
+    // For credentialed requests, we must specify an exact origin, not '*'
+    headers['Access-Control-Allow-Origin'] = allowedOrigins[2]; // Default to localhost:3000 for development
   }
   
   return headers;
@@ -81,7 +69,7 @@ exports.handler = async (event) => {
     const token = authHeader.substring(7);
     let payload;
     
-    if (process.env.IS_OFFLINE) {
+    if (process.env.IS_OFFLINE === 'true') {
       // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
@@ -102,18 +90,6 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       // Get user watchlist
       try {
-        if (process.env.IS_OFFLINE) {
-          // Use in-memory storage for offline mode
-          const userWatchlist = localDataStore.watchlist[userId] || [];
-          return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: JSON.stringify({
-              watchlist: userWatchlist
-            })
-          };
-        }
-
         const command = new QueryCommand({
           TableName: process.env.USER_WATCHLIST_TABLE,
           KeyConditionExpression: "userId = :userId",
@@ -143,42 +119,16 @@ exports.handler = async (event) => {
       // Add to watchlist
       try {
         const requestBody = JSON.parse(event.body || '{}');
-        const { movieId, title, poster_path, release_date, vote_average } = requestBody;
+        const { mediaId, movieId, title, poster_path, release_date, vote_average } = requestBody;
         
-        if (!movieId) {
+        // Support both mediaId (new) and movieId (legacy) for backwards compatibility
+        const id = mediaId || movieId;
+        
+        if (!id) {
           return {
             statusCode: 400,
             headers: corsHeaders,
-            body: JSON.stringify({ error: "Movie ID is required" })
-          };
-        }
-
-        if (process.env.IS_OFFLINE) {
-          // Use in-memory storage for offline mode
-          if (!localDataStore.watchlist[userId]) {
-            localDataStore.watchlist[userId] = [];
-          }
-          
-          const movieItem = {
-            userId: userId,
-            movieId: movieId.toString(),
-            title: title || '',
-            poster_path: poster_path || '',
-            release_date: release_date || '',
-            vote_average: vote_average || 0,
-            addedAt: new Date().toISOString()
-          };
-          
-          // Check if movie is already in watchlist
-          const existingIndex = localDataStore.watchlist[userId].findIndex(item => item.movieId === movieId.toString());
-          if (existingIndex === -1) {
-            localDataStore.watchlist[userId].push(movieItem);
-          }
-          
-          return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: JSON.stringify({ message: "Added to watchlist successfully" })
+            body: JSON.stringify({ error: "Media ID is required" })
           };
         }
 
@@ -186,7 +136,7 @@ exports.handler = async (event) => {
           TableName: process.env.USER_WATCHLIST_TABLE,
           Item: {
             userId: userId,
-            movieId: movieId.toString(),
+            movieId: id.toString(),
             title: title || '',
             poster_path: poster_path || '',
             release_date: release_date || '',
@@ -213,29 +163,17 @@ exports.handler = async (event) => {
     } else if (event.httpMethod === 'DELETE') {
       // Remove from watchlist
       try {
+        const mediaId = event.queryStringParameters?.mediaId;
         const movieId = event.queryStringParameters?.movieId;
         
-        if (!movieId) {
+        // Support both mediaId (new) and movieId (legacy) for backwards compatibility
+        const id = mediaId || movieId;
+        
+        if (!id) {
           return {
             statusCode: 400,
             headers: corsHeaders,
-            body: JSON.stringify({ error: "Movie ID is required" })
-          };
-        }
-
-        if (process.env.IS_OFFLINE) {
-          // Use in-memory storage for offline mode
-          if (localDataStore.watchlist[userId]) {
-            const index = localDataStore.watchlist[userId].findIndex(item => item.movieId === movieId.toString());
-            if (index !== -1) {
-              localDataStore.watchlist[userId].splice(index, 1);
-            }
-          }
-          
-          return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: JSON.stringify({ message: "Removed from watchlist successfully" })
+            body: JSON.stringify({ error: "Media ID is required" })
           };
         }
 
@@ -243,7 +181,7 @@ exports.handler = async (event) => {
           TableName: process.env.USER_WATCHLIST_TABLE,
           Key: {
             userId: userId,
-            movieId: movieId.toString()
+            movieId: id.toString()
           }
         });
 

@@ -36,13 +36,15 @@ exports.handler = async (event) => {
 
     const headers = {
         "Access-Control-Allow-Headers": "Content-Type,Authorization",
-        "Access-Control-Allow-Methods": "GET,OPTIONS"
+        "Access-Control-Allow-Methods": "GET,OPTIONS",
+        "Access-Control-Allow-Credentials": "true"
     };
 
     if (origin && allowedOrigins.includes(origin)) {
         headers["Access-Control-Allow-Origin"] = origin;
     } else {
-        headers["Access-Control-Allow-Origin"] = allowedOrigins[0];
+        // For credentialed requests, we must specify an exact origin, not '*'
+        headers["Access-Control-Allow-Origin"] = allowedOrigins[2]; // Default to localhost:3000 for development
     }
 
     if (event.httpMethod === 'OPTIONS') {

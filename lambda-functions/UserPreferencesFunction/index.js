@@ -2,23 +2,9 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-// In-memory storage for local development (persists during session)
-const localDataStore = {
-  favourites: {},
-  watchlist: {},
-  preferences: {}
-};
-
-// Configure DynamoDB client for local vs production
+// Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
-if (process.env.IS_OFFLINE) {
-  dynamoDbClientConfig.region = 'localhost';
-  dynamoDbClientConfig.endpoint = 'http://localhost:8000';
-  dynamoDbClientConfig.credentials = {
-    accessKeyId: 'MockAccessKeyId',
-    secretAccessKey: 'MockSecretAccessKey'
-  };
-}
+// We always use cloud DynamoDB for this demo - no local DynamoDB setup needed
 
 const client = new DynamoDBClient(dynamoDbClientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
@@ -42,13 +28,15 @@ const generateCorsHeaders = (requestOrigin) => {
   const headers = {
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
   };
   
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     headers['Access-Control-Allow-Origin'] = requestOrigin;
   } else {
-    headers['Access-Control-Allow-Origin'] = allowedOrigins[0];
+    // For credentialed requests, we must specify an exact origin, not '*'
+    headers['Access-Control-Allow-Origin'] = allowedOrigins[2]; // Default to localhost:3000 for development
   }
   
   return headers;
@@ -81,7 +69,7 @@ exports.handler = async (event) => {
     const token = authHeader.substring(7);
     let payload;
     
-    if (process.env.IS_OFFLINE) {
+    if (process.env.IS_OFFLINE === 'true') {
       // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
@@ -102,27 +90,6 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       // Get user preferences
       try {
-        if (process.env.IS_OFFLINE) {
-          // Use in-memory storage for offline mode
-          const userPreferences = localDataStore.preferences[userId] || {
-            userId: userId,
-            genres: [],
-            keywords: [],
-            minRating: 0,
-            maxRating: 10,
-            releaseYearStart: 1900,
-            releaseYearEnd: new Date().getFullYear()
-          };
-          
-          return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: JSON.stringify({
-              preferences: userPreferences
-            })
-          };
-        }
-
         const command = new GetCommand({
           TableName: process.env.USER_PREFERENCES_TABLE,
           Key: { userId: userId }
@@ -157,21 +124,6 @@ exports.handler = async (event) => {
       // Update user preferences
       try {
         const preferences = JSON.parse(event.body || '{}');
-        
-        if (process.env.IS_OFFLINE) {
-          // Use in-memory storage for offline mode
-          localDataStore.preferences[userId] = {
-            userId: userId,
-            ...preferences,
-            updatedAt: new Date().toISOString()
-          };
-          
-          return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: JSON.stringify({ message: "Preferences updated successfully" })
-          };
-        }
         
         const command = new PutCommand({
           TableName: process.env.USER_PREFERENCES_TABLE,

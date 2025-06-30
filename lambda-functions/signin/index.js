@@ -12,9 +12,10 @@ const allowedOrigins = [
 ];
 
 const getHeaders = (origin) => ({
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[2], // Default to localhost:3000 for development
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'OPTIONS,POST',
+  'Access-Control-Allow-Credentials': 'true',
   'Content-Type': 'application/json'
 });
 

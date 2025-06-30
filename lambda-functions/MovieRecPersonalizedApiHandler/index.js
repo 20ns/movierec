@@ -237,12 +237,14 @@ const generateCorsHeaders = (requestOrigin) => {
     const headers = {
         'Access-Control-Allow-Methods': 'GET,OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+        'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Max-Age': '86400',
     };
     if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
         headers['Access-Control-Allow-Origin'] = requestOrigin;
     } else {
-        headers['Access-Control-Allow-Origin'] = allowedOrigins[0];
+        // For credentialed requests, we must specify an exact origin, not '*'
+        headers['Access-Control-Allow-Origin'] = allowedOrigins[2]; // Default to localhost:3000 for development
     }
     return headers;
 };

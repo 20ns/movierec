@@ -332,25 +332,33 @@ const MediaCard = ({
     const method = previousState ? 'DELETE' : 'POST';
     setIsFavorited(!previousState);
 
-    try {      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
-        {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          credentials: 'include',
-          mode: 'cors',
-          body: JSON.stringify({
-            mediaId: mediaId,
-            title: displayTitle,
-            mediaType: determinedMediaType,
-            posterPath: poster_path,
-            overview: overview
-          })
-        }
-      );
+    try {
+      const url = method === 'DELETE' 
+        ? `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites?mediaId=${encodeURIComponent(mediaId)}`
+        : `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`;
+        
+      const requestConfig = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        credentials: 'include',
+        mode: 'cors'
+      };
+      
+      // Only include body for POST requests
+      if (method === 'POST') {
+        requestConfig.body = JSON.stringify({
+          mediaId: mediaId,
+          title: displayTitle,
+          mediaType: determinedMediaType,
+          posterPath: poster_path,
+          overview: overview
+        });
+      }
+      
+      const response = await fetch(url, requestConfig);
 
       if (!response.ok) {
         setIsFavorited(previousState);
@@ -423,25 +431,33 @@ const MediaCard = ({
     const method = previousState ? 'DELETE' : 'POST';
     setIsInWatchlist(!previousState);
 
-    try {      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`,
-        {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          credentials: 'include',
-          mode: 'cors',
-          body: JSON.stringify({
-            mediaId: mediaId,
-            title: displayTitle,
-            mediaType: determinedMediaType,
-            posterPath: poster_path,
-            overview: overview
-          })
-        }
-      );
+    try {
+      const url = method === 'DELETE' 
+        ? `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist?mediaId=${encodeURIComponent(mediaId)}`
+        : `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`;
+        
+      const requestConfig = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        credentials: 'include',
+        mode: 'cors'
+      };
+      
+      // Only include body for POST requests
+      if (method === 'POST') {
+        requestConfig.body = JSON.stringify({
+          mediaId: mediaId,
+          title: displayTitle,
+          mediaType: determinedMediaType,
+          posterPath: poster_path,
+          overview: overview
+        });
+      }
+      
+      const response = await fetch(url, requestConfig);
 
       if (!response.ok) {
         setIsInWatchlist(previousState);
