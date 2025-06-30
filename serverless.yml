@@ -20,19 +20,22 @@ provider:
 
 plugins:
   - serverless-offline
-  # - serverless-dynamodb-local  # Temporarily disabled
+  # - serverless-dynamodb-local  # Temporarily disabled due to Java dependency
   - serverless-dotenv-plugin
 
 custom:
   serverless-offline:
     httpPort: 3001
     lambdaPort: 3002
-  # dynamodb:  # Temporarily disabled
-  #   start:
-  #     port: 8000
-  #     inMemory: true
-  #     migrate: true
-  #   stages:
+  dynamodb:
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+    stages:
+      - dev
+    migration:
+      dir: offline/migrations
   #     - dev
   #   tables:
   #     - UserPreferences

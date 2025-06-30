@@ -2,7 +2,25 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-const client = new DynamoDBClient({});
+// In-memory storage for local development (persists during session)
+const localDataStore = {
+  favourites: {},
+  watchlist: {},
+  preferences: {}
+};
+
+// Configure DynamoDB client for local vs production
+const dynamoDbClientConfig = {};
+if (process.env.IS_OFFLINE) {
+  dynamoDbClientConfig.region = 'localhost';
+  dynamoDbClientConfig.endpoint = 'http://localhost:8000';
+  dynamoDbClientConfig.credentials = {
+    accessKeyId: 'MockAccessKeyId',
+    secretAccessKey: 'MockSecretAccessKey'
+  };
+}
+
+const client = new DynamoDBClient(dynamoDbClientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
 // Create a Cognito JWT verifier
@@ -84,6 +102,27 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       // Get user preferences
       try {
+        if (process.env.IS_OFFLINE) {
+          // Use in-memory storage for offline mode
+          const userPreferences = localDataStore.preferences[userId] || {
+            userId: userId,
+            genres: [],
+            keywords: [],
+            minRating: 0,
+            maxRating: 10,
+            releaseYearStart: 1900,
+            releaseYearEnd: new Date().getFullYear()
+          };
+          
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({
+              preferences: userPreferences
+            })
+          };
+        }
+
         const command = new GetCommand({
           TableName: process.env.USER_PREFERENCES_TABLE,
           Key: { userId: userId }
@@ -118,6 +157,21 @@ exports.handler = async (event) => {
       // Update user preferences
       try {
         const preferences = JSON.parse(event.body || '{}');
+        
+        if (process.env.IS_OFFLINE) {
+          // Use in-memory storage for offline mode
+          localDataStore.preferences[userId] = {
+            userId: userId,
+            ...preferences,
+            updatedAt: new Date().toISOString()
+          };
+          
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({ message: "Preferences updated successfully" })
+          };
+        }
         
         const command = new PutCommand({
           TableName: process.env.USER_PREFERENCES_TABLE,

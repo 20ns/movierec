@@ -2,7 +2,25 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
-const client = new DynamoDBClient({});
+// In-memory storage for local development (persists during session)
+const localDataStore = {
+  favourites: {},
+  watchlist: {},
+  preferences: {}
+};
+
+// Configure DynamoDB client for local vs production
+const dynamoDbClientConfig = {};
+if (process.env.IS_OFFLINE) {
+  dynamoDbClientConfig.region = 'localhost';
+  dynamoDbClientConfig.endpoint = 'http://localhost:8000';
+  dynamoDbClientConfig.credentials = {
+    accessKeyId: 'MockAccessKeyId',
+    secretAccessKey: 'MockSecretAccessKey'
+  };
+}
+
+const client = new DynamoDBClient(dynamoDbClientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
 // Create a Cognito JWT verifier
@@ -84,6 +102,18 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       // Get user favourites
       try {
+        if (process.env.IS_OFFLINE) {
+          // Use in-memory storage for offline mode
+          const userFavourites = localDataStore.favourites[userId] || [];
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({
+              favourites: userFavourites
+            })
+          };
+        }
+
         const command = new QueryCommand({
           TableName: process.env.USER_FAVORITES_TABLE,
           KeyConditionExpression: "userId = :userId",
@@ -120,6 +150,35 @@ exports.handler = async (event) => {
             statusCode: 400,
             headers: corsHeaders,
             body: JSON.stringify({ error: "Movie ID is required" })
+          };
+        }
+
+        if (process.env.IS_OFFLINE) {
+          // Use in-memory storage for offline mode
+          if (!localDataStore.favourites[userId]) {
+            localDataStore.favourites[userId] = [];
+          }
+          
+          const movieItem = {
+            userId: userId,
+            movieId: movieId.toString(),
+            title: title || '',
+            poster_path: poster_path || '',
+            release_date: release_date || '',
+            vote_average: vote_average || 0,
+            addedAt: new Date().toISOString()
+          };
+          
+          // Check if movie is already in favourites
+          const existingIndex = localDataStore.favourites[userId].findIndex(item => item.movieId === movieId.toString());
+          if (existingIndex === -1) {
+            localDataStore.favourites[userId].push(movieItem);
+          }
+          
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({ message: "Added to favourites successfully" })
           };
         }
 
@@ -161,6 +220,22 @@ exports.handler = async (event) => {
             statusCode: 400,
             headers: corsHeaders,
             body: JSON.stringify({ error: "Movie ID is required" })
+          };
+        }
+
+        if (process.env.IS_OFFLINE) {
+          // Use in-memory storage for offline mode
+          if (localDataStore.favourites[userId]) {
+            const index = localDataStore.favourites[userId].findIndex(item => item.movieId === movieId.toString());
+            if (index !== -1) {
+              localDataStore.favourites[userId].splice(index, 1);
+            }
+          }
+          
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({ message: "Removed from favourites successfully" })
           };
         }
 
