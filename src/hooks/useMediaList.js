@@ -91,14 +91,17 @@ export default function useMediaList({
           throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
         }
         const data = await res.json();
+        console.log('🔍 [useMediaList] Raw API Response:', data);
         const rawItems =
           data.items && Array.isArray(data.items) ? data.items
             : Array.isArray(data) ? data
             : [];
+        console.log('🔍 [useMediaList] Extracted raw items:', rawItems);
         list = rawItems;
         setCache(userId, rawItems);
       }
       const mapped = list.map(mapItem).filter(Boolean);
+      console.log('🔍 [useMediaList] Mapped items:', mapped);
       setItems(mapped);
     } catch (err) {
       setError(err.message);

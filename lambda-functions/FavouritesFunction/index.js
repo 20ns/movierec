@@ -136,6 +136,9 @@ exports.handler = async (event) => {
           mediaId: item.movieId
         }));
         
+        console.log('🔍 [FavouritesFunction] Raw DynamoDB result:', result.Items);
+        console.log('🔍 [FavouritesFunction] Mapped items for frontend:', items);
+        
         return {
           statusCode: 200,
           headers: corsHeaders,

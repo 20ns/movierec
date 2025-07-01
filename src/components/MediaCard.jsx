@@ -74,6 +74,17 @@ const MediaCard = ({
     release_date, first_air_date, media_type, genre_ids,
     score, scoreReasons, popularity
   } = result || {};
+  
+  // Debug log for favorites/watchlist items
+  if (fromFavorites || fromWatchlist) {
+    console.log(`🔍 [MediaCard] ${fromFavorites ? 'Favorites' : 'Watchlist'} item data:`, {
+      result,
+      id,
+      title,
+      poster_path,
+      posterUrl: poster_path ? `https://image.tmdb.org/t/p/w300${poster_path}` : null
+    });
+  }
 
   const mediaId = id?.toString();
   const displayTitle = title || name || 'Untitled';
@@ -89,16 +100,22 @@ const MediaCard = ({
   // For live rating from TMDb when displayed in favorites/watchlist
   const [liveRating, setLiveRating] = useState(rating);
   const [isLoadingRating, setIsLoadingRating] = useState(false);
+  // For fetching missing poster data
+  const [fetchedPosterPath, setFetchedPosterPath] = useState(null);
   const displayScore = score ?? (vote_average ? Math.round(vote_average * 10) : null);
   const displayPopularity = Math.round(popularity) || 'N/A';
   const determinedMediaType = media_type || (release_date ? 'movie' : 'tv');
-  const posterUrl = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/placeholder.png';
+  const finalPosterPath = poster_path || fetchedPosterPath;
+  const posterUrl = finalPosterPath ? `https://image.tmdb.org/t/p/w300${finalPosterPath}` : null;
   const socialProof = getSocialProof(result);
 
   useEffect(() => {
-    // Fetch live rating from TMDb when showing in favorites/watchlist and no rating is available
-    const fetchRatingFromTMDb = async () => {
-      if (!mediaId || rating > 0 || !fromFavorites && !fromWatchlist) return;
+    // Fetch live data from TMDb when showing in favorites/watchlist and data is missing
+    const fetchMissingDataFromTMDb = async () => {
+      const needsRating = !rating || rating === 0;
+      const needsPoster = !poster_path || poster_path.trim() === '';
+      
+      if (!mediaId || (!needsRating && !needsPoster) || (!fromFavorites && !fromWatchlist)) return;
       
       setIsLoadingRating(true);
       try {
@@ -109,20 +126,28 @@ const MediaCard = ({
         
         if (response.ok) {
           const data = await response.json();
-          if (data.vote_average) {
+          
+          // Update rating if needed
+          if (needsRating && data.vote_average) {
             const fetchedRating = Math.round(data.vote_average * 10) / 10;
             setLiveRating(fetchedRating);
           }
+          
+          // Update poster if needed
+          if (needsPoster && data.poster_path) {
+            console.log(`🖼️ [MediaCard] Fetched missing poster for ${displayTitle}:`, data.poster_path);
+            setFetchedPosterPath(data.poster_path);
+          }
         }
       } catch (error) {
-        console.error(`Error fetching rating for ${displayTitle}:`, error);
+        console.error(`Error fetching data for ${displayTitle}:`, error);
       } finally {
         setIsLoadingRating(false);
       }
     };
     
-    fetchRatingFromTMDb();
-  }, [mediaId, rating, fromFavorites, fromWatchlist, determinedMediaType, displayTitle]);
+    fetchMissingDataFromTMDb();
+  }, [mediaId, rating, poster_path, fromFavorites, fromWatchlist, determinedMediaType, displayTitle]);
   
   useEffect(() => {
     if (hasFetchedRef.current || initialIsFavorited !== null) {
@@ -373,7 +398,7 @@ const MediaCard = ({
           mediaId: mediaId,
           title: displayTitle,
           mediaType: determinedMediaType,
-          posterPath: poster_path,
+          poster_path: poster_path,
           overview: overview
         });
       }
@@ -405,7 +430,7 @@ const MediaCard = ({
             mediaId: mediaId,
             title: displayTitle,
             mediaType: determinedMediaType,
-            posterPath: poster_path,
+            poster_path: poster_path,
             voteAverage: rating, // Use the calculated rating
             releaseDate: release_date || first_air_date,
             // Add other relevant fields if needed by FavoritesSection
@@ -472,7 +497,7 @@ const MediaCard = ({
           mediaId: mediaId,
           title: displayTitle,
           mediaType: determinedMediaType,
-          posterPath: poster_path,
+          poster_path: poster_path,
           overview: overview
         });
       }
@@ -515,7 +540,7 @@ const MediaCard = ({
             mediaId: mediaId,
             title: displayTitle,
             mediaType: determinedMediaType,
-            posterPath: poster_path,
+            poster_path: poster_path,
             voteAverage: rating, // Use the calculated rating
             releaseDate: release_date || first_air_date,
             // Add other relevant fields if needed by WatchlistSection
@@ -676,15 +701,33 @@ const MediaCard = ({
       >
         <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-          <motion.img
-            src={posterUrl}
-            alt={`Poster for ${displayTitle}`}
-            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+          {posterUrl ? (
+            <motion.img
+              src={posterUrl}
+              alt={`Poster for ${displayTitle}`}
+              className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              loading="lazy"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <motion.div
+            className="w-full h-full bg-gray-800 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500"
+            style={{ display: posterUrl ? 'none' : 'flex' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4 }}
-            loading="lazy"
-          />
+          >
+            <div className="text-center text-gray-400">
+              <div className="text-4xl mb-2">🎬</div>
+              <div className="text-xs font-medium">No Image</div>
+            </div>
+          </motion.div>
           
           {displayScore !== null && (
             <div className={`absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-semibold text-white shadow-md ${

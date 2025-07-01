@@ -3,20 +3,33 @@ import { HeartIcon, XMarkIcon, ArrowPathIcon, ArrowsUpDownIcon } from '@heroicon
 import MediaListSection from './MediaListSection';
 
 const mapFavoritesItem = item => {
-  if (!item?.mediaId) return null;
-  return {
+  console.log('🔍 [mapFavoritesItem] Processing item:', item);
+  if (!item?.mediaId) {
+    console.log('⚠️ [mapFavoritesItem] No mediaId found, skipping item');
+    return null;
+  }
+  
+  // Handle poster_path properly - treat empty string as missing data
+  const posterPath = item.posterPath || item.poster_path;
+  const hasPoster = posterPath && posterPath.trim() !== '';
+  
+  const mapped = {
     id: item.mediaId,
     media_type: item.mediaType || 'movie',
     title: item.title,
     name: item.title,
-    poster_path: item.posterPath || item.poster_path || null,
+    poster_path: hasPoster ? posterPath : null,
     backdrop_path: item.backdropPath || item.backdrop_path || null,
     release_date: item.releaseDate || item.firstAirDate || item.release_date || null,
     first_air_date: item.firstAirDate || item.releaseDate || item.first_air_date || item.release_date || null,
     vote_average: parseFloat(item.voteAverage || item.vote_average || 0),
     popularity: item.popularity || 0,
-    genre_ids: Array.isArray(item.genreIds) ? item.genreIds : []
+    genre_ids: Array.isArray(item.genreIds) ? item.genreIds : [],
+    // Flag to indicate this needs poster data fetched
+    needsPosterFetch: !hasPoster
   };
+  console.log('🔍 [mapFavoritesItem] Mapped result:', mapped);
+  return mapped;
 };
 
 export default function FavoritesSection(props) {

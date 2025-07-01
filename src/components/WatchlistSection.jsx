@@ -4,12 +4,17 @@ import MediaListSection from './MediaListSection';
 
 const mapWatchlistItem = item => {
   if (!item?.mediaId) return null;
+  
+  // Handle poster_path properly - treat empty string as missing data
+  const posterPath = item.posterPath || item.poster_path;
+  const hasPoster = posterPath && posterPath.trim() !== '';
+  
   return {
     id: item.mediaId,
     media_type: item.mediaType || 'movie',
     title: item.title || item.name || 'Unknown Title',
     name: item.name || item.title || 'Unknown Title',
-    poster_path: item.posterPath || item.poster_path || null,
+    poster_path: hasPoster ? posterPath : null,
     backdrop_path: item.backdropPath || item.backdrop_path || null,
     release_date: item.releaseDate || item.firstAirDate || item.release_date || null,
     first_air_date: item.firstAirDate || item.releaseDate || item.first_air_date || item.release_date || null,

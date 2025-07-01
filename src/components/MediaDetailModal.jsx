@@ -39,7 +39,7 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
   const displayTitle = title || name || 'Untitled';
   const year = extractYear(release_date || first_air_date);
   const rating = vote_average ? Math.round(vote_average * 10) / 10 : 'N/A';
-  const posterUrl = poster_path ? `https://image.tmdb.org/t/p/w500${poster_path}` : '/placeholder.png';
+  const posterUrl = poster_path ? `https://image.tmdb.org/t/p/w300${poster_path}` : null;
   const backdropUrl = backdrop_path ? `https://image.tmdb.org/t/p/w1280${backdrop_path}` : null;
   const mediaId = id?.toString();
 
@@ -83,8 +83,27 @@ const MediaDetailModal = ({ item, isOpen, onClose, currentUser }) => {
             <div className="flex-grow overflow-y-auto custom-scrollbar p-4 sm:p-6 pt-0 -mt-20 sm:-mt-24 relative z-10">
               <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 mb-6">
                 {/* Poster */}
-                <div className="flex-shrink-0 w-32 sm:w-40 h-auto rounded-lg overflow-hidden shadow-lg border-2 border-gray-700">
-                  <img src={posterUrl} alt={`Poster for ${displayTitle}`} className="w-full h-full object-cover" />
+                <div className="flex-shrink-0 w-32 sm:w-40 h-48 sm:h-60 rounded-lg overflow-hidden shadow-lg border-2 border-gray-700">
+                  {posterUrl ? (
+                    <img 
+                      src={posterUrl} 
+                      alt={`Poster for ${displayTitle}`} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div 
+                    className="w-full h-full bg-gray-800 flex items-center justify-center"
+                    style={{ display: posterUrl ? 'none' : 'flex' }}
+                  >
+                    <div className="text-center text-gray-400">
+                      <div className="text-3xl mb-2">🎬</div>
+                      <div className="text-xs font-medium">No Image</div>
+                    </div>
+                  </div>
                 </div>
                 {/* Title and Meta */}
                 <div className="flex-grow min-w-0">
