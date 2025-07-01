@@ -174,12 +174,20 @@ module.exports = (env, argv) => {
       { directory: path.resolve(__dirname, 'dist') },
       { directory: path.resolve(__dirname, 'public'), publicPath: '/' }
     ],
-    historyApiFallback: true,
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/blog/, to: '/blog/index.html' }
+      ]
+    },
     hot: true,
     port: 3000,
+    host: 'localhost',
     compress: true,
+    allowedHosts: ['localhost', '.movierec.net'],
     headers: {
-      'Cache-Control': 'public, max-age=31536000'
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization'
     }
   },  performance: {
     hints: isProduction ? 'warning' : false,
