@@ -27,9 +27,9 @@
     "test:aws:dynamodb": "cd tests && npm run test:dynamodb",
     "test:aws:parallel": "cd tests && npm run test:parallel",
     "test:aws:sequential": "cd tests && npm run test:sequential",
-    "deploy:infrastructure": "cd infrastructure && cdk deploy",
-    "deploy:diff": "cd infrastructure && cdk diff",
-    "deploy:destroy": "cd infrastructure && cdk destroy",
+    "deploy:infrastructure": "cd infrastructure && npx cdk deploy",
+    "deploy:diff": "cd infrastructure && npx cdk diff",
+    "deploy:destroy": "cd infrastructure && npx cdk destroy",
     "start:offline": "serverless offline start --stage dev --host 0.0.0.0"
   },
   "keywords": [

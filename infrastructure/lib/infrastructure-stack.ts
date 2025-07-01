@@ -237,7 +237,12 @@ export class InfrastructureStack extends cdk.Stack {
       restApiName: 'MovieRec API',
       description: 'Movie Recommendation API Gateway',
       defaultCorsPreflightOptions: {
-        allowOrigins: ['https://movierec.net', 'http://localhost:8080'],
+        allowOrigins: [
+          'https://movierec.net',
+          'https://www.movierec.net', 
+          'http://localhost:3000',
+          'http://localhost:8080'
+        ],
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
           'Content-Type',
