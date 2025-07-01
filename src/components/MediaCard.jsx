@@ -75,16 +75,6 @@ const MediaCard = ({
     score, scoreReasons, popularity
   } = result || {};
   
-  // Debug log for favorites/watchlist items
-  if (fromFavorites || fromWatchlist) {
-    console.log(`🔍 [MediaCard] ${fromFavorites ? 'Favorites' : 'Watchlist'} item data:`, {
-      result,
-      id,
-      title,
-      poster_path,
-      posterUrl: poster_path ? `https://image.tmdb.org/t/p/w300${poster_path}` : null
-    });
-  }
 
   const mediaId = id?.toString();
   const displayTitle = title || name || 'Untitled';
@@ -135,7 +125,6 @@ const MediaCard = ({
           
           // Update poster if needed
           if (needsPoster && data.poster_path) {
-            console.log(`🖼️ [MediaCard] Fetched missing poster for ${displayTitle}:`, data.poster_path);
             setFetchedPosterPath(data.poster_path);
           }
         }

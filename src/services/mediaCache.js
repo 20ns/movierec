@@ -58,29 +58,29 @@ export const fetchCachedMedia = async (options = {}) => {
         const { timestamp, data } = JSON.parse(raw);
         if (!shouldRefreshCache(timestamp)) {
           if (data && data.items && data.source) {
-            console.log(`[MediaCache] Cache hit for key: ${lookupCacheKey}`);
+            // console.log(`[MediaCache] Cache hit for key: ${lookupCacheKey}`);
             return data;
           } else {
             localStorage.removeItem(lookupCacheKey);
           }
         } else {
-          console.log(`[MediaCache] Cache expired for key: ${lookupCacheKey}`);
+          // console.log(`[MediaCache] Cache expired for key: ${lookupCacheKey}`);
           localStorage.removeItem(lookupCacheKey);
         }
       } else {
-        console.log(`[MediaCache] Cache miss for key: ${lookupCacheKey}`);
+        // console.log(`[MediaCache] Cache miss for key: ${lookupCacheKey}`);
       }
     } catch (e) {
       console.warn(`[MediaCache] Error reading client cache for key ${lookupCacheKey}:`, e);
       localStorage.removeItem(lookupCacheKey);
     }
   } else {
-    console.log(`[MediaCache] Bypassing client cache (forceRefresh=true). Will write to: ${writeCacheKey}`);
+    // console.log(`[MediaCache] Bypassing client cache (forceRefresh=true). Will write to: ${writeCacheKey}`);
   }
 
   // Fetch from API if cache miss or forceRefresh
   try {
-    console.log(`[MediaCache] Attempting to fetch from Personalized API (forceRefresh=${forceRefresh}, excludeIds=${currentExcludeIdsStr.join(',') || 'none'})`);
+    // console.log(`[MediaCache] Attempting to fetch from Personalized API (forceRefresh=${forceRefresh}, excludeIds=${currentExcludeIdsStr.join(',') || 'none'})`);
     if (!API_GATEWAY_URL) {
         console.error('[MediaCache] API_GATEWAY_URL is not defined.');
         return { items: [], source: 'error' };
@@ -129,7 +129,7 @@ export const fetchCachedMedia = async (options = {}) => {
           timestamp: new Date().toISOString(),
           data: cacheDataToStore,
         }));
-        console.log(`[MediaCache] Data stored in cache with key: ${writeCacheKey}`);
+        // console.log(`[MediaCache] Data stored in cache with key: ${writeCacheKey}`);
       } catch (e) {
         console.warn(`[MediaCache] Error writing to client cache with key ${writeCacheKey}:`, e);
       }

@@ -13,7 +13,7 @@ const RETRY_DELAY = 1500;
 const MAX_RETRIES = 2;
 const LOADING_TIMEOUT = 15000;
 
-const DEBUG_LOGGING = process.env.NODE_ENV === 'development';
+const DEBUG_LOGGING = false;
 
 // --- Helper Functions ---
 const logMessage = (message, data) => {

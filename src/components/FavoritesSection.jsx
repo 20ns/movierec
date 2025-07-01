@@ -3,9 +3,7 @@ import { HeartIcon, XMarkIcon, ArrowPathIcon, ArrowsUpDownIcon } from '@heroicon
 import MediaListSection from './MediaListSection';
 
 const mapFavoritesItem = item => {
-  console.log('🔍 [mapFavoritesItem] Processing item:', item);
   if (!item?.mediaId) {
-    console.log('⚠️ [mapFavoritesItem] No mediaId found, skipping item');
     return null;
   }
   
@@ -28,7 +26,6 @@ const mapFavoritesItem = item => {
     // Flag to indicate this needs poster data fetched
     needsPosterFetch: !hasPoster
   };
-  console.log('🔍 [mapFavoritesItem] Mapped result:', mapped);
   return mapped;
 };
 
