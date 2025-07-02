@@ -1,6 +1,7 @@
 // lambda/index.js
 
-const AWS = require('aws-sdk');
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, GetCommand, PutCommand, BatchGetCommand } = require("@aws-sdk/lib-dynamodb");
 const axios = require('axios');
 
 const allowedOrigins = [
@@ -11,7 +12,8 @@ const allowedOrigins = [
 ];
 
 // Initialize the DynamoDB Document Client
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
+const client = new DynamoDBClient({});
+const dynamoDB = DynamoDBDocumentClient.from(client);
 
 // Environment variables
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -124,14 +126,14 @@ function detectApiRequest(event) {
 
 async function getProgressState() {
     try {
-        const params = {
+        const command = new GetCommand({
             TableName: TABLE_NAME,
             Key: {
                 mediaId: "progress_tracker",
                 mediaType: "system"
             }
-        };
-        const result = await dynamoDB.get(params).promise();
+        });
+        const result = await dynamoDB.send(command);
         if (result.Item) {
             return result.Item;
         }
@@ -160,14 +162,14 @@ async function getProgressState() {
 
 async function updateProgressState(state) {
     try {
-        const params = {
+        const command = new PutCommand({
             TableName: TABLE_NAME,
             Item: {
                 ...state,
                 lastUpdated: Date.now()
             }
-        };
-        await dynamoDB.put(params).promise();
+        });
+        await dynamoDB.send(command);
         console.log('Progress state updated successfully');
     } catch (error) {
         console.error('Error updating progress state:', error);
@@ -176,14 +178,14 @@ async function updateProgressState(state) {
 
 async function getMediaList(listType, mediaType) {
     try {
-        const params = {
+        const command = new GetCommand({
             TableName: TABLE_NAME,
             Key: {
                 mediaId: `list_${listType}`,
                 mediaType: mediaType
             }
-        };
-        const result = await dynamoDB.get(params).promise();
+        });
+        const result = await dynamoDB.send(command);
         return result.Item;
     } catch (error) {
         console.error(`Error getting media list ${listType}:${mediaType}:`, error);
@@ -197,7 +199,7 @@ async function updateMediaList(listType, mediaType, mediaIds) {
     const combinedIds = [...new Set([...existingIds, ...mediaIds])];
 
     try {
-        const params = {
+        const command = new PutCommand({
             TableName: TABLE_NAME,
             Item: {
                 mediaId: `list_${listType}`,
@@ -207,8 +209,8 @@ async function updateMediaList(listType, mediaType, mediaIds) {
                 items: combinedIds,
                 lastUpdated: Date.now()
             }
-        };
-        await dynamoDB.put(params).promise();
+        });
+        await dynamoDB.send(command);
         console.log(`Media list ${listType}:${mediaType} updated successfully with ${mediaIds.length} new items`);
     } catch (error) {
         console.error(`Error updating media list ${listType}:${mediaType}:`, error);
@@ -217,14 +219,14 @@ async function updateMediaList(listType, mediaType, mediaIds) {
 
 async function mediaItemExists(mediaId, mediaType) {
     try {
-        const params = {
+        const command = new GetCommand({
             TableName: TABLE_NAME,
             Key: {
                 mediaId: mediaId,
                 mediaType: mediaType
             }
-        };
-        const result = await dynamoDB.get(params).promise();
+        });
+        const result = await dynamoDB.send(command);
         return !!result.Item;
     } catch (error) {
         console.error(`Error checking if media item ${mediaId}:${mediaType} exists:`, error);
@@ -243,7 +245,7 @@ async function getMediaItems(items) {
     let allResults = [];
     for (const chunk of chunks) {
         try {
-            const params = {
+            const command = new BatchGetCommand({
                 RequestItems: {
                     [TABLE_NAME]: {
                         Keys: chunk.map(item => ({
@@ -252,8 +254,8 @@ async function getMediaItems(items) {
                         }))
                     }
                 }
-            };
-            const result = await dynamoDB.batchGet(params).promise();
+            });
+            const result = await dynamoDB.send(command);
             allResults = [...allResults, ...(result.Responses[TABLE_NAME] || [])];
         } catch (error) {
             console.error('Error in getMediaItems chunk:', error);
@@ -286,11 +288,11 @@ async function storeMediaItem(mediaId, mediaType, details) {
     };
 
     try {
-        const params = {
+        const command = new PutCommand({
             TableName: TABLE_NAME,
             Item: item
-        };
-        await dynamoDB.put(params).promise();
+        });
+        await dynamoDB.send(command);
         return true;
     } catch (error) {
         console.error(`Error storing media item ${mediaId}:${mediaType}:`, error);

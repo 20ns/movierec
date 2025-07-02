@@ -211,7 +211,9 @@ export class InfrastructureStack extends cdk.Stack {
     const movieRecFunction = new lambda.Function(this, 'MovieRecFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/MovieRecPersonalizedApiHandler')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/MovieRecPersonalizedApiHandler'), {
+        exclude: ['node_modules', '.git', '*.md', 'test', 'tests', '.env*']
+      }),
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
@@ -222,7 +224,9 @@ export class InfrastructureStack extends cdk.Stack {
     const mediaCacheFunction = new lambda.Function(this, 'MediaCacheFunction', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/MediaCache')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/MediaCache'), {
+        exclude: ['node_modules', '.git', '*.md', 'test', 'tests', '.env*']
+      }),
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),

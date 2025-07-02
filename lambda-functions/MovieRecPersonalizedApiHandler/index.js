@@ -1,4 +1,5 @@
-const AWS = require('aws-sdk');
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, GetCommand, PutCommand, BatchGetCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const axios = require('axios');
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 
@@ -18,10 +19,11 @@ const allowedOrigins = [
 ];
 
 // Initialize DynamoDB with retry configuration
-const dynamoDB = new AWS.DynamoDB.DocumentClient({
-    maxRetries: 3,
-    retryDelayOptions: { base: 300 }
+const client = new DynamoDBClient({
+    maxAttempts: 3,
+    retryMode: 'standard'
 });
+const dynamoDB = DynamoDBDocumentClient.from(client);
 
 // Create axios instance with timeout
 const axiosInstance = axios.create({
@@ -555,7 +557,8 @@ async function getSeedContent(favoriteIds, watchlistIds) {
             const params = { RequestItems: { [TABLE_NAME]: { Keys: batchKeys } } };
             
             try {
-                const result = await dynamoDB.batchGet(params).promise();
+                const command = new BatchGetCommand(params);
+                const result = await dynamoDB.send(command);
                 if (result.Responses && result.Responses[TABLE_NAME]) {
                     seedItems = seedItems.concat(result.Responses[TABLE_NAME]);
                 }
@@ -876,7 +879,8 @@ async function queryCandidatesByGenre(genres, contentFilters, poolLimit) {
                     }
                     
                     try {
-                        const result = await dynamoDB.query(params).promise();
+                        const command = new QueryCommand(params);
+                        const result = await dynamoDB.send(command);
                         return result.Items || [];
                     } catch (error) { 
                         console.error(`Error querying DynamoDB for genre ${genre}:`, error);
