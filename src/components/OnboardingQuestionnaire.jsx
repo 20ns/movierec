@@ -4,27 +4,68 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon, CheckIcon, StarIcon } from '@heroicons/react/24/solid';
 
 import { API } from 'aws-amplify';
-// Enhanced genre options
+// Enhanced genre options with better organization
 const GENRE_OPTIONS = [
-  { id: 28, name: 'Action' },
-  { id: 12, name: 'Adventure' },
-  { id: 16, name: 'Animation' },
-  { id: 35, name: 'Comedy' },
-  { id: 80, name: 'Crime' },
-  { id: 99, name: 'Documentary' },
-  { id: 18, name: 'Drama' },
-  { id: 10751, name: 'Family' },
-  { id: 14, name: 'Fantasy' },
-  { id: 36, name: 'History' },
-  { id: 27, name: 'Horror' },
-  { id: 10402, name: 'Music' },
-  { id: 9648, name: 'Mystery' },
-  { id: 10749, name: 'Romance' },
-  { id: 878, name: 'Science Fiction' },
-  { id: 10770, name: 'TV Movie' },
-  { id: 53, name: 'Thriller' },
-  { id: 10752, name: 'War' },
-  { id: 37, name: 'Western' },
+  { id: 28, name: 'Action', description: 'High-energy, fast-paced content' },
+  { id: 12, name: 'Adventure', description: 'Epic journeys and exploration' },
+  { id: 16, name: 'Animation', description: 'Animated films and series' },
+  { id: 35, name: 'Comedy', description: 'Humorous and light-hearted content' },
+  { id: 80, name: 'Crime', description: 'Criminal stories and investigations' },
+  { id: 99, name: 'Documentary', description: 'Real-world educational content' },
+  { id: 18, name: 'Drama', description: 'Serious, character-driven stories' },
+  { id: 10751, name: 'Family', description: 'Content suitable for all ages' },
+  { id: 14, name: 'Fantasy', description: 'Magical and supernatural worlds' },
+  { id: 36, name: 'History', description: 'Historical events and periods' },
+  { id: 27, name: 'Horror', description: 'Scary and suspenseful content' },
+  { id: 10402, name: 'Music', description: 'Music-focused content' },
+  { id: 9648, name: 'Mystery', description: 'Puzzles and whodunits' },
+  { id: 10749, name: 'Romance', description: 'Love stories and relationships' },
+  { id: 878, name: 'Science Fiction', description: 'Futuristic and technological themes' },
+  { id: 10770, name: 'TV Movie', description: 'Made-for-television films' },
+  { id: 53, name: 'Thriller', description: 'Suspenseful and intense content' },
+  { id: 10752, name: 'War', description: 'Military and war-themed content' },
+  { id: 37, name: 'Western', description: 'American frontier stories' },
+];
+
+// Content discovery preferences
+const CONTENT_DISCOVERY_OPTIONS = [
+  { id: 'trending', name: 'Latest Trending Content', description: 'What everyone is talking about' },
+  { id: 'hiddenGems', name: 'Hidden Gems & Underrated', description: 'Lesser-known quality content' },
+  { id: 'awardWinning', name: 'Award Winners & Critics\' Picks', description: 'Critically acclaimed content' },
+  { id: 'classics', name: 'Timeless Classics', description: 'Enduring favorites from any era' },
+  { id: 'newReleases', name: 'Brand New Releases', description: 'Just released content' },
+];
+
+// Viewing behavior options
+const VIEWING_BEHAVIOR_OPTIONS = [
+  { id: 'bingePerfect', name: 'Binge-Worthy Series', description: 'Content perfect for marathon watching' },
+  { id: 'episodic', name: 'Standalone Episodes', description: 'Easy to watch one episode at a time' },
+  { id: 'quickWatch', name: 'Quick Entertainment', description: 'Short episodes or films under 90 min' },
+  { id: 'deepDive', name: 'Complex Narratives', description: 'Multi-layered stories requiring attention' },
+  { id: 'background', name: 'Background Friendly', description: 'Easy to follow while multitasking' },
+];
+
+// Deal breaker options
+const DEAL_BREAKER_OPTIONS = [
+  { id: 'violence', name: 'Excessive Violence' },
+  { id: 'sexualContent', name: 'Sexual Content' },
+  { id: 'profanity', name: 'Strong Language' },
+  { id: 'slowPace', name: 'Very Slow Pacing' },
+  { id: 'cliffhangers', name: 'Major Cliffhangers' },
+  { id: 'openEndings', name: 'Ambiguous Endings' },
+  { id: 'animalHarm', name: 'Animal Harm' },
+  { id: 'jumpScares', name: 'Jump Scares' },
+  { id: 'subtitles', name: 'Subtitles Required' },
+  { id: 'blackAndWhite', name: 'Black & White Content' },
+];
+
+// International content preferences
+const INTERNATIONAL_CONTENT_OPTIONS = [
+  { id: 'veryOpen', name: 'Love International Content', description: 'Actively seek diverse global content' },
+  { id: 'someOpen', name: 'Open to Subtitles', description: 'Don\'t mind reading subtitles for good content' },
+  { id: 'dubbedOnly', name: 'Dubbed Versions Only', description: 'Prefer dubbed over subtitled content' },
+  { id: 'englishPreferred', name: 'English Preferred', description: 'Mainly stick to English-language content' },
+  { id: 'noPreference', name: 'No Strong Preference', description: 'Language doesn\'t influence my choices' },
 ];
 
 const MOOD_OPTIONS = [
@@ -304,6 +345,47 @@ const QUESTIONS = [
     type: 'peopleInput',
     category: 'personal'
   },
+  // New strategic questions for better recommendations
+  {
+    id: 'contentDiscoveryPreference',
+    title: "How do you prefer to discover new content?",
+    description: "What type of content discovery appeals to you most?",
+    options: CONTENT_DISCOVERY_OPTIONS,
+    type: 'multiSelect',
+    category: 'context'
+  },
+  {
+    id: 'viewingBehaviorPreference',
+    title: "What's your ideal viewing experience?",
+    description: "How do you typically like to consume content?",
+    options: VIEWING_BEHAVIOR_OPTIONS,
+    type: 'multiSelect',
+    category: 'context'
+  },
+  {
+    id: 'dealBreakers',
+    title: "What are your content deal-breakers?",
+    description: "Select anything that would make you immediately stop watching or avoid content entirely.",
+    options: DEAL_BREAKER_OPTIONS,
+    type: 'multiSelect',
+    category: 'essential'
+  },
+  {
+    id: 'internationalContentPreference',
+    title: "How do you feel about international content?",
+    description: "What's your comfort level with non-English content?",
+    options: INTERNATIONAL_CONTENT_OPTIONS,
+    type: 'singleSelect',
+    category: 'context'
+  },
+  {
+    id: 'genreRatings',
+    title: "Rate your interest in these genres",
+    description: "Use the sliders to show how much you enjoy each genre (1 = not interested, 10 = absolutely love it)",
+    options: GENRE_OPTIONS.slice(0, 10), // Top 10 genres for rating
+    type: 'ratingSliders',
+    category: 'essential'
+  },
 ];
 
 const OnboardingQuestionnaire = ({
@@ -336,11 +418,14 @@ const OnboardingQuestionnaire = ({
         acc[question.id] = [];
       } else if (question.type === 'singleSelect') {
         acc[question.id] = question.id === 'contentType' ? 'both' : 
-                          question.id === 'runtimePreference' ? 'any' : '';
+                          question.id === 'runtimePreference' ? 'any' :
+                          question.id === 'internationalContentPreference' ? 'noPreference' : '';
       } else if (question.type === 'textInput') {
         acc[question.id] = '';
       } else if (question.type === 'peopleInput') {
         acc['favoritePeople'] = { actors: [], directors: [] };
+      } else if (question.type === 'ratingSliders') {
+        acc[question.id] = {};
       }
       return acc;
     }, {}),
@@ -395,6 +480,9 @@ const OnboardingQuestionnaire = ({
             if (q.type === 'textInput') return !existingPreferences[q.id];
             if (q.type === 'peopleInput') {
               return !existingPreferences.favoritePeople?.actors?.length && !existingPreferences.favoritePeople?.directors?.length;
+            }
+            if (q.type === 'ratingSliders') {
+              return !existingPreferences[q.id] || Object.keys(existingPreferences[q.id]).length === 0;
             }
             return true;
           });
@@ -493,6 +581,24 @@ const OnboardingQuestionnaire = ({
       });
       setPeopleInput((prev) => ({ ...prev, [type]: '' }));
     }
+  };
+
+  const updateRatingSlider = (field, optionId, value) => {
+    setPreferences((prev) => {
+      const newPreferences = {
+        ...prev,
+        [field]: {
+          ...prev[field],
+          [optionId]: value
+        }
+      };
+      
+      // Auto-save preferences when a rating is changed
+      if (currentUser) {
+        savePreferencesToDB(true, newPreferences, false);
+      }
+      return newPreferences;
+    });
   };
 
   const savePreferencesToDB = async (isPartial = false, prefsToUpdate = null, triggerUpdateCallback = false) => {
@@ -789,6 +895,40 @@ const OnboardingQuestionnaire = ({
                 ))}
               </div>
             </div>
+          </div>
+        );
+
+      case 'ratingSliders':
+        return (
+          <div className="space-y-4 max-w-2xl mx-auto">
+            {currentQuestion.options.map((option) => (
+              <div key={option.id} className="bg-gray-800/70 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-white font-medium text-base">{option.name}</label>
+                  <span className="text-purple-300 font-bold text-lg">
+                    {preferences[currentQuestion.id]?.[option.id] || 5}
+                  </span>
+                </div>
+                {option.description && (
+                  <p className="text-gray-400 text-sm mb-3">{option.description}</p>
+                )}
+                <div className="flex items-center space-x-4">
+                  <span className="text-gray-400 text-sm">1</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={preferences[currentQuestion.id]?.[option.id] || 5}
+                    onChange={(e) => updateRatingSlider(currentQuestion.id, option.id, parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                    style={{
+                      background: `linear-gradient(to right, #8B5CF6 0%, #8B5CF6 ${((preferences[currentQuestion.id]?.[option.id] || 5) - 1) * 11.11}%, #374151 ${((preferences[currentQuestion.id]?.[option.id] || 5) - 1) * 11.11}%, #374151 100%)`
+                    }}
+                  />
+                  <span className="text-gray-400 text-sm">10</span>
+                </div>
+              </div>
+            ))}
           </div>
         );
         
