@@ -100,7 +100,7 @@ function useFavorites(currentUser, isAuthenticated) {
         `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
         {
           headers: {
-            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+            Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
             'Content-Type': 'application/json',
           },
           credentials: 'include'
@@ -174,7 +174,7 @@ function useFavorites(currentUser, isAuthenticated) {
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+            Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
             'Content-Type': 'application/json',
           },
           credentials: 'include',

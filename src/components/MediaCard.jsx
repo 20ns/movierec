@@ -31,16 +31,13 @@ const WATCHLIST_FETCH_COOLDOWN = 30000; // 30 seconds cooldown
 // Simplified token extractor
 const extractToken = (user) => {
   if (!user) return null;
+  // Only return access tokens - backend Lambda functions expect access tokens, not ID tokens
   if (user.signInUserSession?.accessToken?.jwtToken) {
     return user.signInUserSession.accessToken.jwtToken;
   }
+  // Fallback for direct token property (should also be access token)
   if (user.token) return user.token;
-  if (user.signInUserSession?.idToken?.jwtToken) {
-    return user.signInUserSession.idToken.jwtToken;
-  }
-  if (typeof user === 'string' && user.split('.').length === 3) {
-    return user;
-  }
+  // If no access token available, return null instead of falling back to ID token
   return null;
 };
 

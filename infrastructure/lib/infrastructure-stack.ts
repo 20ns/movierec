@@ -276,11 +276,11 @@ export class InfrastructureStack extends cdk.Stack {
       },
     });
 
-    // Cognito Authorizer for API Gateway
-    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
-      cognitoUserPools: [existingUserPool],
-      identitySource: 'method.request.header.Authorization',
-    });
+    // Cognito Authorizer for API Gateway (temporarily disabled)
+    // const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
+    //   cognitoUserPools: [existingUserPool],
+    //   identitySource: 'method.request.header.Authorization',
+    // });
 
     // ===========================
     // API GATEWAY ROUTES
@@ -297,51 +297,24 @@ export class InfrastructureStack extends cdk.Stack {
     
     // User preferences
     const preferencesResource = userResource.addResource('preferences');
-    preferencesResource.addMethod('GET', new apigateway.LambdaIntegration(userPreferencesFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    preferencesResource.addMethod('POST', new apigateway.LambdaIntegration(userPreferencesFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    preferencesResource.addMethod('GET', new apigateway.LambdaIntegration(userPreferencesFunction));
+    preferencesResource.addMethod('POST', new apigateway.LambdaIntegration(userPreferencesFunction));
 
     // User favourites
     const favouritesResource = userResource.addResource('favourites');
-    favouritesResource.addMethod('GET', new apigateway.LambdaIntegration(favouritesFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    favouritesResource.addMethod('POST', new apigateway.LambdaIntegration(favouritesFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    favouritesResource.addMethod('DELETE', new apigateway.LambdaIntegration(favouritesFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    favouritesResource.addMethod('GET', new apigateway.LambdaIntegration(favouritesFunction));
+    favouritesResource.addMethod('POST', new apigateway.LambdaIntegration(favouritesFunction));
+    favouritesResource.addMethod('DELETE', new apigateway.LambdaIntegration(favouritesFunction));
 
     // User watchlist
     const watchlistResource = userResource.addResource('watchlist');
-    watchlistResource.addMethod('GET', new apigateway.LambdaIntegration(watchlistFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    watchlistResource.addMethod('POST', new apigateway.LambdaIntegration(watchlistFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    watchlistResource.addMethod('DELETE', new apigateway.LambdaIntegration(watchlistFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    watchlistResource.addMethod('GET', new apigateway.LambdaIntegration(watchlistFunction));
+    watchlistResource.addMethod('POST', new apigateway.LambdaIntegration(watchlistFunction));
+    watchlistResource.addMethod('DELETE', new apigateway.LambdaIntegration(watchlistFunction));
 
     // Movie recommendations
     const recommendationsResource = api.root.addResource('recommendations');
-    recommendationsResource.addMethod('GET', new apigateway.LambdaIntegration(movieRecFunction), {
-      authorizer: authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    recommendationsResource.addMethod('GET', new apigateway.LambdaIntegration(movieRecFunction));
 
     // Media cache (public endpoint)
     const mediaResource = api.root.addResource('media');

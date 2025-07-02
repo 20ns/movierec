@@ -17,6 +17,9 @@ const AccountDetailsModal = ({ isOpen, onClose, email, currentUser }) => {
     setSuccessMessage('');
     
     try {
+      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+        throw new Error('No valid access token available');
+      }
       const token = currentUser.signInUserSession.accessToken.jwtToken;
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences/reset`, {
         method: 'POST',

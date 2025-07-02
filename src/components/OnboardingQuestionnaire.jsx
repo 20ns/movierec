@@ -517,6 +517,9 @@ const OnboardingQuestionnaire = ({
 
     setIsSubmitting(true);
     try {
+      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+        throw new Error('No valid access token available');
+      }
       const token = currentUser.signInUserSession.accessToken.jwtToken;
       
       // Validate API Gateway URL

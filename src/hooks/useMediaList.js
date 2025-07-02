@@ -81,7 +81,7 @@ export default function useMediaList({
         const res = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}${fetchEndpoint}`, {
             headers: {
-              Authorization: `Bearer ${currentUser.signInUserSession.accessToken.jwtToken}`,
+              Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
               'Content-Type': 'application/json',
             },
             credentials: 'include'

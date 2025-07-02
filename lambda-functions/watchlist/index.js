@@ -89,11 +89,8 @@ exports.handler = async (event) => {
 
         const result = await docClient.send(command);
         
-        // Map movieId to mediaId for frontend compatibility
-        const items = (result.Items || []).map(item => ({
-          ...item,
-          mediaId: item.movieId
-        }));
+        // Return items as-is since they already have mediaId
+        const items = result.Items || [];
         
         return createCorsSuccessResponse({ items: items }, requestOrigin);
       } catch (error) {

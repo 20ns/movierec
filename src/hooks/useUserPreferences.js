@@ -48,9 +48,14 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     setJustRefreshedPrefs(false); // Reset flag
 
     try {
+      // Safely extract access token with proper error handling
+      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+        throw new Error('No valid access token available');
+      }
       const token = currentUser.signInUserSession.accessToken.jwtToken;
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        credentials: 'include',
         mode: 'cors',
       });
 

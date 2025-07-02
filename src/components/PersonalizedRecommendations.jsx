@@ -135,7 +135,23 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const fetchFromPersonalizedApi = useCallback(async (currentContentTypeFilter, excludeIdsSet = new Set(), preferences = {}, favoriteIdsList = [], watchlistIdsList = [], forceRefresh = false) => {
     logMessage('Calling fetchCachedMedia', { currentContentTypeFilter, excludeIdsCount: excludeIdsSet.size, preferences, favoriteIdsCount: favoriteIdsList.length, watchlistIdsCount: watchlistIdsList.length, forceRefresh });
     try {
-      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      // Safely extract access token - return early if not available
+      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+        logError('No valid access token available for recommendations');
+        console.log('[PersonalizedRecommendations] Auth Debug:', {
+          userExists: !!currentUser,
+          sessionExists: !!currentUser?.signInUserSession,
+          accessTokenExists: !!currentUser?.signInUserSession?.accessToken,
+          jwtTokenExists: !!currentUser?.signInUserSession?.accessToken?.jwtToken
+        });
+        return {
+          success: false,
+          recommendations: [],
+          dataSource: 'auth-error',
+          reason: 'Authentication required for recommendations'
+        };
+      }
+      const token = currentUser.signInUserSession.accessToken.jwtToken;
 
       const mediaType = currentContentTypeFilter === 'both' ? 'both' : currentContentTypeFilter === 'movies' ? 'movie' : 'tv';
 

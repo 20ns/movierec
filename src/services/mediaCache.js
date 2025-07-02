@@ -87,6 +87,13 @@ export const fetchCachedMedia = async (options = {}) => {
     }
 
     const apiUrl = `${API_GATEWAY_URL}/recommendations`;
+    console.log('[MediaCache] Making API request with token:', {
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'none',
+      url: apiUrl
+    });
+
     const response = await axios.get(
       apiUrl,
       {

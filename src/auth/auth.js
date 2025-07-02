@@ -15,8 +15,16 @@ const useAuth = () => {
   const checkAuthState = async () => {
     try {
       const user = await Auth.currentAuthenticatedUser();
-      setIsAuthenticated(true);
-      setCurrentUser(user);
+      
+      // Verify that the user has a valid access token before setting authenticated
+      if (user?.signInUserSession?.accessToken?.jwtToken) {
+        setIsAuthenticated(true);
+        setCurrentUser(user);
+      } else {
+        console.warn('[Auth] User exists but no valid access token found');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
     } catch (error) {
       setIsAuthenticated(false);
       setCurrentUser(null);
@@ -27,9 +35,26 @@ const useAuth = () => {
 
   
   const handleSigninSuccess = useCallback((user, isNew = false) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    setIsNewUser(isNew);
+    console.log('[Auth] handleSigninSuccess called:', {
+      userExists: !!user,
+      sessionExists: !!user?.signInUserSession,
+      accessTokenExists: !!user?.signInUserSession?.accessToken,
+      jwtTokenExists: !!user?.signInUserSession?.accessToken?.jwtToken,
+      isNew
+    });
+    
+    // Verify user has valid access token before setting authenticated
+    if (user?.signInUserSession?.accessToken?.jwtToken) {
+      console.log('[Auth] handleSigninSuccess: Setting authenticated to true');
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      setIsNewUser(isNew);
+    } else {
+      console.warn('[Auth] Sign-in success but no valid access token found');
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      setIsNewUser(false);
+    }
   }, []);
 
   const handleSignout = async () => {
