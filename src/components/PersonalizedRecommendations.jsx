@@ -7,11 +7,12 @@ import { markPerformance, measurePerformance } from '../utils/webVitals';
 
 // --- Constants ---
 const MIN_RECOMMENDATION_COUNT = 3;
-const ITEMS_TO_FETCH = 6;
+const ITEMS_TO_FETCH = 9; // Fetch 9 items for rotation
+const ITEMS_TO_SHOW = 3; // Show 3 at a time
 const SHOWN_ITEMS_LIMIT = 150;
 const RETRY_DELAY = 1500;
 const MAX_RETRIES = 2;
-const LOADING_TIMEOUT = 15000;
+const LOADING_TIMEOUT = 30000; // Increased to 30 seconds for advanced processing
 
 const DEBUG_LOGGING = false;
 
@@ -45,9 +46,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- State Management ---
   const [state, setState] = useState({
-    allRecommendations: [],
-    recommendations: [],
-    displayIndex: 0,
+    allRecommendations: [], // All 9 recommendations from backend
+    recommendations: [], // Currently displayed 3 recommendations
+    displayIndex: 0, // Current rotation index (0, 3, 6)
     dataSource: null,
     recommendationReason: '',
     shownItemsHistory: new Set(),
@@ -58,6 +59,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     errorMessage: '',
     refreshCounter: 0,
     contentTypeFilter: 'both',
+    canRotate: false, // Whether we have more items to rotate
+    processingTime: null, // Track recommendation processing time
   });
 
   const {
@@ -73,6 +76,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     errorMessage,
     refreshCounter,
     contentTypeFilter,
+    canRotate,
+    processingTime,
   } = state;
 
   // --- Refs ---
@@ -121,6 +126,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         errorMessage: '',
         refreshCounter: 0,
         contentTypeFilter: 'both',
+        canRotate: false,
+        processingTime: null,
       });
       isFetchingRef.current = false;
       dataLoadAttemptedRef.current = false;
@@ -163,6 +170,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         favoriteIds: favoriteIdsList,
         watchlistIds: watchlistIdsList,
         forceRefresh,
+        limit: ITEMS_TO_FETCH, // Request 9 items for rotation
       });
 
       if (result.items && result.items.length > 0) {
@@ -272,17 +280,26 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           fetchSuccessful = true;
           logMessage(`Fetch successful, received ${fetchedRecs.length} items. Source: ${resultDataSource}. API Duration: ${apiDuration}ms`);
 
+          // Extract processing time from first item if available
+          const processingTimeMs = fetchedRecs[0]?.processingTime || null;
+
           const newHistory = new Set([...Array.from(shownItemsHistory), ...fetchedRecs.map((r) => r.id?.toString())].slice(-SHOWN_ITEMS_LIMIT));
+
+          // Show first 3 items, keep all 9 for rotation
+          const displayedItems = fetchedRecs.slice(0, ITEMS_TO_SHOW);
+          const canRotateItems = fetchedRecs.length > ITEMS_TO_SHOW;
 
           safeSetState({
             allRecommendations: fetchedRecs,
-            recommendations: fetchedRecs.slice(0, MIN_RECOMMENDATION_COUNT),
+            recommendations: displayedItems,
             displayIndex: 0,
             dataSource: resultDataSource,
             recommendationReason: resultReason,
             hasError: false,
             errorMessage: '',
             shownItemsHistory: newHistory,
+            canRotate: canRotateItems,
+            processingTime: processingTimeMs,
           });
 
         } else {
@@ -377,7 +394,29 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, [safeSetState]);
 
-  // Refresh recommendations
+  // Rotate to next set of recommendations
+  const handleRotateRecommendations = useCallback(() => {
+    if (!canRotate || allRecommendations.length === 0) return;
+
+    const nextIndex = (displayIndex + ITEMS_TO_SHOW) % allRecommendations.length;
+    const nextItems = allRecommendations.slice(nextIndex, nextIndex + ITEMS_TO_SHOW);
+    
+    // If we don't have enough items for a full rotation, wrap around
+    if (nextItems.length < ITEMS_TO_SHOW) {
+      const remainingItems = allRecommendations.slice(0, ITEMS_TO_SHOW - nextItems.length);
+      nextItems.push(...remainingItems);
+    }
+
+    logMessage(`Rotating recommendations: ${displayIndex} -> ${nextIndex}`);
+    
+    safeSetState({
+      recommendations: nextItems,
+      displayIndex: nextIndex,
+      refreshCounter: refreshCounter + 1,
+    });
+  }, [canRotate, allRecommendations, displayIndex, refreshCounter, safeSetState]);
+
+  // Refresh recommendations (get new batch from backend)
   const handleRefresh = useCallback(async () => {
     if (isFetchingRef.current || !userId || !isAuthenticated) {
         return;
@@ -389,7 +428,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         isLoading: true,
         isThinking: true,
         isRefreshing: true,
-        refreshCounter: state.refreshCounter + 1,
+        refreshCounter: refreshCounter + 1,
     });
     
     await fetchRecommendations(true);
@@ -398,7 +437,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       isAuthenticated,
       fetchRecommendations,
       safeSetState,
-      state.refreshCounter
+      refreshCounter
   ]);
 
 
@@ -570,6 +609,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               onFavoriteToggle={handleMediaFavoriteToggle}
               onWatchlistToggle={handleMediaWatchlistToggle}
               onClick={onMediaClick}
+              showRecommendationReason={true}
+              recommendationReason={item.recommendationReason}
+              score={item.score}
             />
           </motion.div>
         ))}
@@ -668,6 +710,16 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           >
             <TvIcon className="h-3 w-3 sm:h-4 sm:w-4" /> <span>TV Shows</span>
           </motion.button>
+          {canRotate && !isLoading && (
+            <motion.button
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={handleRotateRecommendations}
+              className="flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm bg-purple-600 text-white hover:bg-purple-700"
+            >
+              <ArrowPathIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>Show More</span>
+            </motion.button>
+          )}
           <motion.button
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={handleRefresh}
@@ -680,15 +732,28 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
             >
               <ArrowPathIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             </motion.div>
-            <span>{isThinking ? 'Loading...' : 'Get New Recommendations'}</span>
+            <span>{isThinking ? 'Processing...' : 'New Batch'}</span>
           </motion.button>
         </div>
       </div>
 
-      {!isLoading && !hasError && recommendationReason && recommendations.length > 0 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4 text-gray-300 text-sm flex items-center">
-          <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-1.5 flex-shrink-0" />
-          <span>{recommendationReason}</span>
+      {!isLoading && !hasError && recommendations.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4 space-y-2">
+          {recommendationReason && (
+            <div className="text-gray-300 text-sm flex items-center">
+              <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-1.5 flex-shrink-0" />
+              <span>{recommendationReason}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs text-gray-400">
+            <span>
+              Showing {recommendations.length} of {allRecommendations.length} personalized recommendations
+              {canRotate && ` • ${Math.floor(allRecommendations.length / ITEMS_TO_SHOW)} sets available`}
+            </span>
+            {processingTime && (
+              <span>Generated in {(processingTime / 1000).toFixed(1)}s</span>
+            )}
+          </div>
         </motion.div>
       )}
 
