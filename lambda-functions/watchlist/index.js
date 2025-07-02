@@ -114,11 +114,12 @@ exports.handler = async (event) => {
           TableName: process.env.USER_WATCHLIST_TABLE,
           Item: {
             userId: userId,
-            movieId: id.toString(),
+            mediaId: id.toString(),
+            mediaType: requestBody.mediaType || requestBody.media_type || 'movie',
             title: title || '',
-            poster_path: poster_path || '',
-            release_date: release_date || '',
-            vote_average: vote_average || 0,
+            posterPath: poster_path || '',
+            releaseDate: release_date || '',
+            voteAverage: vote_average || 0,
             addedAt: new Date().toISOString()
           }
         });
@@ -147,7 +148,7 @@ exports.handler = async (event) => {
           TableName: process.env.USER_WATCHLIST_TABLE,
           Key: {
             userId: userId,
-            movieId: id.toString()
+            mediaId: id.toString()
           }
         });
 
