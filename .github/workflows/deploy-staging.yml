@@ -1,0 +1,254 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ develop, staging ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  STAGING_DOMAIN: 'staging.movierec.net'
+  AWS_REGION: 'eu-north-1'
+
+jobs:
+  pre-deployment-checks:
+    name: Pre-deployment Checks
+    runs-on: ubuntu-latest
+    outputs:
+      deployment-ready: ${{ steps.checks.outputs.ready }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run essential tests
+      run: |
+        npm run build
+        npm run test
+        npm run lint
+      continue-on-error: ${{ github.event.inputs.force_deploy == 'true' }}
+      
+    - name: Check deployment readiness
+      id: checks
+      run: |
+        if [[ "${{ job.status }}" == "success" ]] || [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+          echo "ready=true" >> $GITHUB_OUTPUT
+        else
+          echo "ready=false" >> $GITHUB_OUTPUT
+        fi
+
+  deploy-infrastructure:
+    name: Deploy Staging Infrastructure
+    runs-on: ubuntu-latest
+    needs: pre-deployment-checks
+    if: needs.pre-deployment-checks.outputs.deployment-ready == 'true'
+    outputs:
+      api-url: ${{ steps.api-url.outputs.url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Install CDK dependencies
+      run: cd infrastructure && npm ci
+      
+    - name: CDK Bootstrap (if needed)
+      run: cd infrastructure && npx cdk bootstrap
+      continue-on-error: true
+      
+    - name: Deploy staging infrastructure
+      run: cd infrastructure && npx cdk deploy --require-approval never --context environment=staging
+      env:
+        CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+        CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        
+    - name: Get API Gateway URL
+      id: api-url
+      run: |
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name InfrastructureStack-staging \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
+          --output text)
+        echo "url=$API_URL" >> $GITHUB_OUTPUT
+        echo "Staging API URL: $API_URL"
+
+  trigger-amplify-staging:
+    name: Trigger Amplify Staging Build
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, deploy-infrastructure]
+    if: needs.pre-deployment-checks.outputs.deployment-ready == 'true'
+    
+    steps:
+    - name: Trigger Amplify staging deployment
+      run: |
+        echo "🚀 Infrastructure deployed successfully"
+        echo "🔗 Staging API: ${{ needs.deploy-infrastructure.outputs.api-url }}"
+        echo ""
+        echo "📝 Manual Steps Required:"
+        echo "1. Update your staging Amplify app environment variables:"
+        echo "   REACT_APP_API_GATEWAY_INVOKE_URL=${{ needs.deploy-infrastructure.outputs.api-url }}"
+        echo "   REACT_APP_ENVIRONMENT=staging"
+        echo ""
+        echo "2. The Amplify build will be triggered automatically for this branch"
+        echo "   Or manually trigger a build in the Amplify console"
+        echo ""
+        echo "💡 Consider setting up Amplify webhook for automatic deployments"
+
+  post-deployment-tests:
+    name: Post-deployment Testing
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure, trigger-amplify-staging]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install test dependencies
+      run: cd tests && npm ci
+      
+    - name: Wait for Amplify deployment
+      run: |
+        echo "⏳ Waiting for Amplify deployment to complete..."
+        echo "🕐 This usually takes 2-3 minutes"
+        sleep 180  # Wait 3 minutes for Amplify build
+        
+    - name: Health check - API Gateway
+      run: |
+        API_URL="${{ needs.deploy-infrastructure.outputs.api-url }}"
+        echo "Testing API at: $API_URL"
+        
+        # Test health endpoint
+        curl -f "$API_URL/health" || echo "Health endpoint not available"
+        
+        # Test CORS
+        curl -f -X OPTIONS "$API_URL/recommendations" \
+          -H "Origin: https://${{ env.STAGING_DOMAIN }}" \
+          -H "Access-Control-Request-Method: GET" || echo "CORS test failed"
+          
+    - name: Health check - Frontend (if staging domain configured)
+      run: |
+        echo "🌐 Testing frontend accessibility..."
+        
+        # Test frontend accessibility (if domain is configured)
+        if curl -f "https://${{ env.STAGING_DOMAIN }}" 2>/dev/null; then
+          echo "✅ Staging frontend accessible"
+          curl -f "https://${{ env.STAGING_DOMAIN }}/manifest.json" || echo "⚠️ Manifest not found"
+        else
+          echo "ℹ️ Staging domain not configured yet - this is normal"
+          echo "🔧 Configure staging domain in Amplify console: ${{ env.STAGING_DOMAIN }}"
+        fi
+        
+    - name: Run API integration tests against staging
+      run: npm run test:api
+      env:
+        REACT_APP_API_GATEWAY_INVOKE_URL: ${{ needs.deploy-infrastructure.outputs.api-url }}
+        TEST_ENVIRONMENT: staging
+        
+    - name: Performance test (if frontend available)
+      run: |
+        echo "📊 Running basic performance tests..."
+        if curl -f "https://${{ env.STAGING_DOMAIN }}" 2>/dev/null; then
+          curl -w "@-" -o /dev/null -s "https://${{ env.STAGING_DOMAIN }}" <<'EOF'
+        Performance Results:
+        - DNS Lookup: %{time_namelookup}s
+        - Connect: %{time_connect}s  
+        - SSL Handshake: %{time_appconnect}s
+        - First Byte: %{time_starttransfer}s
+        - Total: %{time_total}s
+        - Size: %{size_download} bytes
+        EOF
+        else
+          echo "ℹ️ Frontend performance test skipped - domain not configured"
+        fi
+
+  deployment-notification:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure, trigger-amplify-staging, post-deployment-tests]
+    if: always()
+    
+    steps:
+    - name: Deployment status
+      run: |
+        if [[ "${{ needs.post-deployment-tests.result }}" == "success" ]]; then
+          echo "🎉 Staging infrastructure deployment successful!"
+          echo "🔗 API: ${{ needs.deploy-infrastructure.outputs.api-url }}"
+          echo "✅ Backend health checks passed"
+          echo ""
+          echo "📋 Next Steps:"
+          echo "1. Check Amplify console for frontend build status"
+          echo "2. Configure staging domain if needed"
+          echo "3. Test full application functionality"
+        else
+          echo "❌ Staging deployment failed or tests failed"
+          echo "🔍 Check the logs above for details"
+          exit 1
+        fi
+        
+    - name: Create deployment summary
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## 🚀 Staging Deployment Summary
+        
+        **Status:** ${{ needs.post-deployment-tests.result == 'success' && '✅ Success' || '❌ Failed' }}
+        **Environment:** Staging
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        
+        ### 🔗 Links
+        - **API:** ${{ needs.deploy-infrastructure.outputs.api-url }}
+        - **Frontend:** Check Amplify console for build status
+        
+        ### 📊 Deployment Steps
+        - **Infrastructure:** ${{ needs.deploy-infrastructure.result }}
+        - **Amplify Trigger:** ${{ needs.trigger-amplify-staging.result }}  
+        - **Tests:** ${{ needs.post-deployment-tests.result }}
+        
+        ### 🧪 Next Steps
+        1. Verify Amplify build completed successfully
+        2. Test application functionality on staging
+        3. After testing, merge to \`main\` branch for production deployment
+        
+        ### ⚙️ Manual Configuration (One-time setup)
+        If this is your first staging deployment:
+        1. Go to AWS Amplify Console
+        2. Create staging app or branch
+        3. Set environment variables:
+           - \`REACT_APP_API_GATEWAY_INVOKE_URL\`: ${{ needs.deploy-infrastructure.outputs.api-url }}
+           - \`REACT_APP_ENVIRONMENT\`: staging
+        4. Configure custom domain: ${{ env.STAGING_DOMAIN }} (optional)
+        EOF

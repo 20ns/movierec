@@ -1,0 +1,15 @@
+{
+  "name": "health-check-lambda",
+  "version": "1.0.0",
+  "description": "Health check endpoint for MovieRec API monitoring",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "health-check",
+    "monitoring"
+  ]
+}

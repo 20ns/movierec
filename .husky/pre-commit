@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Run linting (non-blocking for now)
+echo "📋 Checking code style..."
+npm run lint || echo "⚠️ Linting issues found (not blocking commit)"
+
+# Run tests (this should still block)
+echo "🧪 Running tests..."
+npm run test
+
+echo "✅ Pre-commit checks completed!"

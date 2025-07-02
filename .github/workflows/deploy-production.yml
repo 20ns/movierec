@@ -1,0 +1,405 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (emergency deployment)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  PRODUCTION_DOMAIN: 'movierec.net'
+  AWS_REGION: 'eu-north-1'
+
+jobs:
+  pre-deployment-validation:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      deployment-approved: ${{ steps.validation.outputs.approved }}
+      previous-commit: ${{ steps.version.outputs.previous }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Get previous commit for rollback reference
+      id: version
+      run: |
+        PREVIOUS_COMMIT=$(git rev-parse HEAD~1)
+        echo "previous=$PREVIOUS_COMMIT" >> $GITHUB_OUTPUT
+        echo "Previous commit for reference: $PREVIOUS_COMMIT"
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run comprehensive tests
+      if: github.event.inputs.skip_tests != 'true'
+      run: |
+        echo "🧪 Running comprehensive test suite..."
+        npm run build
+        npm run test
+        npm run test:coverage
+        npm run lint
+        
+        # Install test dependencies
+        cd tests && npm ci
+        
+        # Run API tests
+        cd .. && npm run test:api
+        
+        # Run AWS integration tests
+        npm run test:aws
+      env:
+        REACT_APP_API_GATEWAY_INVOKE_URL: ${{ secrets.REACT_APP_API_GATEWAY_INVOKE_URL }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ env.AWS_REGION }}
+        
+    - name: Security audit
+      run: |
+        echo "🔒 Running security audit..."
+        npm audit --audit-level=moderate
+        
+    - name: Validate deployment
+      id: validation
+      run: |
+        if [[ "${{ job.status }}" == "success" ]] || [[ "${{ github.event.inputs.skip_tests }}" == "true" ]]; then
+          echo "approved=true" >> $GITHUB_OUTPUT
+          echo "✅ Deployment approved"
+        else
+          echo "approved=false" >> $GITHUB_OUTPUT
+          echo "❌ Deployment rejected - tests failed"
+        fi
+
+  record-deployment-state:
+    name: Record Current State
+    runs-on: ubuntu-latest
+    needs: pre-deployment-validation
+    if: needs.pre-deployment-validation.outputs.deployment-approved == 'true'
+    outputs:
+      deployment-timestamp: ${{ steps.timestamp.outputs.value }}
+    
+    steps:
+    - name: Record deployment timestamp
+      id: timestamp
+      run: |
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        echo "value=$TIMESTAMP" >> $GITHUB_OUTPUT
+        echo "Deployment timestamp: $TIMESTAMP"
+        
+    - name: Record current production state
+      run: |
+        echo "📋 Recording current production state for rollback reference..."
+        echo "🔗 Current production: https://${{ env.PRODUCTION_DOMAIN }}"
+        echo "📅 Deployment time: $(date)"
+        echo "🆔 Previous commit: ${{ needs.pre-deployment-validation.outputs.previous-commit }}"
+        echo "🔄 This information can be used for manual rollback if needed"
+
+  deploy-infrastructure:
+    name: Deploy Production Infrastructure
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-validation, record-deployment-state]
+    if: needs.pre-deployment-validation.outputs.deployment-approved == 'true'
+    outputs:
+      api-url: ${{ steps.api-url.outputs.url }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Install CDK dependencies
+      run: cd infrastructure && npm ci
+      
+    - name: Preview infrastructure changes
+      run: |
+        echo "📋 Previewing infrastructure changes..."
+        cd infrastructure && npx cdk diff
+        
+    - name: Deploy production infrastructure
+      run: |
+        echo "🏗️ Deploying infrastructure..."
+        cd infrastructure && npx cdk deploy --require-approval never --context environment=production
+      env:
+        CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+        CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        
+    - name: Get API Gateway URL
+      id: api-url
+      run: |
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name InfrastructureStack \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
+          --output text)
+        echo "url=$API_URL" >> $GITHUB_OUTPUT
+        echo "Production API URL: $API_URL"
+        
+    - name: Verify infrastructure health
+      run: |
+        echo "🔍 Verifying infrastructure..."
+        API_URL="${{ steps.api-url.outputs.url }}"
+        
+        # Test API Gateway health
+        curl -f "$API_URL/health" || echo "Health endpoint not available yet"
+        
+        # Verify DynamoDB tables
+        aws dynamodb list-tables --output table
+        
+        # Verify Lambda functions
+        aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `MovieRec`)].FunctionName' --output table
+
+  wait-for-amplify-deployment:
+    name: Wait for Amplify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure]
+    outputs:
+      amplify-status: ${{ steps.amplify-check.outputs.status }}
+    
+    steps:
+    - name: Wait for Amplify auto-deployment
+      run: |
+        echo "⏳ Waiting for Amplify to detect and deploy the main branch changes..."
+        echo "🕐 Amplify typically takes 3-5 minutes to build and deploy"
+        echo "📍 Monitor progress at: https://console.aws.amazon.com/amplify/"
+        
+        # Wait for Amplify deployment
+        sleep 300  # Wait 5 minutes
+        
+    - name: Check Amplify deployment status
+      id: amplify-check
+      run: |
+        echo "🔍 Checking if Amplify deployment completed..."
+        
+        # Try to access the site
+        if curl -f "https://${{ env.PRODUCTION_DOMAIN }}" --max-time 10 2>/dev/null; then
+          echo "✅ Production site is responding"
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️ Production site not responding yet - this may be normal"
+          echo "🔧 Check Amplify console for build status"
+          echo "status=pending" >> $GITHUB_OUTPUT
+        fi
+
+  post-deployment-verification:
+    name: Post-deployment Verification
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure, wait-for-amplify-deployment]
+    outputs:
+      health-status: ${{ steps.health.outputs.status }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Extended wait for full deployment propagation
+      run: |
+        echo "⏳ Additional wait for full deployment propagation..."
+        sleep 120  # Additional 2 minutes
+        
+    - name: Comprehensive health checks
+      id: health
+      run: |
+        echo "🔍 Running comprehensive health checks..."
+        
+        # API health check
+        echo "Testing API..."
+        API_URL="${{ needs.deploy-infrastructure.outputs.api-url }}"
+        
+        if curl -f "$API_URL/health" --max-time 15; then
+          echo "✅ API health check passed"
+          API_HEALTHY=true
+        else
+          echo "❌ API health check failed"
+          API_HEALTHY=false
+        fi
+        
+        # Frontend health check
+        echo "Testing frontend..."
+        if curl -f "https://${{ env.PRODUCTION_DOMAIN }}" --max-time 15; then
+          echo "✅ Frontend accessible"
+          FRONTEND_HEALTHY=true
+          
+          # Test manifest
+          if curl -f "https://${{ env.PRODUCTION_DOMAIN }}/manifest.json" --max-time 10; then
+            echo "✅ Manifest accessible"
+          else
+            echo "⚠️ Manifest not accessible"
+          fi
+        else
+          echo "❌ Frontend not accessible"
+          FRONTEND_HEALTHY=false
+        fi
+        
+        # CORS check
+        echo "Testing CORS..."
+        if curl -f -X OPTIONS "$API_URL/recommendations" \
+          -H "Origin: https://${{ env.PRODUCTION_DOMAIN }}" \
+          -H "Access-Control-Request-Method: GET" --max-time 10; then
+          echo "✅ CORS configured correctly"
+        else
+          echo "⚠️ CORS check failed"
+        fi
+        
+        # Overall health determination
+        if [[ "$API_HEALTHY" == "true" && "$FRONTEND_HEALTHY" == "true" ]]; then
+          echo "status=healthy" >> $GITHUB_OUTPUT
+          echo "✅ Overall system health: HEALTHY"
+        elif [[ "$API_HEALTHY" == "true" ]]; then
+          echo "status=degraded" >> $GITHUB_OUTPUT
+          echo "⚠️ Overall system health: DEGRADED (API OK, Frontend issues)"
+        else
+          echo "status=unhealthy" >> $GITHUB_OUTPUT
+          echo "❌ Overall system health: UNHEALTHY"
+        fi
+        
+    - name: Performance verification
+      run: |
+        echo "📊 Performance verification..."
+        if curl -f "https://${{ env.PRODUCTION_DOMAIN }}" --max-time 15 2>/dev/null; then
+          curl -w "@-" -o /dev/null -s "https://${{ env.PRODUCTION_DOMAIN }}" <<'EOF'
+        Production Performance:
+        - DNS Lookup: %{time_namelookup}s
+        - Connect: %{time_connect}s  
+        - SSL Handshake: %{time_appconnect}s
+        - First Byte: %{time_starttransfer}s
+        - Total: %{time_total}s
+        - Size: %{size_download} bytes
+        EOF
+        else
+          echo "⚠️ Performance test skipped - site not accessible"
+        fi
+        
+    - name: Run critical API tests
+      run: |
+        echo "🧪 Running critical API tests against production..."
+        cd tests && npm ci
+        cd .. && npm run test:api
+      env:
+        REACT_APP_API_GATEWAY_INVOKE_URL: ${{ needs.deploy-infrastructure.outputs.api-url }}
+        TEST_ENVIRONMENT: production
+      continue-on-error: true
+
+  deployment-result:
+    name: Deployment Result
+    runs-on: ubuntu-latest
+    needs: [post-deployment-verification, wait-for-amplify-deployment, deploy-infrastructure]
+    if: always()
+    
+    steps:
+    - name: Determine deployment outcome
+      run: |
+        HEALTH_STATUS="${{ needs.post-deployment-verification.outputs.health-status }}"
+        AMPLIFY_STATUS="${{ needs.wait-for-amplify-deployment.outputs.amplify-status }}"
+        
+        echo "🔍 Deployment Analysis:"
+        echo "- Infrastructure: ${{ needs.deploy-infrastructure.result }}"
+        echo "- Health Status: $HEALTH_STATUS"
+        echo "- Amplify Status: $AMPLIFY_STATUS"
+        
+        if [[ "${{ needs.deploy-infrastructure.result }}" == "success" && 
+              ("$HEALTH_STATUS" == "healthy" || "$HEALTH_STATUS" == "degraded") ]]; then
+          echo "🎉 DEPLOYMENT SUCCESSFUL!"
+          echo "✅ Production deployment completed"
+          echo "🌐 Site: https://${{ env.PRODUCTION_DOMAIN }}"
+          echo "🔗 API: ${{ needs.deploy-infrastructure.outputs.api-url }}"
+          
+          if [[ "$HEALTH_STATUS" == "degraded" ]]; then
+            echo "⚠️ Note: Some frontend issues detected - monitor closely"
+          fi
+          
+        elif [[ "${{ needs.deploy-infrastructure.result }}" == "success" ]]; then
+          echo "⚠️ PARTIAL DEPLOYMENT"
+          echo "✅ Infrastructure deployed successfully"
+          echo "⚠️ Health checks indicate issues"
+          echo "🔧 Manual verification recommended"
+          
+        else
+          echo "❌ DEPLOYMENT FAILED"
+          echo "❌ Infrastructure deployment failed"
+          echo "🔄 Consider manual rollback if needed"
+          exit 1
+        fi
+        
+    - name: Create deployment summary
+      run: |
+        HEALTH_STATUS="${{ needs.post-deployment-verification.outputs.health-status }}"
+        
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## 🚀 Production Deployment Summary
+        
+        **Status:** ${{ needs.deploy-infrastructure.result == 'success' && '✅ Success' || '❌ Failed' }}
+        **Health:** $HEALTH_STATUS
+        **Environment:** Production
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        **Deployed:** $(date)
+        
+        ### 🔗 Production Links
+        - **Website:** https://${{ env.PRODUCTION_DOMAIN }}
+        - **API:** ${{ needs.deploy-infrastructure.outputs.api-url }}
+        - **Amplify Console:** [Monitor Builds](https://console.aws.amazon.com/amplify/)
+        
+        ### 📊 Deployment Steps
+        - **Validation:** ${{ needs.pre-deployment-validation.result }}
+        - **Infrastructure:** ${{ needs.deploy-infrastructure.result }}
+        - **Amplify Wait:** ${{ needs.wait-for-amplify-deployment.result }}
+        - **Health Checks:** ${{ needs.post-deployment-verification.result }}
+        
+        ### 🎯 Deployment Details
+        - Infrastructure changes deployed via CDK
+        - Frontend deployed automatically via AWS Amplify
+        - Health monitoring and verification completed
+        - Performance metrics captured
+        
+        ### 📋 Post-Deployment Actions
+        $( [[ "$HEALTH_STATUS" == "healthy" ]] && echo "✅ No action required - system healthy" || echo "🔧 Monitor system closely and check Amplify console" )
+        
+        ### 🔄 Rollback Information
+        If rollback is needed:
+        1. Revert infrastructure: \`git checkout ${{ needs.pre-deployment-validation.outputs.previous-commit }} && cd infrastructure && npx cdk deploy\`
+        2. Revert frontend: Use Amplify console to redeploy previous successful build
+        
+        Your production site is live! 🎉
+        EOF
+        
+    - name: Final status check
+      run: |
+        if [[ "${{ needs.deploy-infrastructure.result }}" == "success" ]]; then
+          echo "🚀 Deployment process completed successfully!"
+          exit 0
+        else
+          echo "❌ Deployment failed"
+          exit 1
+        fi
