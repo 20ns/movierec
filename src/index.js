@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { Amplify } from 'aws-amplify';
-import awsconfig from './config/aws'; // Updated import path
+import awsconfig from './aws-exports';
 import App from './App';
 import './index.css';
 

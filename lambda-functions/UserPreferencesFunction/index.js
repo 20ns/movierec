@@ -1,6 +1,12 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
+const { 
+  extractOrigin, 
+  createCorsPreflightResponse, 
+  createCorsErrorResponse, 
+  createCorsSuccessResponse 
+} = require("./cors-utils");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
@@ -16,54 +22,19 @@ const verifier = CognitoJwtVerifier.create({
   clientId: process.env.COGNITO_CLIENT_ID,
 });
 
-// CORS headers helper
-const generateCorsHeaders = (requestOrigin) => {
-  const allowedOrigins = [
-    'https://movierec.net',
-    'https://www.movierec.net',
-    'http://localhost:3000',
-    'http://localhost:8080'
-  ];
-  
-  const headers = {
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Max-Age': '86400',
-  };
-  
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    headers['Access-Control-Allow-Origin'] = requestOrigin;
-  } else {
-    // For credentialed requests, we must specify an exact origin, not '*'
-    headers['Access-Control-Allow-Origin'] = allowedOrigins[2]; // Default to localhost:3000 for development
-  }
-  
-  return headers;
-};
-
 exports.handler = async (event) => {
-  const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
-  const corsHeaders = generateCorsHeaders(requestOrigin);
+  const requestOrigin = extractOrigin(event);
 
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers: corsHeaders,
-      body: ''
-    };
+    return createCorsPreflightResponse(requestOrigin);
   }
 
   try {
     // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return {
-        statusCode: 401,
-        headers: corsHeaders,
-        body: JSON.stringify({ message: "Unauthorized" })
-      };
+      return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
     }
 
     const token = authHeader.substring(7);
@@ -77,11 +48,7 @@ exports.handler = async (event) => {
         payload = await verifier.verify(token);
       } catch (error) {
         console.error("Token verification failed:", error);
-        return {
-          statusCode: 401,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Unauthorized" })
-        };
+        return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
       }
     }
 
@@ -97,28 +64,20 @@ exports.handler = async (event) => {
 
         const result = await docClient.send(command);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({
-            preferences: result.Item || {
-              userId: userId,
-              genres: [],
-              keywords: [],
-              minRating: 0,
-              maxRating: 10,
-              releaseYearStart: 1900,
-              releaseYearEnd: new Date().getFullYear()
-            }
-          })
+        const preferences = result.Item || {
+          userId: userId,
+          genres: [],
+          keywords: [],
+          minRating: 0,
+          maxRating: 10,
+          releaseYearStart: 1900,
+          releaseYearEnd: new Date().getFullYear()
         };
+
+        return createCorsSuccessResponse({ preferences }, requestOrigin);
       } catch (error) {
         console.error("Error getting preferences:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else if (event.httpMethod === 'POST') {
       // Update user preferences
@@ -136,32 +95,16 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Preferences updated successfully" })
-        };
+        return createCorsSuccessResponse({ message: "Preferences updated successfully" }, requestOrigin);
       } catch (error) {
         console.error("Error updating preferences:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else {
-      return {
-        statusCode: 405,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: "Method not allowed" })
-      };
+      return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
     }
   } catch (error) {
     console.error("Unexpected error:", error);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "Internal server error" })
-    };
+    return createCorsErrorResponse(500, "Internal server error", requestOrigin);
   }
 };

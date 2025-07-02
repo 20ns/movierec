@@ -5,8 +5,8 @@ const {
   extractOrigin, 
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require("../shared/cors-utils");
+  createCorsSuccessResponse
+} = require("./cors-utils");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
@@ -40,31 +40,19 @@ exports.handler = async (event) => {
   // Validate required environment variables
   if (!process.env.USER_WATCHLIST_TABLE) {
     console.error("USER_WATCHLIST_TABLE environment variable is not set");
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ message: "Server configuration error" })
-    };
+    return createCorsErrorResponse(500, "Server configuration error", requestOrigin);
   }
 
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers: corsHeaders,
-      body: ''
-    };
+    return createCorsPreflightResponse(requestOrigin);
   }
 
   try {
     // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return {
-        statusCode: 401,
-        headers: corsHeaders,
-        body: JSON.stringify({ message: "Unauthorized" })
-      };
+      return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
     }
 
     const token = authHeader.substring(7);
@@ -76,21 +64,13 @@ exports.handler = async (event) => {
     } else {
       if (!verifier) {
         console.error("JWT verifier not available");
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "JWT verifier configuration error" })
-        };
+        return createCorsErrorResponse(500, "JWT verifier configuration error", requestOrigin);
       }
       try {
         payload = await verifier.verify(token);
       } catch (error) {
         console.error("Token verification failed:", error);
-        return {
-          statusCode: 401,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Unauthorized" })
-        };
+        return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
       }
     }
 
@@ -115,20 +95,10 @@ exports.handler = async (event) => {
           mediaId: item.movieId
         }));
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({
-            items: items
-          })
-        };
+        return createCorsSuccessResponse({ items: items }, requestOrigin);
       } catch (error) {
         console.error("Error getting watchlist:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else if (event.httpMethod === 'POST') {
       // Add to watchlist
@@ -140,11 +110,7 @@ exports.handler = async (event) => {
         const id = mediaId || movieId;
         
         if (!id) {
-          return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: "Media ID is required" })
-          };
+          return createCorsErrorResponse(400, "Media ID is required", requestOrigin);
         }
 
         const command = new PutCommand({
@@ -162,18 +128,10 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Added to watchlist successfully" })
-        };
+        return createCorsSuccessResponse({ message: "Added to watchlist successfully" }, requestOrigin);
       } catch (error) {
         console.error("Error adding to watchlist:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else if (event.httpMethod === 'DELETE') {
       // Remove from watchlist
@@ -185,11 +143,7 @@ exports.handler = async (event) => {
         const id = mediaId || movieId;
         
         if (!id) {
-          return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: "Media ID is required" })
-          };
+          return createCorsErrorResponse(400, "Media ID is required", requestOrigin);
         }
 
         const command = new DeleteCommand({
@@ -202,25 +156,13 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Removed from watchlist successfully" })
-        };
+        return createCorsSuccessResponse({ message: "Removed from watchlist successfully" }, requestOrigin);
       } catch (error) {
         console.error("Error removing from watchlist:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else {
-      return {
-        statusCode: 405,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: "Method not allowed" })
-      };
+      return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
     }
   } catch (error) {
     console.error("=== UNEXPECTED ERROR IN WATCHLIST FUNCTION ===");
@@ -230,19 +172,14 @@ exports.handler = async (event) => {
     console.error("Event:", JSON.stringify(event, null, 2));
     console.error("Environment:", JSON.stringify(process.env, null, 2));
     console.error("=== END ERROR DETAILS ===");
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ 
-        message: "Internal server error",
-        error: error.message,
-        stack: error.stack,
-        requestDetails: {
-          httpMethod: event.httpMethod,
-          headers: event.headers,
-          pathParameters: event.pathParameters
-        }
-      })
-    };
+    return createCorsErrorResponse(500, "Internal server error", requestOrigin, {
+      error: error.message,
+      stack: error.stack,
+      requestDetails: {
+        httpMethod: event.httpMethod,
+        headers: event.headers,
+        pathParameters: event.pathParameters
+      }
+    });
   }
 };

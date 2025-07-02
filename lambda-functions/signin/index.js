@@ -3,32 +3,20 @@ const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk
 // Initialize clients
 const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
 
-// CORS headers configuration
-const allowedOrigins = [
-  'https://movierec.net',
-  'https://www.movierec.net',
-  'http://localhost:3000',
-  'http://localhost:8080'
-];
-
-const getHeaders = (origin) => ({
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[2], // Default to localhost:3000 for development
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'OPTIONS,POST',
-  'Access-Control-Allow-Credentials': 'true',
-  'Content-Type': 'application/json'
-});
+const { 
+  extractOrigin, 
+  createCorsPreflightResponse, 
+  createCorsErrorResponse, 
+  createCorsSuccessResponse 
+} = require("./cors-utils");
 
 exports.handler = async (event) => {
   console.log('Event received:', JSON.stringify(event, null, 2));
+  const requestOrigin = extractOrigin(event);
 
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: getHeaders(event.headers?.origin || ''),
-      body: ''
-    };
+    return createCorsPreflightResponse(requestOrigin);
   }
 
   // Handle POST request for signin
@@ -37,11 +25,8 @@ exports.handler = async (event) => {
       const body = JSON.parse(event.body || '{}');
       const { email, password } = body;
 
-      if (!email || !password) {        return {
-          statusCode: 400,
-          headers: getHeaders(event.headers?.origin || ''),
-          body: JSON.stringify({ error: 'Email and password are required' })
-        };
+      if (!email || !password) {
+        return createCorsErrorResponse(400, 'Email and password are required', requestOrigin);
       }
 
       // Authenticate with Cognito
@@ -57,16 +42,12 @@ exports.handler = async (event) => {
       const response = await cognitoClient.send(authCommand);
       const { AccessToken, IdToken, RefreshToken } = response.AuthenticationResult;
 
-      return {
-        statusCode: 200,
-        headers: getHeaders(event.headers?.origin || ''),
-        body: JSON.stringify({
-          AccessToken,
-          IdToken,
-          RefreshToken,
-          email
-        })
-      };
+      return createCorsSuccessResponse({
+        AccessToken,
+        IdToken,
+        RefreshToken,
+        email
+      }, requestOrigin);
 
     } catch (err) {
       console.error('Authentication Error:', err);
@@ -82,21 +63,10 @@ exports.handler = async (event) => {
         errorMessage = 'User account not confirmed';
       }
 
-      return {
-        statusCode,
-        headers: getHeaders(event.headers?.origin || ''),
-        body: JSON.stringify({
-          error: errorMessage,
-          code: err.name
-        })
-      };
+      return createCorsErrorResponse(statusCode, errorMessage, requestOrigin, { code: err.name });
     }
   }
 
   // Invalid request handler
-  return {
-    statusCode: 400,
-    headers: getHeaders(event.headers?.origin || ''),
-    body: JSON.stringify({ error: 'Invalid request method or path' })
-  };
+  return createCorsErrorResponse(400, 'Invalid request method or path', requestOrigin);
 };

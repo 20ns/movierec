@@ -6,7 +6,7 @@ const {
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
   createCorsSuccessResponse 
-} = require("../shared/cors-utils");
+} = require("./cors-utils");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
@@ -70,11 +70,7 @@ exports.handler = async (event) => {
         payload = await verifier.verify(token);
       } catch (error) {
         console.error("Token verification failed:", error);
-        return {
-          statusCode: 401,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Unauthorized" })
-        };
+        return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
       }
     }
 

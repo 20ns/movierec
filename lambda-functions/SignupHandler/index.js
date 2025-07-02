@@ -5,25 +5,18 @@ const {
   } = require('@aws-sdk/client-cognito-identity-provider');
   const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
   const crypto = require('crypto');
-    const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
+  const { 
+    extractOrigin, 
+    createCorsPreflightResponse, 
+    createCorsErrorResponse, 
+    createCorsSuccessResponse 
+  } = require("./cors-utils");
+  
+  const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   
   const CLIENT_ID = process.env.COGNITO_CLIENT_ID;
   const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
-    const allowedOrigins = [
-    'https://movierec.net',
-    'https://www.movierec.net',
-    'http://localhost:3000',
-    'http://localhost:8080'
-  ];
-  
-  const getHeaders = (origin) => ({
-    'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[2], // Default to localhost:3000 for development
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'OPTIONS,POST',
-    'Access-Control-Allow-Credentials': 'true',
-    'Content-Type': 'application/json'
-  });
     const generateSecretHash = (username) => {
     // This client doesn't use a secret, so return undefined
     if (!CLIENT_SECRET) return undefined;
@@ -131,12 +124,10 @@ const {
     }
     
     // Otherwise, assume the event is from API Gateway.
+    const requestOrigin = extractOrigin(event);
+    
     if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers: getHeaders(event.headers?.origin || ''),
-        body: ''
-      };
+      return createCorsPreflightResponse(requestOrigin);
     }
   
     if (event.httpMethod === 'POST') {
@@ -147,14 +138,10 @@ const {
         // If a verification code is provided, handle confirmation.
         if (body.code) {
           response = await handleVerification(body.email, body.code);
-          return {
-            statusCode: 200,
-            headers: getHeaders(event.headers?.origin || ''),
-            body: JSON.stringify({
-              message: 'Email verified successfully!',
-              email: body.email
-            })
-          };
+          return createCorsSuccessResponse({
+            message: 'Email verified successfully!',
+            email: body.email
+          }, requestOrigin);
         }
         
         // Handle the sign-up request via Cognito.
@@ -168,32 +155,17 @@ const {
           // Optionally, decide if this should block registration.
         }
         
-        return {
-          statusCode: 200,
-          headers: getHeaders(event.headers?.origin || ''),
-          body: JSON.stringify({
-            message: 'Signup successful! Please check your email for verification code',
-            userSub: response.UserSub
-          })
-        };
+        return createCorsSuccessResponse({
+          message: 'Signup successful! Please check your email for verification code',
+          userSub: response.UserSub
+        }, requestOrigin);
   
       } catch (err) {
         console.error('Operation Error:', err);
-        return {
-          statusCode: 400,
-          headers: getHeaders(event.headers?.origin || ''),
-          body: JSON.stringify({
-            error: mapCognitoError(err),
-            code: err.name
-          })
-        };
+        return createCorsErrorResponse(400, mapCognitoError(err), requestOrigin, { code: err.name });
       }
     }
   
-    return {
-      statusCode: 400,
-      headers: getHeaders(event.headers?.origin || ''),
-      body: JSON.stringify({ error: 'Invalid request method' })
-    };
+    return createCorsErrorResponse(400, 'Invalid request method', requestOrigin);
   };
   

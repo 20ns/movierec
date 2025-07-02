@@ -315,6 +315,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
     try {
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Favorites fetch failed');
       const favData = await response.json();
@@ -356,6 +357,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
     try {
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
       if (!response.ok) {
         logError('Watchlist fetch failed with status', response.status);

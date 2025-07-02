@@ -348,6 +348,51 @@ export class InfrastructureStack extends cdk.Stack {
     mediaResource.addMethod('GET', new apigateway.LambdaIntegration(mediaCacheFunction));
 
     // ===========================
+    // API GATEWAY CORS FOR ERROR RESPONSES
+    // ===========================
+    
+    // Add CORS headers to authorization error responses
+    api.addGatewayResponse('UnauthorizedResponse', {
+      type: apigateway.ResponseType.UNAUTHORIZED,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    api.addGatewayResponse('ForbiddenResponse', {
+      type: apigateway.ResponseType.ACCESS_DENIED,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    api.addGatewayResponse('BadRequestResponse', {
+      type: apigateway.ResponseType.BAD_REQUEST_BODY,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    api.addGatewayResponse('InternalServerErrorResponse', {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    // ===========================
     // OUTPUTS
     // ===========================
     
