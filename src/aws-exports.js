@@ -6,14 +6,14 @@ const awsExports = {
   oauth: {
     domain: 'eu-north-1x2fwi0mfk.auth.eu-north-1.amazoncognito.com',
     scope: ['email', 'openid', 'profile'],
-    redirectSignIn: 'https://movierec.net/',
-    redirectSignOut: 'https://movierec.net/',
+    redirectSignIn: process.env.NODE_ENV === 'production' ? 'https://movierec.net/' : 'http://localhost:3000/',
+    redirectSignOut: process.env.NODE_ENV === 'production' ? 'https://movierec.net/' : 'http://localhost:3000/',
     responseType: 'code'
   },
   aws_cloud_logic_custom: [
     {
       name: 'api',
-      endpoint: 'https://n09230hhhj.execute-api.eu-north-1.amazonaws.com/prod',
+      endpoint: process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod',
       region: 'eu-north-1'
     }
   ]

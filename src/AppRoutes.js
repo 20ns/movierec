@@ -60,6 +60,16 @@ function AppRoutes({
         }
       />
       <Route
+        path="/auth/"
+        element={
+          !isAuthenticated ? (
+            <AuthPage onSignupSuccess={handleCustomSigninSuccess} onSigninSuccess={handleCustomSigninSuccess} />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      <Route
         path="/signup"
         element={
           !isAuthenticated ? (
