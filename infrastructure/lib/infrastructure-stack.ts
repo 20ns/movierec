@@ -147,7 +147,7 @@ export class InfrastructureStack extends cdk.Stack {
       USER_WATCHLIST_TABLE: watchlistTable.tableName,
       USER_POOL_ID: existingUserPool.userPoolId,
       COGNITO_CLIENT_ID: existingUserPoolClient.userPoolClientId,
-      TMDB_API_KEY: process.env.TMDB_API_KEY || '',
+      REACT_APP_TMDB_API_KEY: process.env.REACT_APP_TMDB_API_KEY || '',
       REGION: this.region,
     };
 

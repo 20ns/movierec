@@ -65,6 +65,72 @@ const rateLimiter = {
     }
 };
 
+// Function to get recommendations from TMDB API
+async function getRecommendations(mediaType, excludeIds, limit, userPreferences) {
+  const TMDB_API_KEY = process.env.REACT_APP_TMDB_API_KEY;
+  if (!TMDB_API_KEY) {
+    console.error('REACT_APP_TMDB_API_KEY environment variable not set');
+    return [];
+  }
+
+  const recommendations = [];
+  const seenIds = new Set(excludeIds.map(id => parseInt(id, 10)));
+
+  try {
+    // Determine what types of content to fetch
+    const contentTypes = [];
+    if (mediaType === 'both' || mediaType === 'movie') {
+      contentTypes.push('movie');
+    }
+    if (mediaType === 'both' || mediaType === 'tv') {
+      contentTypes.push('tv');
+    }
+
+    // Fetch popular content for each type
+    for (const type of contentTypes) {
+      const endpoint = type === 'movie' ? 'movie/popular' : 'tv/popular';
+      const url = `https://api.themoviedb.org/3/${endpoint}?api_key=${TMDB_API_KEY}&page=1`;
+      
+      console.log(`Fetching from TMDB: ${url}`);
+      
+      const response = await rateLimiter.add(async () => {
+        return await axiosInstance.get(url);
+      });
+
+      if (response && response.data && response.data.results) {
+        for (const item of response.data.results) {
+          if (recommendations.length >= limit) break;
+          if (seenIds.has(item.id)) continue;
+          
+          // Convert to our format
+          const recommendation = {
+            mediaId: item.id.toString(),
+            title: item.title || item.name,
+            overview: item.overview || '',
+            posterPath: item.poster_path || '',
+            backdropPath: item.backdrop_path || '',
+            voteAverage: item.vote_average || 0,
+            releaseDate: item.release_date || item.first_air_date || '',
+            popularity: item.popularity || 0,
+            mediaType: type,
+            genres: item.genre_ids ? item.genre_ids.join('|') : ''
+          };
+          
+          recommendations.push(recommendation);
+          seenIds.add(item.id);
+        }
+      }
+    }
+
+    console.log(`Generated ${recommendations.length} recommendations`);
+    return recommendations;
+
+  } catch (error) {
+    console.error('Error fetching recommendations from TMDB:', error);
+    return [];
+  }
+}
+
 exports.handler = async (event) => {
   const requestOrigin = extractOrigin(event);
 
@@ -110,14 +176,22 @@ exports.handler = async (event) => {
         const preferencesResult = await dynamoDB.send(preferencesCommand);
         const userPreferences = preferencesResult.Item || {};
 
-        // For now, return a simple response - you can enhance this with actual recommendation logic
-        const recommendations = {
-          recommendations: [],
-          message: "Personalized recommendations feature coming soon",
-          userPreferences: userPreferences
-        };
+        // Get query parameters
+        const queryParams = event.queryStringParameters || {};
+        const mediaType = queryParams.mediaType || 'both';
+        const excludeIds = queryParams.exclude ? queryParams.exclude.split(',').map(id => id.trim()) : [];
+        const limit = Math.min(parseInt(queryParams.limit) || 6, 20); // Max 20 items
+        
+        console.log('Fetching recommendations with params:', { mediaType, excludeIds, limit });
 
-        return createCorsSuccessResponse(recommendations, requestOrigin);
+        // Fetch recommendations from TMDB
+        const recommendations = await getRecommendations(mediaType, excludeIds, limit, userPreferences);
+
+        return createCorsSuccessResponse({
+          items: recommendations,
+          source: 'personalized_lambda',
+          userPreferences: userPreferences
+        }, requestOrigin);
       } catch (error) {
         console.error("Error getting recommendations:", error);
         return createCorsErrorResponse(500, "Internal server error", requestOrigin);
