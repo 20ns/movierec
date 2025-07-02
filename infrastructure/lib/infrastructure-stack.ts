@@ -66,6 +66,13 @@ export class InfrastructureStack extends cdk.Stack {
     // IAM ROLES & POLICIES
     // ============================================
     
+    // AWS SDK Lambda Layer
+    const awsSdkLayer = new lambda.LayerVersion(this, 'AwsSdkLayer', {
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-layers/aws-sdk-layer')),
+      compatibleRuntimes: [lambda.Runtime.NODEJS_18_X],
+      description: 'AWS SDK v3 and common dependencies',
+    });
+
     // Lambda execution role with DynamoDB permissions
     const lambdaExecutionRole = new iam.Role(this, 'LambdaExecutionRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -152,6 +159,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
+      layers: [awsSdkLayer],
     });
 
     // Signup Handler Lambda Function
@@ -162,6 +170,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
+      layers: [awsSdkLayer],
     });
 
     // Refresh Token Lambda Function
@@ -172,6 +181,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
+      layers: [awsSdkLayer],
     });
 
     // User Preferences Lambda Function
@@ -182,7 +192,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
-      layers: [jwtLayer],
+      layers: [jwtLayer, awsSdkLayer],
     });
 
     // Favourites Lambda Function
@@ -193,7 +203,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
-      layers: [jwtLayer],
+      layers: [jwtLayer, awsSdkLayer],
     });
 
     // Watchlist Lambda Function
@@ -204,7 +214,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
-      layers: [jwtLayer],
+      layers: [jwtLayer, awsSdkLayer],
     });
 
     // Movie Recommendations Lambda Function
@@ -217,7 +227,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
-      layers: [jwtLayer],
+      layers: [jwtLayer, awsSdkLayer],
     });
 
     // Media Cache Lambda Function
@@ -230,6 +240,7 @@ export class InfrastructureStack extends cdk.Stack {
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
+      layers: [awsSdkLayer],
     });
 
     // ===========================

@@ -1,16 +1,16 @@
 const axios = require('axios');
 
 // Test configuration
-const BASE_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'http://localhost:3001';
+const BASE_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
 const API_ENDPOINTS = {
-  signin: '/dev/auth/signin',
-  signup: '/dev/auth/signup',
-  refresh: '/dev/auth/refresh',
-  preferences: '/dev/user/preferences',
-  favourites: '/dev/user/favourites',
-  watchlist: '/dev/user/watchlist',
-  recommendations: '/dev/recommendations',
-  media: '/dev/media'
+  signin: '/auth/signin',
+  signup: '/auth/signup',
+  refresh: '/auth/refresh',
+  preferences: '/user/preferences',
+  favourites: '/user/favourites',
+  watchlist: '/user/watchlist',
+  recommendations: '/recommendations',
+  media: '/media'
 };
 
 // Mock test data
