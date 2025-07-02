@@ -155,14 +155,7 @@ module.exports = (env, argv) => {
       ] 
     }),
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development'),
-      'process.env.REACT_APP_API_GATEWAY_INVOKE_URL': JSON.stringify(process.env.REACT_APP_API_GATEWAY_INVOKE_URL),
-      'process.env.REACT_APP_TMDB_API_KEY': JSON.stringify(process.env.REACT_APP_TMDB_API_KEY),
-      'process.env.REACT_APP_FANART_TV_API_KEY': JSON.stringify(process.env.REACT_APP_FANART_TV_API_KEY),
-      'process.env.REACT_APP_COGNITO_USER_POOL_ID': JSON.stringify(process.env.REACT_APP_COGNITO_USER_POOL_ID),
-      'process.env.REACT_APP_COGNITO_CLIENT_ID': JSON.stringify(process.env.REACT_APP_COGNITO_CLIENT_ID),
-      'process.env.REACT_APP_REDIRECT_SIGN_IN': JSON.stringify(process.env.REACT_APP_REDIRECT_SIGN_IN),
-      'process.env.REACT_APP_REDIRECT_SIGN_OUT': JSON.stringify(process.env.REACT_APP_REDIRECT_SIGN_OUT)
+      'process.env.NODE_ENV': JSON.stringify(isProduction ? 'production' : 'development')
     })
   ],
   resolve: {

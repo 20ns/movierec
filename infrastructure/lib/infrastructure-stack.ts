@@ -266,6 +266,7 @@ export class InfrastructureStack extends cdk.Stack {
           'X-Api-Key',
           'X-Amz-Security-Token',
         ],
+        allowCredentials: true,
       },
       deployOptions: {
         stageName: 'prod',
