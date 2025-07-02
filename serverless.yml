@@ -67,7 +67,7 @@ provider:
 plugins:
   - serverless-offline
   # - serverless-dynamodb-local  # Temporarily disabled due to Java dependency
-  - serverless-dotenv-plugin
+  - enkonix-serverless-dotenv-plugin
 
 custom:
   serverless-offline:
