@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS & Environment Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        #logs { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; height: 300px; overflow-y: auto; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>MovieRec CORS & Environment Test</h1>
+    
+    <div class="test-result info">
+        <h3>Environment Variables:</h3>
+        <div id="env-status">Loading...</div>
+    </div>
+    
+    <div class="test-result info">
+        <h3>API Tests:</h3>
+        <button onclick="testFavourites()">Test Favourites API</button>
+        <button onclick="testWatchlist()">Test Watchlist API</button>
+        <button onclick="testMedia()">Test Media API</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <div id="logs"></div>
+
+    <script>
+        const API_BASE = 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.innerHTML += `<div style="color: ${type === 'error' ? 'red' : type === 'success' ? 'green' : 'black'}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        // Test environment variables
+        function checkEnvironment() {
+            const envStatus = document.getElementById('env-status');
+            
+            // Simulate environment config check
+            const config = {
+                API_GATEWAY_URL: API_BASE,
+                HAS_COGNITO_CONFIG: true,
+                NODE_ENV: 'development'
+            };
+            
+            envStatus.innerHTML = `
+                <strong>✅ Environment Configuration:</strong><br>
+                API Gateway URL: ${config.API_GATEWAY_URL}<br>
+                Cognito Configured: ${config.HAS_COGNITO_CONFIG ? '✅' : '❌'}<br>
+                Environment: ${config.NODE_ENV}
+            `;
+            
+            log('Environment variables loaded successfully', 'success');
+        }
+        
+        async function makeApiCall(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            log(`Making ${options.method || 'GET'} request to ${endpoint}`);
+            
+            try {
+                const response = await fetch(url, {
+                    method: options.method || 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer dummy-token-for-test',
+                        ...options.headers
+                    },
+                    credentials: 'include', // This is what was causing the CORS issue
+                    mode: 'cors',
+                    ...options
+                });
+                
+                log(`Response status: ${response.status}`, response.ok ? 'success' : 'error');
+                
+                const responseHeaders = {};
+                for (let [key, value] of response.headers.entries()) {
+                    if (key.includes('access-control') || key.includes('origin')) {
+                        responseHeaders[key] = value;
+                    }
+                }
+                
+                if (Object.keys(responseHeaders).length > 0) {
+                    log(`CORS Headers: ${JSON.stringify(responseHeaders, null, 2)}`);
+                }
+                
+                const data = await response.text();
+                try {
+                    const json = JSON.parse(data);
+                    log(`Response: ${JSON.stringify(json, null, 2)}`);
+                } catch {
+                    log(`Raw response: ${data}`);
+                }
+                
+                return response;
+            } catch (error) {
+                log(`❌ Request failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        async function testFavourites() {
+            log('=== Testing Favourites Endpoint ===');
+            await makeApiCall('/user/favourites');
+        }
+        
+        async function testWatchlist() {
+            log('=== Testing Watchlist Endpoint ===');
+            await makeApiCall('/user/watchlist');
+        }
+        
+        async function testMedia() {
+            log('=== Testing Media Endpoint ===');
+            await makeApiCall('/media?query=avengers');
+        }
+        
+        // Initialize
+        checkEnvironment();
+        log('Test page loaded. Click buttons to test API endpoints.');
+    </script>
+</body>
+</html>

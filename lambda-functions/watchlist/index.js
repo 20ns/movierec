@@ -1,6 +1,12 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
+const { 
+  extractOrigin, 
+  createCorsPreflightResponse, 
+  createCorsErrorResponse, 
+  createCorsSuccessResponse 
+} = require("../shared/cors-utils");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
@@ -21,35 +27,8 @@ try {
   console.error("Failed to create Cognito JWT verifier:", error);
 }
 
-// CORS headers helper
-const generateCorsHeaders = (requestOrigin) => {
-  const allowedOrigins = [
-    'https://movierec.net',
-    'https://www.movierec.net',
-    'http://localhost:3000',
-    'http://localhost:8080'
-  ];
-  
-  const headers = {
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Max-Age': '86400',
-  };
-  
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    headers['Access-Control-Allow-Origin'] = requestOrigin;
-  } else {
-    // For credentialed requests, we must specify an exact origin, not '*'
-    headers['Access-Control-Allow-Origin'] = allowedOrigins[2]; // Default to localhost:3000 for development
-  }
-  
-  return headers;
-};
-
 exports.handler = async (event) => {
-  const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
-  const corsHeaders = generateCorsHeaders(requestOrigin);
+  const requestOrigin = extractOrigin(event);
 
   console.log('Received event:', JSON.stringify(event, null, 2));
   console.log('Environment variables:', {

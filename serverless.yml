@@ -2,6 +2,8 @@ service: movierec-backend
 
 frameworkVersion: '^4.0.0'
 
+# Custom CORS configuration for consistent setup
+
 # Package configuration to reduce deployment size
 package:
   patterns:
@@ -70,6 +72,29 @@ plugins:
   - enkonix-serverless-dotenv-plugin
 
 custom:
+  corsConfig:
+    origin: 
+      - http://localhost:3000
+      - http://localhost:8080
+      - http://127.0.0.1:3000
+      - https://movierec.net
+      - https://www.movierec.net
+    headers:
+      - Content-Type
+      - Authorization
+      - X-Amz-Date
+      - X-Api-Key
+      - X-Amz-Security-Token
+      - Accept
+      - Origin
+      - X-Requested-With
+    allowCredentials: true
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
   serverless-offline:
     httpPort: 3001
     lambdaPort: 3002
@@ -100,27 +125,7 @@ functions:
       - http:
           path: auth/signin
           method: post
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   signup:
     handler: lambda-functions/SignupHandler/index.handler
@@ -130,27 +135,7 @@ functions:
       - http:
           path: auth/signup
           method: post
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   refreshToken:
     handler: lambda-functions/RefreshTokenLambda/index.handler
@@ -160,27 +145,7 @@ functions:
       - http:
           path: auth/refresh
           method: post
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   userPreferences:
     handler: lambda-functions/UserPreferencesFunction/index.handler
@@ -190,51 +155,11 @@ functions:
       - http:
           path: user/preferences
           method: get
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
       - http:
           path: user/preferences
           method: post
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   favourites:
     handler: lambda-functions/FavouritesFunction/index.handler
@@ -244,75 +169,15 @@ functions:
       - http:
           path: user/favourites
           method: get
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
       - http:
           path: user/favourites
           method: post
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
       - http:
           path: user/favourites
           method: delete
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   watchlist:
     handler: lambda-functions/watchlist/index.handler
@@ -322,75 +187,15 @@ functions:
       - http:
           path: user/watchlist
           method: get
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
       - http:
           path: user/watchlist
           method: post
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
       - http:
           path: user/watchlist
           method: delete
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   recommendations:
     handler: lambda-functions/MovieRecPersonalizedApiHandler/index.handler
@@ -400,27 +205,7 @@ functions:
       - http:
           path: recommendations
           method: get
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
   mediaCache:
     handler: lambda-functions/MediaCache/index.handler
@@ -430,27 +215,7 @@ functions:
       - http:
           path: media
           method: get
-          cors:
-            origin: 
-              - http://localhost:3000
-              - https://movierec.net
-              - https://www.movierec.net
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - Accept
-              - Origin
-              - X-Requested-With
-            allowCredentials: true
-            methods:
-              - GET
-              - POST
-              - OPTIONS
-              - PUT
-              - DELETE
+          cors: ${self:custom.corsConfig}
 
 # Define DynamoDB tables for local development
 resources:

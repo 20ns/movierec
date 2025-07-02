@@ -1,6 +1,12 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
+const { 
+  extractOrigin, 
+  createCorsPreflightResponse, 
+  createCorsErrorResponse, 
+  createCorsSuccessResponse 
+} = require("../shared/cors-utils");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
@@ -21,35 +27,8 @@ try {
   console.error("Failed to create Cognito JWT verifier:", error);
 }
 
-// CORS headers helper
-const generateCorsHeaders = (requestOrigin) => {
-  const allowedOrigins = [
-    'https://movierec.net',
-    'https://www.movierec.net',
-    'http://localhost:3000',
-    'http://localhost:8080'
-  ];
-  
-  const headers = {
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Max-Age': '86400',
-  };
-  
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    headers['Access-Control-Allow-Origin'] = requestOrigin;
-  } else {
-    // For credentialed requests, we must specify an exact origin, not '*'
-    headers['Access-Control-Allow-Origin'] = allowedOrigins[2]; // Default to localhost:3000 for development
-  }
-  
-  return headers;
-};
-
 exports.handler = async (event) => {
-  const requestOrigin = event.headers?.origin || event.headers?.Origin || '';
-  const corsHeaders = generateCorsHeaders(requestOrigin);
+  const requestOrigin = extractOrigin(event);
 
   console.log('Received event:', JSON.stringify(event, null, 2));
   console.log('Environment variables:', {
@@ -61,31 +40,19 @@ exports.handler = async (event) => {
   // Validate required environment variables
   if (!process.env.USER_FAVORITES_TABLE) {
     console.error("USER_FAVORITES_TABLE environment variable is not set");
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ message: "Server configuration error" })
-    };
+    return createCorsErrorResponse(500, "Server configuration error", requestOrigin);
   }
 
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers: corsHeaders,
-      body: ''
-    };
+    return createCorsPreflightResponse(requestOrigin);
   }
 
   try {
     // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return {
-        statusCode: 401,
-        headers: corsHeaders,
-        body: JSON.stringify({ message: "Unauthorized" })
-      };
+      return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
     }
 
     const token = authHeader.substring(7);
@@ -97,11 +64,7 @@ exports.handler = async (event) => {
     } else {
       if (!verifier) {
         console.error("JWT verifier not available");
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "JWT verifier configuration error" })
-        };
+        return createCorsErrorResponse(500, "JWT verifier configuration error", requestOrigin);
       }
       try {
         payload = await verifier.verify(token);
@@ -139,20 +102,10 @@ exports.handler = async (event) => {
         console.log('🔍 [FavouritesFunction] Raw DynamoDB result:', result.Items);
         console.log('🔍 [FavouritesFunction] Mapped items for frontend:', items);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({
-            items: items
-          })
-        };
+        return createCorsSuccessResponse({ items: items }, requestOrigin);
       } catch (error) {
         console.error("Error getting favourites:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else if (event.httpMethod === 'POST') {
       // Add to favourites
@@ -164,11 +117,7 @@ exports.handler = async (event) => {
         const id = mediaId || movieId;
         
         if (!id) {
-          return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: "Media ID is required" })
-          };
+          return createCorsErrorResponse(400, "Media ID is required", requestOrigin);
         }
 
         const command = new PutCommand({
@@ -186,18 +135,10 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Added to favourites successfully" })
-        };
+        return createCorsSuccessResponse({ message: "Added to favourites successfully" }, requestOrigin);
       } catch (error) {
         console.error("Error adding to favourites:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else if (event.httpMethod === 'DELETE') {
       // Remove from favourites
@@ -209,11 +150,7 @@ exports.handler = async (event) => {
         const id = mediaId || movieId;
         
         if (!id) {
-          return {
-            statusCode: 400,
-            headers: corsHeaders,
-            body: JSON.stringify({ error: "Media ID is required" })
-          };
+          return createCorsErrorResponse(400, "Media ID is required", requestOrigin);
         }
 
         const command = new DeleteCommand({
@@ -226,25 +163,13 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return {
-          statusCode: 200,
-          headers: corsHeaders,
-          body: JSON.stringify({ message: "Removed from favourites successfully" })
-        };
+        return createCorsSuccessResponse({ message: "Removed from favourites successfully" }, requestOrigin);
       } catch (error) {
         console.error("Error removing from favourites:", error);
-        return {
-          statusCode: 500,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: "Internal server error" })
-        };
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
     } else {
-      return {
-        statusCode: 405,
-        headers: corsHeaders,
-        body: JSON.stringify({ message: "Method not allowed" })
-      };
+      return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
     }
   } catch (error) {
     console.error("=== UNEXPECTED ERROR IN FAVOURITES FUNCTION ===");
@@ -254,19 +179,14 @@ exports.handler = async (event) => {
     console.error("Event:", JSON.stringify(event, null, 2));
     console.error("Environment:", JSON.stringify(process.env, null, 2));
     console.error("=== END ERROR DETAILS ===");
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ 
-        message: "Internal server error",
-        error: error.message,
-        stack: error.stack,
-        requestDetails: {
-          httpMethod: event.httpMethod,
-          headers: event.headers,
-          pathParameters: event.pathParameters
-        }
-      })
-    };
+    return createCorsErrorResponse(500, "Internal server error", requestOrigin, {
+      error: error.message,
+      stack: error.stack,
+      requestDetails: {
+        httpMethod: event.httpMethod,
+        headers: event.headers,
+        pathParameters: event.pathParameters
+      }
+    });
   }
 };

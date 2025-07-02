@@ -6,6 +6,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
+import ENV_CONFIG from '../config/environment';
 
 
 // Extract the year from a date string or return empty string if invalid
@@ -172,7 +173,7 @@ const MediaCard = ({
         if (globalFavoritesFetched) return;
 
         setIsLoadingFavorite(true);        const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
+          `${ENV_CONFIG.API_GATEWAY_URL}/user/favourites`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -256,7 +257,7 @@ const MediaCard = ({
         if (globalWatchlistFetched) return;
 
         setIsLoadingWatchlist(true);        const response = await fetch(
-          `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`,
+          `${ENV_CONFIG.API_GATEWAY_URL}/user/watchlist`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -368,8 +369,8 @@ const MediaCard = ({
 
     try {
       const url = method === 'DELETE' 
-        ? `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites?mediaId=${encodeURIComponent(mediaId)}`
-        : `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`;
+        ? `${ENV_CONFIG.API_GATEWAY_URL}/user/favourites?mediaId=${encodeURIComponent(mediaId)}`
+        : `${ENV_CONFIG.API_GATEWAY_URL}/user/favourites`;
         
       const requestConfig = {
         method,
@@ -467,8 +468,8 @@ const MediaCard = ({
 
     try {
       const url = method === 'DELETE' 
-        ? `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist?mediaId=${encodeURIComponent(mediaId)}`
-        : `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`;
+        ? `${ENV_CONFIG.API_GATEWAY_URL}/user/watchlist?mediaId=${encodeURIComponent(mediaId)}`
+        : `${ENV_CONFIG.API_GATEWAY_URL}/user/watchlist`;
         
       const requestConfig = {
         method,
