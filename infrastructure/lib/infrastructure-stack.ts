@@ -352,10 +352,12 @@ export class InfrastructureStack extends cdk.Stack {
     // ===========================
     
     // Add CORS headers to authorization error responses
+    // Note: Cannot use '*' for Access-Control-Allow-Origin when credentials: 'include'
+    // Need to set specific origin, defaulting to localhost for development
     api.addGatewayResponse('UnauthorizedResponse', {
       type: apigateway.ResponseType.UNAUTHORIZED,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Origin': "'http://localhost:3000'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
@@ -365,7 +367,7 @@ export class InfrastructureStack extends cdk.Stack {
     api.addGatewayResponse('ForbiddenResponse', {
       type: apigateway.ResponseType.ACCESS_DENIED,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Origin': "'http://localhost:3000'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
@@ -375,7 +377,7 @@ export class InfrastructureStack extends cdk.Stack {
     api.addGatewayResponse('BadRequestResponse', {
       type: apigateway.ResponseType.BAD_REQUEST_BODY,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Origin': "'http://localhost:3000'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
@@ -385,7 +387,7 @@ export class InfrastructureStack extends cdk.Stack {
     api.addGatewayResponse('InternalServerErrorResponse', {
       type: apigateway.ResponseType.DEFAULT_5XX,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Origin': "'http://localhost:3000'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
