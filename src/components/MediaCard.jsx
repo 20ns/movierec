@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   StarIcon, CalendarIcon, ChartBarIcon,
-  UserGroupIcon, CheckCircleIcon, HeartIcon as HeartSolidIcon
+  UserGroupIcon, CheckCircleIcon, HeartIcon as HeartSolidIcon,
+  LightBulbIcon, ChevronDownIcon, ChevronUpIcon, SparklesIcon,
+  ClockIcon, XMarkIcon, HeartIcon
 } from '@heroicons/react/24/solid';
 import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
 import { getSocialProof, getGenreColor, hexToRgb } from './SearchBarUtils';
@@ -55,7 +57,10 @@ const MediaCard = ({
   initialIsInWatchlist = null,
   fromWatchlist = false,
   fromFavorites = false,
-  isMiniCard = false
+  isMiniCard = false,
+  showRecommendationReason = false,
+  recommendationReason = null,
+  recommendationScore = null
 }) => {
   // const toast = useToast(); // Removed useToast hook
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
@@ -64,8 +69,17 @@ const MediaCard = ({
   const [isLoadingWatchlist, setIsLoadingWatchlist] = useState(false);
   const [showFavoriteFeedback, setShowFavoriteFeedback] = useState(false); // State for favorite feedback
   const [showWatchlistFeedback, setShowWatchlistFeedback] = useState(false); // State for watchlist feedback
+  const [showExplanation, setShowExplanation] = useState(false); // State for recommendation explanation
+  // Swipe gesture states
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [swipeAction, setSwipeAction] = useState(null); // 'watchlist', 'dismiss', or null
   const hasFetchedRef = useRef(initialIsFavorited !== null);
   const hasWatchlistFetchedRef = useRef(initialIsInWatchlist !== null);
+  // Swipe gesture refs
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const lastDragTimeRef = useRef(0);
+  const isTouchDeviceRef = useRef(false);
 
   const {
     id, title, name, poster_path, overview, vote_average,
@@ -90,7 +104,7 @@ const MediaCard = ({
   const [isLoadingRating, setIsLoadingRating] = useState(false);
   // For fetching missing poster data
   const [fetchedPosterPath, setFetchedPosterPath] = useState(null);
-  const displayScore = score ?? (vote_average ? Math.round(vote_average * 10) : null);
+  const displayScore = recommendationScore ?? (vote_average ? Math.round(vote_average * 10) : null);
   const displayPopularity = Math.round(popularity) || 'N/A';
   const determinedMediaType = media_type || (release_date ? 'movie' : 'tv');
   const finalPosterPath = poster_path || fetchedPosterPath;
@@ -550,6 +564,70 @@ const MediaCard = ({
       setIsLoadingWatchlist(false);
     }
   }, [isAuthenticated, currentUser, mediaId, isInWatchlist, displayTitle, determinedMediaType, poster_path, overview, promptLogin, onWatchlistToggle]); // Removed toast from dependencies
+  
+  // Detect touch device on mount
+  useEffect(() => {
+    isTouchDeviceRef.current = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }, []);
+  
+  // Swipe gesture handlers
+  const handleTouchStart = useCallback((e) => {
+    if (!isTouchDeviceRef.current) return;
+    
+    const touch = e.touches[0];
+    dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+    lastDragTimeRef.current = Date.now();
+    setIsDragging(true);
+  }, []);
+  
+  const handleTouchMove = useCallback((e) => {
+    if (!isTouchDeviceRef.current || !isDragging) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - dragStartRef.current.x;
+    const deltaY = touch.clientY - dragStartRef.current.y;
+    
+    // Only handle horizontal swipes (ignore vertical scrolling)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      e.preventDefault();
+      setDragX(deltaX);
+      
+      // Provide visual feedback for swipe actions
+      if (deltaX > 80) {
+        setSwipeAction('watchlist');
+      } else if (deltaX < -80) {
+        setSwipeAction('dismiss');
+      } else {
+        setSwipeAction(null);
+      }
+    }
+  }, [isDragging]);
+  
+  const handleTouchEnd = useCallback(() => {
+    if (!isTouchDeviceRef.current || !isDragging) return;
+    
+    const timeDiff = Date.now() - lastDragTimeRef.current;
+    const isQuickSwipe = timeDiff < 300;
+    
+    // Execute swipe action if threshold is met
+    if (Math.abs(dragX) > 100 || (isQuickSwipe && Math.abs(dragX) > 50)) {
+      if (dragX > 0 && swipeAction === 'watchlist') {
+        // Swipe right - add to watchlist
+        if (!isInWatchlist) {
+          handleWatchlistToggle();
+        }
+      } else if (dragX < 0 && swipeAction === 'dismiss') {
+        // Swipe left - dismiss/not interested
+        console.log('User dismissed:', displayTitle);
+        // Could call a prop like onDismiss here
+      }
+    }
+    
+    // Reset swipe state
+    setIsDragging(false);
+    setDragX(0);
+    setSwipeAction(null);
+  }, [isDragging, dragX, swipeAction, handleWatchlistToggle, displayTitle, isInWatchlist]);
 
   const HeartIcon = isFavorited ? HeartSolidIcon : HeartOutlineIcon;
   const heartIconClasses = isFavorited 
@@ -557,6 +635,10 @@ const MediaCard = ({
     : 'text-white hover:text-red-300';
 
   const handleCardClick = (e) => {
+    // Don't trigger click if user was swiping
+    if (isDragging || Math.abs(dragX) > 10) {
+      return;
+    }
     if (e.target.closest('button')) {
       return;
     }
@@ -659,6 +741,75 @@ const MediaCard = ({
             </span>
           </div>
         </div>
+
+        {/* Recommendation Explanation Section */}
+        {showRecommendationReason && recommendationReason && (
+          <div className="border-t border-gray-100 mt-2">
+            <motion.button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowExplanation(!showExplanation);
+              }}
+              className="w-full pt-2 flex items-center justify-between text-left hover:bg-gray-50 transition-colors duration-200 rounded-lg p-1"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+            >
+              <div className="flex items-center space-x-2">
+                <LightBulbIcon className="w-3 h-3 text-purple-500" />
+                <span className="text-xs font-medium text-purple-600">
+                  Why recommended?
+                </span>
+                {recommendationScore && (
+                  <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">
+                    {recommendationScore}% match
+                  </span>
+                )}
+              </div>
+              <motion.div
+                animate={{ rotate: showExplanation ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDownIcon className="w-3 h-3 text-gray-400" />
+              </motion.div>
+            </motion.button>
+            
+            <AnimatePresence>
+              {showExplanation && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-2 pb-1">
+                    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-2 border border-purple-100">
+                      <div className="flex items-start space-x-2">
+                        <SparklesIcon className="w-3 h-3 text-purple-500 mt-0.5 flex-shrink-0" />
+                        <div className="text-[10px] sm:text-xs text-purple-700 leading-relaxed">
+                          {typeof recommendationReason === 'string' ? (
+                            <p>{recommendationReason}</p>
+                          ) : Array.isArray(recommendationReason) ? (
+                            <ul className="space-y-1">
+                              {recommendationReason.map((reason, index) => (
+                                <li key={index} className="flex items-start space-x-1">
+                                  <span className="text-purple-400 mt-0.5">•</span>
+                                  <span>{reason}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p>Personalized for your preferences</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     );
   };
@@ -673,13 +824,55 @@ const MediaCard = ({
           handleCardClick(e);
         }
       }}
+      // Touch event handlers for swipe gestures
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       aria-label={`View details for ${displayTitle}`}
       className={`group bg-transparent rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 ease-out relative flex flex-col h-full cursor-pointer ${
         highlightMatch ? 'ring-2 ring-offset-1 ring-offset-gray-900 ring-indigo-500 shadow-lg shadow-indigo-500/20' : ''
       }`}
       whileHover={{ y: -3 }}
+      animate={{
+        x: dragX,
+        scale: isDragging ? 0.95 : 1,
+        rotate: isDragging ? dragX * 0.05 : 0
+      }}
+      transition={{
+        type: isDragging ? 'tween' : 'spring',
+        duration: isDragging ? 0 : 0.3
+      }}
       layout
     >
+      {/* Swipe Action Indicators */}
+      {isDragging && swipeAction && (
+        <>
+          {/* Right swipe indicator (Add to Watchlist) */}
+          {swipeAction === 'watchlist' && (
+            <motion.div
+              className="absolute left-2 top-1/2 transform -translate-y-1/2 z-20 bg-blue-600 text-white p-2 rounded-full shadow-lg"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            >
+              <ClockIcon className="w-5 h-5" />
+            </motion.div>
+          )}
+          
+          {/* Left swipe indicator (Dismiss) */}
+          {swipeAction === 'dismiss' && (
+            <motion.div
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 z-20 bg-gray-600 text-white p-2 rounded-full shadow-lg"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </motion.div>
+          )}
+        </>
+      )}
+      
       <div 
         className={`bg-white rounded-xl overflow-hidden shadow-lg ${
           isFavorited ? 'ring-1 ring-red-300/50' : ''
@@ -793,12 +986,37 @@ const MediaCard = ({
             </>
           )}
 
-          {socialProof.friendsLiked > 0 && !simplifiedView && (
-            <div className="absolute bottom-2 right-2 z-10 flex items-center bg-black/60 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
-              <UserGroupIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-300" />
-              <span className="ml-1 text-[10px] sm:text-xs text-white font-medium">
-                {socialProof.friendsLiked} liked
-              </span>
+          {(socialProof.friendsLiked > 0 || socialProof.totalLikes > 0) && !simplifiedView && (
+            <div className="absolute bottom-2 right-2 z-10 space-y-1">
+              {/* Friends social proof */}
+              {socialProof.friendsLiked > 0 && (
+                <div className="flex items-center bg-black/70 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                  <UserGroupIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-300" />
+                  <span className="ml-1 text-[10px] sm:text-xs text-white font-medium">
+                    {socialProof.friendsLiked} liked
+                  </span>
+                </div>
+              )}
+              
+              {/* Community ratings */}
+              {socialProof.averageRating > 0 && (
+                <div className="flex items-center bg-black/70 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                  <StarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-400" />
+                  <span className="ml-1 text-[10px] sm:text-xs text-white font-medium">
+                    {socialProof.averageRating}
+                  </span>
+                </div>
+              )}
+              
+              {/* Total likes for popular content */}
+              {socialProof.totalLikes > 1000 && (
+                <div className="flex items-center bg-black/70 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                  <HeartIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400" />
+                  <span className="ml-1 text-[10px] sm:text-xs text-white font-medium">
+                    {socialProof.totalLikes > 1000 ? `${Math.round(socialProof.totalLikes / 1000)}k` : socialProof.totalLikes}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

@@ -611,7 +611,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               onClick={onMediaClick}
               showRecommendationReason={true}
               recommendationReason={item.recommendationReason}
-              score={item.score}
+              recommendationScore={item.score}
             />
           </motion.div>
         ))}

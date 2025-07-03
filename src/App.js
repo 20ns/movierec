@@ -15,6 +15,8 @@ import FavoritesSection from './components/FavoritesSection';
 import WatchlistSection from './components/WatchlistSection';
 import AccountDetailsModal from './components/AccountDetailsModal';
 import SearchBar from './components/SearchBar';
+import MoodQuickFilters from './components/MoodQuickFilters';
+import { MobileBottomNav, MobileDrawerMenu, MobileHeader } from './components/MobileNavigation';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
 import LandingPage from './components/LandingPage';
@@ -76,6 +78,10 @@ function AppContent() {
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  
+  // Mobile navigation state
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 useEffect(() => {
   if (showSearch) {
     const scrollY = window.scrollY;
@@ -120,6 +126,9 @@ useEffect(() => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   // State for Performance Dashboard
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
+  // State for Mood Filters
+  const [selectedMoodFilter, setSelectedMoodFilter] = useState(null);
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState(null);
 
   // Calculate if user has only completed basic preferences but not detailed ones
   const hasBasicPreferencesOnly = userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted;
@@ -212,6 +221,31 @@ useEffect(() => {
     //   });
     // }, 100);
   }, [handleSigninSuccess]); // Removed showToast from dependencies
+
+  // --- Mobile Detection ---
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
+
+  // Mobile navigation handlers
+  const handleMobileMenuToggle = () => {
+    setShowMobileMenu(!showMobileMenu);
+  };
+
+  const handleMobileAuthAction = () => {
+    navigate('/auth');
+  };
+
+  const handleMobileSearchToggle = () => {
+    setShowSearch(!showSearch);
+  };
 
   // --- Fetch User Preferences ---
   const fetchUserPreferences = useCallback(async () => {
@@ -504,13 +538,21 @@ useEffect(() => {
                   propUserPreferences={userPreferences}
                   propHasCompletedQuestionnaire={hasCompletedQuestionnaire}
                   initialAppLoadComplete={initialAppLoadComplete}
-                  onMediaClick={handleMediaClick} // Pass the handler down
+                  onMediaClick={handleMediaClick}
+                  moodFilter={selectedMoodFilter}
+                  timeFilter={selectedTimeFilter}
                 />
               </motion.div>
             )}
           </AnimatePresence>
           
-          {/* Ad unit removed from main content area */}
+          {/* Mood Quick Filters */}
+          <MoodQuickFilters
+            onMoodSelect={setSelectedMoodFilter}
+            onTimeSelect={setSelectedTimeFilter}
+            currentUser={currentUser}
+            isVisible={isAuthenticated && initialAppLoadComplete}
+          />
           
           <TrendingSection
             currentUser={currentUser}
@@ -692,21 +734,52 @@ useEffect(() => {
        location.pathname !== '/auth' && 
        location.pathname !== '/signup' && 
        location.pathname !== '/signin' && (
-        <Header
-          isAuthenticated={isAuthenticated}
-          currentUser={currentUser}
-          onSignout={handleSignout}
-          onSearchClick={(isVisible) => setShowSearch(isVisible === undefined ? true : isVisible)}
-          onPreferencesClick={(isVisible) => setShowQuestionnaireModal(isVisible === undefined ? true : isVisible)}
-          onFavoritesClick={(isVisible) => setShowFavorites(isVisible === undefined ? true : isVisible)}
-          onWatchlistClick={(isVisible) => setShowWatchlist(isVisible === undefined ? true : isVisible)}
-          onAccountClick={(isVisible) => setShowAccountDetails(isVisible === undefined ? true : isVisible)}
-          showFavorites={showFavorites}
-          showWatchlist={showWatchlist}
-          showSearch={showSearch}
-          hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
-          searchContainerRef={searchAreaRef} // Pass the ref to Header
-        />
+        <>
+          {/* Desktop Header */}
+          <Header
+            isAuthenticated={isAuthenticated}
+            currentUser={currentUser}
+            onSignout={handleSignout}
+            onSearchClick={(isVisible) => setShowSearch(isVisible === undefined ? true : isVisible)}
+            onPreferencesClick={(isVisible) => setShowQuestionnaireModal(isVisible === undefined ? true : isVisible)}
+            onFavoritesClick={(isVisible) => setShowFavorites(isVisible === undefined ? true : isVisible)}
+            onWatchlistClick={(isVisible) => setShowWatchlist(isVisible === undefined ? true : isVisible)}
+            onAccountClick={(isVisible) => setShowAccountDetails(isVisible === undefined ? true : isVisible)}
+            showFavorites={showFavorites}
+            showWatchlist={showWatchlist}
+            showSearch={showSearch}
+            hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
+            searchContainerRef={searchAreaRef} // Pass the ref to Header
+          />
+
+          {/* Mobile Header */}
+          {isMobile && (
+            <MobileHeader
+              onMenuOpen={handleMobileMenuToggle}
+              currentUser={currentUser}
+              isAuthenticated={isAuthenticated}
+              showSearch={showSearch}
+              onSearchToggle={handleMobileSearchToggle}
+            />
+          )}
+
+          {/* Mobile Drawer Menu */}
+          <MobileDrawerMenu
+            isOpen={showMobileMenu}
+            onClose={() => setShowMobileMenu(false)}
+            currentUser={currentUser}
+            isAuthenticated={isAuthenticated}
+            onAuthAction={handleMobileAuthAction}
+          />
+
+          {/* Mobile Bottom Navigation */}
+          {isMobile && (
+            <MobileBottomNav
+              currentUser={currentUser}
+              isAuthenticated={isAuthenticated}
+            />
+          )}
+        </>
       )}<AnimatePresence>
         {showSearch && (
           <>

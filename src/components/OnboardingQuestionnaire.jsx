@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XMarkIcon, CheckIcon, StarIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, CheckIcon, StarIcon, SparklesIcon } from '@heroicons/react/24/solid';
+import OnboardingProgressTracker from './OnboardingProgressTracker';
 
 import { API } from 'aws-amplify';
 // Enhanced genre options with better organization
@@ -401,8 +402,36 @@ const OnboardingQuestionnaire = ({
 }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [totalSteps] = useState(QUESTIONS.length);
+  const [isQuickMode, setIsQuickMode] = useState(true); // New: Quick mode toggle
+  const [showModeSelector, setShowModeSelector] = useState(true); // Show mode selection initially
+  const [quickModeCompleted, setQuickModeCompleted] = useState(false); // Track if quick mode is done
+  
+  // Progressive onboarding state
+  const [progressiveMode, setProgressiveMode] = useState(false); // Enable progressive onboarding
+  const [currentStage, setCurrentStage] = useState('essential'); // Current stage in progressive mode
+  const [completedStages, setCompletedStages] = useState([]); // Completed stages
+  const [showProgressTracker, setShowProgressTracker] = useState(false); // Show progress tracker
+  
+  // Filter questions based on mode
+  const getQuestionsForMode = () => {
+    if (isQuickMode && !progressiveMode) {
+      return QUESTIONS.filter(q => q.category === 'essential').slice(0, 8); // First 8 essential questions
+    }
+    if (progressiveMode) {
+      return QUESTIONS.filter(q => q.category === currentStage); // Progressive mode: filter by current stage
+    }
+    return QUESTIONS;
+  };
+  
+  const activeQuestions = getQuestionsForMode();
+  const [totalSteps, setTotalSteps] = useState(activeQuestions.length);
   const [currentCategory, setCurrentCategory] = useState('essential');
+
+  // Update totalSteps when mode changes
+  useEffect(() => {
+    const questions = getQuestionsForMode();
+    setTotalSteps(questions.length);
+  }, [isQuickMode, progressiveMode, currentStage]);
   
   // State for text inputs and people inputs
   const [textInputs, setTextInputs] = useState({
@@ -434,7 +463,7 @@ const OnboardingQuestionnaire = ({
     questionnaireCompleted: false,
   });
 
-  const [currentQuestion, setCurrentQuestion] = useState(QUESTIONS[0]);
+  const [currentQuestion, setCurrentQuestion] = useState(activeQuestions[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [authError, setAuthError] = useState(false);
@@ -499,9 +528,83 @@ const OnboardingQuestionnaire = ({
 
   // Update current question when step changes
   useEffect(() => {
-    setCurrentQuestion(QUESTIONS[step - 1]);
-    setCurrentCategory(QUESTIONS[step - 1]?.category || 'essential');
-  }, [step]);
+    const questions = getQuestionsForMode();
+    setCurrentQuestion(questions[step - 1]);
+    setCurrentCategory(questions[step - 1]?.category || 'essential');
+  }, [step, isQuickMode]);
+  
+  // Handle mode changes
+  const handleModeSelection = (mode) => {
+    if (mode === 'progressive') {
+      setProgressiveMode(true);
+      setIsQuickMode(false);
+      setShowProgressTracker(true);
+      setCurrentStage('essential');
+    } else {
+      setIsQuickMode(mode === 'quick');
+      setProgressiveMode(false);
+      setShowProgressTracker(false);
+    }
+    setShowModeSelector(false);
+    setStep(1);
+    const questions = getQuestionsForMode();
+    setCurrentQuestion(questions[0]);
+  };
+
+  // Handle stage changes in progressive mode
+  const handleStageSelect = (stageId) => {
+    if (progressiveMode) {
+      setCurrentStage(stageId);
+      setStep(1);
+      const stageQuestions = QUESTIONS.filter(q => q.category === stageId);
+      if (stageQuestions.length > 0) {
+        setCurrentQuestion(stageQuestions[0]);
+      }
+    }
+  };
+
+  // Handle stage completion in progressive mode
+  const handleStageComplete = (stageId) => {
+    if (!completedStages.includes(stageId)) {
+      const newCompletedStages = [...completedStages, stageId];
+      setCompletedStages(newCompletedStages);
+      
+      // Auto-save stage completion
+      savePreferencesToDB(false, {
+        ...preferences,
+        completedOnboardingStages: newCompletedStages
+      });
+
+      // Determine next stage
+      const stageOrder = ['essential', 'context', 'detailed', 'personal'];
+      const currentIndex = stageOrder.indexOf(stageId);
+      if (currentIndex < stageOrder.length - 1) {
+        const nextStage = stageOrder[currentIndex + 1];
+        setCurrentStage(nextStage);
+        setStep(1);
+        const nextQuestions = QUESTIONS.filter(q => q.category === nextStage);
+        if (nextQuestions.length > 0) {
+          setCurrentQuestion(nextQuestions[0]);
+        }
+      } else {
+        // All stages completed
+        handleQuickModeComplete();
+      }
+    }
+  };
+  
+  // Handle quick mode completion
+  const handleQuickModeComplete = () => {
+    setQuickModeCompleted(true);
+    if (isQuickMode) {
+      // Auto-save quick mode preferences
+      savePreferencesToDB(false, {
+        ...preferences,
+        questionnaireCompleted: true,
+        quickModeCompleted: true
+      }, true);
+    }
+  };
 
   // Auto-hide save indicator after 2 seconds
   useEffect(() => {
@@ -689,6 +792,18 @@ const OnboardingQuestionnaire = ({
     if (step < totalSteps) {
       setStep((prev) => prev + 1);
     } else {
+      // Handle progressive mode stage completion
+      if (progressiveMode) {
+        handleStageComplete(currentStage);
+        return;
+      }
+      
+      // Handle quick mode completion
+      if (isQuickMode) {
+        handleQuickModeComplete();
+        return;
+      }
+      
       // Save as complete and trigger update on final "Next"
       savePreferencesToDB(false, null, true);
       
@@ -719,16 +834,17 @@ const OnboardingQuestionnaire = ({
   };
 
   const getCategoryProgress = () => {
-    // Count questions by category
+    const questions = getQuestionsForMode();
+    // Count questions by category for current mode
     const categories = {
-      essential: QUESTIONS.filter(q => q.category === 'essential').length,
-      context: QUESTIONS.filter(q => q.category === 'context').length,
-      detailed: QUESTIONS.filter(q => q.category === 'detailed').length,
-      personal: QUESTIONS.filter(q => q.category === 'personal').length,
+      essential: questions.filter(q => q.category === 'essential').length,
+      context: questions.filter(q => q.category === 'context').length,
+      detailed: questions.filter(q => q.category === 'detailed').length,
+      personal: questions.filter(q => q.category === 'personal').length,
     };
     
     // Count current position within category
-    const currentCategoryQuestions = QUESTIONS.filter(q => q.category === currentCategory);
+    const currentCategoryQuestions = questions.filter(q => q.category === currentCategory);
     const currentCategoryIndex = currentCategoryQuestions.findIndex(q => q.id === currentQuestion.id) + 1;
     
     return {
@@ -977,136 +1093,214 @@ const OnboardingQuestionnaire = ({
             </div>
           )}
         </div>
-        
-        {/* Progress section */}
-        <div className="mb-8 space-y-2">
-          {/* Category indicator */}
-          <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium text-purple-300">
-              {categoryProgress.name} ({categoryProgress.current}/{categoryProgress.total})
-            </span>
-            <span className="text-sm font-medium text-purple-300">
-              Question {step} of {totalSteps}
-            </span>
-          </div>
-          
-          {/* Overall progress bar */}
-          <div className="w-full bg-gray-700 rounded-full h-2.5">
-            <div
-              className="bg-gradient-to-r from-purple-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${calculateProgressPercentage()}%` }}
-            ></div>
-          </div>
-          
-          {/* Category indicators */}
-          <div className="flex w-full">
-            {['essential', 'context', 'detailed', 'personal'].map((cat) => {
-              // Calculate width based on number of questions in this category
-              const width = (QUESTIONS.filter(q => q.category === cat).length / totalSteps) * 100;
-              const isActive = currentCategory === cat;
-              
-              return (
-                <div 
-                  key={cat}
-                  className={`h-1 ${isActive ? 'bg-purple-500' : 'bg-gray-600'} transition-all`}
-                  style={{ width: `${width}%` }}
-                  title={getCategoryName(cat)}
-                ></div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Error message display */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-800/60 border border-red-600 text-red-100 rounded-lg shadow-md">
-            <p className="font-medium">Error:</p>
-            <p>{error}</p>
-            {authError && (
-              <button
-                onClick={() => navigate('/login')}
-                className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md text-sm font-medium transition-colors"
-              >
-                Go to Login
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Question and options */}
-        <AnimatePresence mode="wait">
+        {/* Mode Selection - Show at the beginning */}
+        {showModeSelector && (
           <motion.div
-            key={step}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="bg-gray-800/50 p-6 rounded-xl shadow-xl mb-8"
+            className="text-center mb-8"
           >
-            <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">{currentQuestion?.title}</h3>
-            <p className="text-sm sm:text-base text-gray-300 mb-6">{currentQuestion?.description}</p>
-            <div className="space-y-4">
-              {renderQuestionOptions()}
+            <h3 className="text-xl font-semibold text-white mb-4">Choose Your Experience</h3>
+            <p className="text-gray-400 mb-8">How would you like to complete your preferences?</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              {/* Quick Mode */}
+              <motion.button
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleModeSelection('quick')}
+                className="p-6 bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-xl text-left hover:border-blue-400/50 transition-all"
+              >
+                <div className="text-blue-400 mb-3">
+                  <StarIcon className="w-8 h-8" />
+                </div>
+                <h4 className="text-white font-semibold mb-2">Quick Start</h4>
+                <p className="text-gray-300 text-sm mb-3">8 essential questions • 2 minutes</p>
+                <p className="text-gray-400 text-xs">Get basic recommendations right away</p>
+              </motion.button>
+
+              {/* Progressive Mode */}
+              <motion.button
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleModeSelection('progressive')}
+                className="p-6 bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl text-left hover:border-purple-400/50 transition-all"
+              >
+                <div className="text-purple-400 mb-3">
+                  <SparklesIcon className="w-8 h-8" />
+                </div>
+                <h4 className="text-white font-semibold mb-2">Progressive Journey</h4>
+                <p className="text-gray-300 text-sm mb-3">Staged completion • Your pace</p>
+                <p className="text-gray-400 text-xs">Complete sections as you have time, unlock rewards</p>
+              </motion.button>
+
+              {/* Complete Mode */}
+              <motion.button
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleModeSelection('complete')}
+                className="p-6 bg-gradient-to-br from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-xl text-left hover:border-emerald-400/50 transition-all"
+              >
+                <div className="text-emerald-400 mb-3">
+                  <CheckIcon className="w-8 h-8" />
+                </div>
+                <h4 className="text-white font-semibold mb-2">Complete Setup</h4>
+                <p className="text-gray-300 text-sm mb-3">All 23 questions • 10 minutes</p>
+                <p className="text-gray-400 text-xs">Maximum personalization from the start</p>
+              </motion.button>
             </div>
           </motion.div>
-        </AnimatePresence>
+        )}
 
-        {/* Navigation buttons */}
-        <div className="flex justify-between items-center pt-6 border-t border-gray-700 mt-10">
-          <div>
-            {step > 1 && (
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={prevStep}
-                className="px-6 py-3 text-sm sm:text-base text-gray-200 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-150 ease-in-out"
-              >
-                Previous
-              </motion.button>
-            )}
-          </div>
-          
-          <div className="flex space-x-3 sm:space-x-4">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={skipOnboarding}
-              className="px-5 py-3 text-sm text-gray-400 hover:text-gray-200 rounded-lg transition-colors duration-150 ease-in-out"
-            >
-              {step === totalSteps ? "Skip & Save Progress" : "Skip for now"}
-            </motion.button>
-            
-            {step < totalSteps ? (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={nextStep}
-                className="px-6 py-3 text-sm sm:text-base text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-150 ease-in-out"
-              >
-                Next
-              </motion.button>
-            ) : (
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => savePreferencesToDB(false, null, true)}
-                disabled={isSubmitting}
-                className={`px-6 py-3 text-sm sm:text-base text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-150 ease-in-out ${
-                  isSubmitting ? 'bg-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
-                }`}
-              >
-                {isSubmitting ? 'Saving...' : 'Finish & Save'}
-              </motion.button>
-            )}
-          </div>
-        </div>
+        {/* Progressive Onboarding Tracker */}
+        {progressiveMode && showProgressTracker && (
+          <OnboardingProgressTracker
+            currentStage={currentStage}
+            completedStages={completedStages}
+            onStageSelect={handleStageSelect}
+            totalQuestions={QUESTIONS.length}
+            answeredQuestions={Object.values(preferences).filter(Boolean).length}
+            currentUser={currentUser}
+          />
+        )}
         
-        {/* Auto-save indicator at bottom */}
-        <div className="mt-4 text-center">
-          <span className="text-xs text-gray-400">
-            Your answers are automatically saved as you go
-          </span>
-        </div>
+        {/* Main Questionnaire Content - Only show when not in mode selection or completion */}
+        {!showModeSelector && !quickModeCompleted && (
+          <>
+            {/* Progress section */}
+            <div className="mb-8 space-y-2">
+              {/* Category indicator */}
+              <div className="flex justify-between mb-1">
+                <span className="text-sm font-medium text-purple-300">
+                  {categoryProgress.name} ({categoryProgress.current}/{categoryProgress.total})
+                </span>
+                <span className="text-sm font-medium text-purple-300">
+                  Question {step} of {totalSteps}
+                </span>
+              </div>
+              
+              {/* Overall progress bar */}
+              <div className="w-full bg-gray-700 rounded-full h-2.5">
+                <div
+                  className="bg-gradient-to-r from-purple-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${calculateProgressPercentage()}%` }}
+                ></div>
+              </div>
+              
+              {/* Category indicators */}
+              <div className="flex w-full">
+                {['essential', 'context', 'detailed', 'personal'].map((cat) => {
+                  // Calculate width based on number of questions in this category
+                  const width = (getQuestionsForMode().filter(q => q.category === cat).length / totalSteps) * 100;
+                  const isActive = currentCategory === cat;
+                  
+                  return (
+                    <div 
+                      key={cat}
+                      className={`h-1 ${isActive ? 'bg-purple-500' : 'bg-gray-600'} transition-all`}
+                      style={{ width: `${width}%` }}
+                      title={getCategoryName(cat)}
+                    ></div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Error message display */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-800/60 border border-red-600 text-red-100 rounded-lg shadow-md">
+                <p className="font-medium">Error:</p>
+                <p>{error}</p>
+                {authError && (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-md text-sm font-medium transition-colors"
+                  >
+                    Go to Login
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Question and options */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="bg-gray-800/50 p-6 rounded-xl shadow-xl mb-8"
+              >
+                <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">{currentQuestion?.title}</h3>
+                <p className="text-sm sm:text-base text-gray-300 mb-6">{currentQuestion?.description}</p>
+                <div className="space-y-4">
+                  {renderQuestionOptions()}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Navigation buttons */}
+            <div className="flex justify-between items-center pt-6 border-t border-gray-700 mt-10">
+              <div>
+                {step > 1 && (
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={prevStep}
+                    className="px-6 py-3 text-sm sm:text-base text-gray-200 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-150 ease-in-out"
+                  >
+                    Previous
+                  </motion.button>
+                )}
+              </div>
+              
+              <div className="flex space-x-3 sm:space-x-4">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={skipOnboarding}
+                  className="px-5 py-3 text-sm text-gray-400 hover:text-gray-200 rounded-lg transition-colors duration-150 ease-in-out"
+                >
+                  {step === totalSteps ? "Skip & Save Progress" : "Skip for now"}
+                </motion.button>
+                
+                {step < totalSteps ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={nextStep}
+                    className="px-6 py-3 text-sm sm:text-base text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-150 ease-in-out"
+                  >
+                    Next
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={nextStep}
+                    disabled={isSubmitting}
+                    className={`px-6 py-3 text-sm sm:text-base text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-150 ease-in-out ${
+                      isSubmitting ? 'bg-gray-500 cursor-not-allowed' : 
+                      isQuickMode ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' :
+                      'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600'
+                    }`}
+                  >
+                    {isSubmitting ? 'Saving...' : isQuickMode ? 'Complete Quick Setup' : 'Finish & Save'}
+                  </motion.button>
+                )}
+              </div>
+            </div>
+        
+            {/* Auto-save indicator at bottom */}
+            <div className="mt-4 text-center">
+              <span className="text-xs text-gray-400">
+                Your answers are automatically saved as you go
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

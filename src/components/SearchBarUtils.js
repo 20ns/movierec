@@ -23,14 +23,43 @@ export const getGenreColor = (genreIds = []) => {
     return hexToRgb(genreColors[firstGenre] || genreColors.default); // Direct return, slightly cleaner
 };
 
-// --- Mock Social Data (Constant Lookup - Very Efficient) ---
+// --- Enhanced Social Data (Constant Lookup - Very Efficient) ---
 const MOCK_SOCIAL_DATA = { // Define outside function
-    603: { friendsWatched: 12, friendsLiked: 11 },
-    238: { friendsWatched: 8, friendsLiked: 7 },
+    603: { friendsWatched: 12, friendsLiked: 11, totalLikes: 2847, averageRating: 8.2, totalRatings: 5629, totalReviews: 892 },
+    238: { friendsWatched: 8, friendsLiked: 7, totalLikes: 4521, averageRating: 9.3, totalRatings: 8934, totalReviews: 1247 },
+    550: { friendsWatched: 15, friendsLiked: 13, totalLikes: 3201, averageRating: 7.8, totalRatings: 4567, totalReviews: 672 },
+    157336: { friendsWatched: 22, friendsLiked: 19, totalLikes: 6789, averageRating: 8.7, totalRatings: 12456, totalReviews: 1834 },
+    346364: { friendsWatched: 18, friendsLiked: 14, totalLikes: 2934, averageRating: 7.4, totalRatings: 3892, totalReviews: 523 },
+    // Generate some random data for demo purposes
+    ...generateRandomSocialData(50)
 };
 
+// Generate random social data for demo
+function generateRandomSocialData(count) {
+    const data = {};
+    for (let i = 0; i < count; i++) {
+        const id = Math.floor(Math.random() * 100000) + 1000;
+        data[id] = {
+            friendsWatched: Math.floor(Math.random() * 25),
+            friendsLiked: Math.floor(Math.random() * 20),
+            totalLikes: Math.floor(Math.random() * 5000) + 500,
+            averageRating: Math.round((Math.random() * 4 + 6) * 10) / 10, // 6.0 - 10.0
+            totalRatings: Math.floor(Math.random() * 10000) + 1000,
+            totalReviews: Math.floor(Math.random() * 1000) + 100
+        };
+    }
+    return data;
+}
+
 export const getSocialProof = (item) => {
-    return MOCK_SOCIAL_DATA[item.id] || { friendsWatched: 0, friendsLiked: 0 };
+    return MOCK_SOCIAL_DATA[item.id] || { 
+        friendsWatched: 0, 
+        friendsLiked: 0, 
+        totalLikes: Math.floor(Math.random() * 1000) + 100,
+        averageRating: Math.round((Math.random() * 3 + 6.5) * 10) / 10,
+        totalRatings: Math.floor(Math.random() * 5000) + 500,
+        totalReviews: Math.floor(Math.random() * 500) + 50
+    };
 };
 
 // --- Axios Instance (Caching and Retry) ---

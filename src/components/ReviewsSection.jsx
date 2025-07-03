@@ -1,4 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  StarIcon,
+  HeartIcon,
+  ShareIcon,
+  ThumbsUpIcon,
+  ChatBubbleLeftRightIcon
+} from '@heroicons/react/24/solid';
+import { 
+  StarIcon as StarOutlineIcon,
+  HeartIcon as HeartOutlineIcon,
+  HandThumbUpIcon as ThumbsUpOutlineIcon
+} from '@heroicons/react/24/outline';
 
 
 const fetchReviews = async (mediaId) => {
@@ -98,18 +111,35 @@ const ReviewsSection = ({ mediaId, currentUser, onReviewsLoaded }) => { // Add o
           {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-300 mb-1">Rating</label>
-            <div className="flex space-x-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => handleRatingChange(star)}
-                  className={`text-2xl ${newRating >= star ? 'text-yellow-400' : 'text-gray-500'} hover:text-yellow-300 transition-colors`}
-                  aria-label={`Rate ${star} out of 5 stars`}
+            <div className="flex items-center space-x-2">
+              <div className="flex space-x-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <motion.button
+                    key={star}
+                    type="button"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleRatingChange(star)}
+                    className={`transition-all duration-200 ${newRating >= star ? 'text-yellow-400' : 'text-gray-500'} hover:text-yellow-300`}
+                    aria-label={`Rate ${star} out of 5 stars`}
+                  >
+                    {newRating >= star ? (
+                      <StarIcon className="w-6 h-6" />
+                    ) : (
+                      <StarOutlineIcon className="w-6 h-6" />
+                    )}
+                  </motion.button>
+                ))}
+              </div>
+              {newRating > 0 && (
+                <motion.span 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-sm text-yellow-300 font-medium ml-2"
                 >
-                  ★
-                </button>
-              ))}
+                  {newRating}/5
+                </motion.span>
+              )}
             </div>
           </div>
           <div className="mb-3">
@@ -188,12 +218,58 @@ const ReviewsSection = ({ mediaId, currentUser, onReviewsLoaded }) => { // Add o
                 <span className="font-semibold text-indigo-300 text-sm">{review.author}</span> {/* Keep changed color and size */}
                 <span className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString()}</span> {/* Keep date style */}
               </div>
-              <div className="flex items-center mb-2.5"> {/* Keep adjusted bottom margin */}
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={`text-xl ${review.rating >= star ? 'text-yellow-400' : 'text-gray-600'}`}>★</span>
-                ))}
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center space-x-2">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <StarIcon 
+                        key={star} 
+                        className={`w-4 h-4 ${review.rating >= star ? 'text-yellow-400' : 'text-gray-600'}`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-yellow-300 font-medium">{review.rating}/5</span>
+                </div>
+                
+                {/* Social actions for reviews */}
+                <div className="flex items-center space-x-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-400 hover:text-red-400 transition-colors"
+                    onClick={() => {/* Handle review like */}}
+                  >
+                    <HeartOutlineIcon className="w-3 h-3" />
+                    <span>{Math.floor(Math.random() * 20) + 1}</span>
+                  </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-400 hover:text-blue-400 transition-colors"
+                    onClick={() => {/* Handle review share */}}
+                  >
+                    <ShareIcon className="w-3 h-3" />
+                  </motion.button>
+                </div>
               </div>
-              <p className="text-gray-300 text-sm leading-relaxed">{review.comment}</p> {/* Keep leading-relaxed */}
+              <p className="text-gray-300 text-sm leading-relaxed mb-3">{review.comment}</p>
+              
+              {/* Review helpfulness */}
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Was this helpful?</span>
+                <div className="flex items-center space-x-3">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center space-x-1 hover:text-green-400 transition-colors"
+                    onClick={() => {/* Handle helpful vote */}}
+                  >
+                    <ThumbsUpOutlineIcon className="w-3 h-3" />
+                    <span>{Math.floor(Math.random() * 15) + 1}</span>
+                  </motion.button>
+                </div>
+              </div>
             </li>
           ))}
         </ul>
