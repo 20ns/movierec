@@ -27,6 +27,8 @@ import BlogIndexPage from './pages/BlogIndexPage';
 import BlogPostPage from './pages/BlogPostPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import PerformanceDashboard from './components/PerformanceDashboard';
+import UserDashboard from './pages/UserDashboard';
+import DiscoveryChallenge from './components/DiscoveryChallenge';
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -546,6 +548,17 @@ useEffect(() => {
             )}
           </AnimatePresence>
           
+          {/* Discovery Challenges - Show for authenticated users */}
+          {isAuthenticated && initialAppLoadComplete && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+            >
+              <DiscoveryChallenge />
+            </motion.div>
+          )}
+          
           {/* Mood Quick Filters */}
           <MoodQuickFilters
             onMoodSelect={setSelectedMoodFilter}
@@ -904,6 +917,18 @@ useEffect(() => {
                   <div className="min-h-screen flex items-center justify-center p-4">
                     <OnboardingQuestionnaire currentUser={currentUser} onComplete={handleQuestionnaireComplete} />
                   </div>
+                ) : (
+                  <Navigate to="/auth" replace state={{ from: location }} />
+                )
+              ) : null
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              initialAppLoadComplete ? (
+                isAuthenticated ? (
+                  <UserDashboard currentUser={currentUser} isAuthenticated={isAuthenticated} />
                 ) : (
                   <Navigate to="/auth" replace state={{ from: location }} />
                 )

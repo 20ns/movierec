@@ -2,6 +2,9 @@ import axios from 'axios';
 
 // Use environment variable for API Gateway URL to support both local and production
 const API_GATEWAY_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
+
+// Debug log the API URL on module load (commented out for production)
+// console.log('[MediaCache] Loaded with API_GATEWAY_URL:', API_GATEWAY_URL);
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
 const CLIENT_CACHE_PREFIX = 'media_rec_cache_v2';
 
@@ -87,12 +90,20 @@ export const fetchCachedMedia = async (options = {}) => {
     }
 
     const apiUrl = `${API_GATEWAY_URL}/recommendations`;
-    console.log('[MediaCache] Making API request with token:', {
-      hasToken: !!token,
-      tokenLength: token ? token.length : 0,
-      tokenStart: token ? token.substring(0, 20) + '...' : 'none',
-      url: apiUrl
-    });
+    // Debug logging (commented out for production)
+    // console.log('[MediaCache] Making API request with token:', {
+    //   hasToken: !!token,
+    //   tokenLength: token ? token.length : 0,
+    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none',
+    //   url: apiUrl,
+    //   params: {
+    //     mediaType,
+    //     exclude: currentExcludeIdsStr.join(','),
+    //     hasPreferences: Object.keys(preferences).length > 0,
+    //     hasFavorites: favoriteIdsStr.length > 0,
+    //     hasWatchlist: watchlistIdsStr.length > 0
+    //   }
+    // });
 
     const response = await axios.get(
       apiUrl,
@@ -108,6 +119,19 @@ export const fetchCachedMedia = async (options = {}) => {
         timeout: 25000,
       }
     );
+
+    // Debug logging (commented out for production)
+    // console.log('[MediaCache] API Response received:', {
+    //   status: response.status,
+    //   hasData: !!response.data,
+    //   dataKeys: response.data ? Object.keys(response.data) : [],
+    //   itemsIsArray: response.data ? Array.isArray(response.data.items) : false,
+    //   itemsLength: response.data && response.data.items ? response.data.items.length : 0,
+    //   source: response.data ? response.data.source : null,
+    //   message: response.data ? response.data.message : null,
+    //   error: response.data ? response.data.error : null,
+    //   fullData: response.data // Remove this after debugging
+    // });
 
     if (response.status === 200 && response.data && Array.isArray(response.data.items)) {
       const fetchedItems = response.data.items;
@@ -141,6 +165,30 @@ export const fetchCachedMedia = async (options = {}) => {
         console.warn(`[MediaCache] Error writing to client cache with key ${writeCacheKey}:`, e);
       }
       return cacheDataToStore;
+    } else {
+      console.log('[MediaCache] API Response format not as expected. Full response:', response.data);
+      
+      // Try to handle alternative response formats
+      if (response.status === 200 && response.data) {
+        // Check if data is directly an array
+        if (Array.isArray(response.data)) {
+          console.log('[MediaCache] Response data is directly an array, using as items');
+          return { items: response.data, source: 'direct_array' };
+        }
+        
+        // Check if there's a body field with items
+        if (response.data.body && typeof response.data.body === 'string') {
+          try {
+            const parsedBody = JSON.parse(response.data.body);
+            if (Array.isArray(parsedBody.items)) {
+              console.log('[MediaCache] Found items in parsed body');
+              return { items: parsedBody.items, source: 'parsed_body' };
+            }
+          } catch (e) {
+            console.log('[MediaCache] Failed to parse body:', e);
+          }
+        }
+      }
     }
 
     return { items: [], source: 'error' };

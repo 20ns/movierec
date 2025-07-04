@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import MediaCard from './MediaCard';
 import { ArrowPathIcon, LightBulbIcon, FilmIcon, TvIcon, VideoCameraIcon } from '@heroicons/react/24/solid';
 import { fetchCachedMedia } from '../services/mediaCache';
@@ -43,6 +44,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   } = props;
 
   const userId = isAuthenticated ? currentUser?.attributes?.sub : null;
+  const navigate = useNavigate();
 
   // --- State Management ---
   const [state, setState] = useState({
@@ -141,6 +143,17 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   // Wrapper for the API fetch function
   const fetchFromPersonalizedApi = useCallback(async (currentContentTypeFilter, excludeIdsSet = new Set(), preferences = {}, favoriteIdsList = [], watchlistIdsList = [], forceRefresh = false) => {
     logMessage('Calling fetchCachedMedia', { currentContentTypeFilter, excludeIdsCount: excludeIdsSet.size, preferences, favoriteIdsCount: favoriteIdsList.length, watchlistIdsCount: watchlistIdsList.length, forceRefresh });
+    
+    // Enhanced debugging for preferences (commented out for production)
+    // console.log('[PersonalizedRecommendations] 🔍 Request Debug:', {
+    //   hasPreferences: Object.keys(preferences).length > 0,
+    //   preferencesKeys: Object.keys(preferences),
+    //   preferences: preferences,
+    //   hasFavorites: favoriteIdsList.length > 0,
+    //   hasWatchlist: watchlistIdsList.length > 0,
+    //   excludeIdsCount: excludeIdsSet.size,
+    //   mediaType: currentContentTypeFilter
+    // });
     try {
       // Safely extract access token - return early if not available
       if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
@@ -248,8 +261,44 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
       try {
         const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
-        const prefs = propUserPreferences || {};
-        logMessage('fetchRecommendations: using preferences for API call', { prefs });
+        let prefs = propUserPreferences || {};
+        
+        // Also check localStorage for recently saved preferences
+        let hasLocalPreferences = false;
+        try {
+          const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
+          if (localPrefs) {
+            const parsedPrefs = JSON.parse(localPrefs);
+            hasLocalPreferences = parsedPrefs && Object.keys(parsedPrefs).length > 0;
+            
+            // If we have local preferences but not props, use local preferences
+            if (hasLocalPreferences && Object.keys(prefs).length === 0) {
+              logMessage('Using localStorage preferences for API call');
+              prefs = parsedPrefs;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not check localStorage preferences:', e);
+        }
+        
+        logMessage('fetchRecommendations: using preferences for API call', { prefs, hasLocalPreferences });
+
+        // Check if user has completed questionnaire
+        const hasPreferences = prefs && Object.keys(prefs).length > 0;
+        
+        if (!hasPreferences) {
+          logMessage('User has not completed questionnaire - showing welcome message instead of API call');
+          safeSetState({
+            allRecommendations: [],
+            recommendations: [],
+            displayIndex: 0,
+            dataSource: 'no_questionnaire',
+            recommendationReason: '🎬 Welcome! Complete your taste profile questionnaire to get personalized recommendations tailored just for you!',
+            hasError: false,
+            errorMessage: '',
+          });
+          return true; // Return success to avoid error state
+        }
 
         const excludeIds = new Set(Array.from(shownItemsHistory));
 
@@ -304,12 +353,37 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
         } else {
           logMessage('Fetch did not return successful recommendations', apiResult);
+          
+          // Check if user has no preferences (common cause of empty recommendations)
+          const hasPreferences = prefs && Object.keys(prefs).length > 0;
+          const hasFavorites = favoriteIdsList && favoriteIdsList.length > 0;
+          const hasWatchlist = watchlistIdsList && watchlistIdsList.length > 0;
+          
+          let recommendationReason;
+          if (!hasPreferences && !hasFavorites && !hasWatchlist) {
+            recommendationReason = '🎬 Welcome! Complete your taste profile questionnaire to get personalized recommendations tailored just for you!';
+          } else if (!hasPreferences) {
+            recommendationReason = '📋 Complete your questionnaire to get better personalized recommendations!';
+          } else {
+            recommendationReason = 'Could not find recommendations matching your profile. Try adjusting preferences or adding favorites!';
+          }
+          
+          // Debug logging (commented out for production)
+          // console.log('[PersonalizedRecommendations] 🔍 Empty Recommendations Debug:', {
+          //   hasPreferences,
+          //   hasFavorites,
+          //   hasWatchlist,
+          //   preferencesKeys: hasPreferences ? Object.keys(prefs) : [],
+          //   apiResultDataSource: apiResult.dataSource,
+          //   recommendationReason
+          // });
+          
           safeSetState({
             allRecommendations: [],
             recommendations: [],
             displayIndex: 0,
             dataSource: apiResult.dataSource || 'none',
-            recommendationReason: 'Could not find recommendations matching your profile. Try adjusting preferences or adding favorites!',
+            recommendationReason,
             hasError: apiResult.dataSource === 'error',
             errorMessage: apiResult.dataSource === 'error' ? 'Failed to fetch recommendations from the server.' : '',
           });
@@ -654,15 +728,43 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         <div className="mb-4 text-5xl text-indigo-400">🤷‍♂️</div>
         <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Found</h3>
         <p className="text-gray-400 mb-6">{recommendationReason || "We couldn't find anything matching your profile right now."}</p>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleRefresh}
-          disabled={isThinking}
-          className={`bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full ${isThinking ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isThinking ? 'Loading...' : 'Get New Recommendations'}
-        </motion.button>
+        
+        {/* Show different buttons based on whether user has preferences */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {(!propUserPreferences || Object.keys(propUserPreferences).length === 0) ? (
+            // User has no preferences - show questionnaire button
+            <>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/onboarding')}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-full font-medium"
+              >
+                🎯 Complete Questionnaire
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRefresh}
+                disabled={isThinking}
+                className={`bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-full ${isThinking ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isThinking ? 'Loading...' : 'Try Again'}
+              </motion.button>
+            </>
+          ) : (
+            // User has preferences - show refresh button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleRefresh}
+              disabled={isThinking}
+              className={`bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full ${isThinking ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isThinking ? 'Loading...' : 'Get New Recommendations'}
+            </motion.button>
+          )}
+        </div>
       </motion.div>
     );
   } else {

@@ -5,6 +5,7 @@ import { XMarkIcon, CheckIcon, StarIcon, SparklesIcon } from '@heroicons/react/2
 import OnboardingProgressTracker from './OnboardingProgressTracker';
 
 import { API } from 'aws-amplify';
+import axios from 'axios';
 // Enhanced genre options with better organization
 const GENRE_OPTIONS = [
   { id: 28, name: 'Action', description: 'High-energy, fast-paced content' },
@@ -731,19 +732,22 @@ const OnboardingQuestionnaire = ({
       }
       const token = currentUser.signInUserSession.accessToken.jwtToken;
       
-      // Validate API Gateway URL
-      if (!process.env.REACT_APP_API_GATEWAY_INVOKE_URL) {
-        console.error('API Gateway URL is not defined in environment variables');
-        throw new Error('API configuration issue');
-      }
+      // Use axios to save preferences (consistent with other components)
+      const API_GATEWAY_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
       
-      const apiName = 'api';
-      const path = '/user/preferences';
-      const init = {
-        headers: { Authorization: `Bearer ${token}` },
-        body: prefsToSave
-      };
-      await API.post(apiName, path, init);
+      const response = await axios.post(
+        `${API_GATEWAY_URL}/user/preferences`,
+        prefsToSave,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        }
+      );
+      
+      console.log('Preferences saved successfully:', response.data);
 
       // Save to localStorage for offline/cache use
       try {
@@ -766,7 +770,11 @@ const OnboardingQuestionnaire = ({
         if (onPreferencesUpdated && !triggerUpdateCallback) {
           onPreferencesUpdated(prefsToSave);
         }
-        onComplete();
+        
+        // Small delay to ensure localStorage and callbacks have time to complete
+        setTimeout(() => {
+          onComplete();
+        }, 100);
       }
     } catch (error) {
       console.error('Error saving preferences:', error);
