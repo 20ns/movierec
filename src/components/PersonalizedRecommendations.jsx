@@ -266,38 +266,96 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         // Also check localStorage for recently saved preferences
         let hasLocalPreferences = false;
         try {
+          console.log('[PersonalRecs] Checking localStorage for userId:', userId);
           const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
+          console.log('[PersonalRecs] LocalStorage raw data:', localPrefs);
+          
           if (localPrefs) {
             const parsedPrefs = JSON.parse(localPrefs);
+            console.log('[PersonalRecs] Parsed localStorage preferences:', parsedPrefs);
             hasLocalPreferences = parsedPrefs && Object.keys(parsedPrefs).length > 0;
             
             // If we have local preferences but not props, use local preferences
             if (hasLocalPreferences && Object.keys(prefs).length === 0) {
-              logMessage('Using localStorage preferences for API call');
-              prefs = parsedPrefs;
+              console.log('[PersonalRecs] Using localStorage preferences for API call');
+              
+              // Flatten nested preferences structure if it exists
+              let flattenedPrefs = { ...parsedPrefs };
+              if (parsedPrefs.preferences && typeof parsedPrefs.preferences === 'object') {
+                console.log('[PersonalRecs] Flattening nested preferences structure');
+                flattenedPrefs = { ...parsedPrefs, ...parsedPrefs.preferences };
+                delete flattenedPrefs.preferences; // Remove the nested object
+              }
+              
+              prefs = flattenedPrefs;
+              console.log('[PersonalRecs] Flattened preferences:', prefs);
             }
+          } else {
+            console.log('[PersonalRecs] No localStorage preferences found');
           }
         } catch (e) {
-          console.warn('Could not check localStorage preferences:', e);
+          console.warn('[PersonalRecs] Could not check localStorage preferences:', e);
         }
         
-        logMessage('fetchRecommendations: using preferences for API call', { prefs, hasLocalPreferences });
+        console.log('[PersonalRecs] Final preferences being used:', { prefs, hasLocalPreferences, propPrefs: propUserPreferences });
 
         // Check if user has completed questionnaire
         const hasPreferences = prefs && Object.keys(prefs).length > 0;
         
         if (!hasPreferences) {
           logMessage('User has not completed questionnaire - showing welcome message instead of API call');
-          safeSetState({
-            allRecommendations: [],
-            recommendations: [],
-            displayIndex: 0,
-            dataSource: 'no_questionnaire',
-            recommendationReason: '🎬 Welcome! Complete your taste profile questionnaire to get personalized recommendations tailored just for you!',
-            hasError: false,
-            errorMessage: '',
-          });
-          return true; // Return success to avoid error state
+          
+          // Double-check localStorage one more time with different approach
+          let hasLocalPrefsDoubleCheck = false;
+          try {
+            const allLocalStorageKeys = Object.keys(localStorage);
+            console.log('[PersonalRecs] All localStorage keys:', allLocalStorageKeys);
+            const userPrefKeys = allLocalStorageKeys.filter(key => key.includes('userPrefs_'));
+            console.log('[PersonalRecs] User pref keys found:', userPrefKeys);
+            
+            for (const key of userPrefKeys) {
+              const data = localStorage.getItem(key);
+              if (data) {
+                const parsed = JSON.parse(data);
+                if (parsed && Object.keys(parsed).length > 0) {
+                  console.log('[PersonalRecs] Found preferences in key:', key, parsed);
+                  if (key === `userPrefs_${userId}`) {
+                    console.log('[PersonalRecs] Found matching userId preferences!');
+                    
+                    // Flatten nested preferences structure if it exists
+                    let flattenedPrefs = { ...parsed };
+                    if (parsed.preferences && typeof parsed.preferences === 'object') {
+                      console.log('[PersonalRecs] Flattening nested preferences in double-check');
+                      flattenedPrefs = { ...parsed, ...parsed.preferences };
+                      delete flattenedPrefs.preferences; // Remove the nested object
+                    }
+                    
+                    prefs = flattenedPrefs;
+                    console.log('[PersonalRecs] Double-check flattened preferences:', prefs);
+                    hasLocalPrefsDoubleCheck = true;
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[PersonalRecs] Error in double-check:', e);
+          }
+          
+          if (!hasLocalPrefsDoubleCheck) {
+            safeSetState({
+              allRecommendations: [],
+              recommendations: [],
+              displayIndex: 0,
+              dataSource: 'no_questionnaire',
+              recommendationReason: '🎬 Welcome! Complete your taste profile questionnaire to get personalized recommendations tailored just for you!',
+              hasError: false,
+              errorMessage: '',
+            });
+            return true; // Return success to avoid error state
+          } else {
+            console.log('[PersonalRecs] Double-check found preferences, proceeding with API call');
+          }
         }
 
         const excludeIds = new Set(Array.from(shownItemsHistory));
@@ -550,9 +608,35 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   ]);
 
 
+  // Check localStorage for preferences changes periodically
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+
+    const checkLocalStorageInterval = setInterval(() => {
+      try {
+        const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
+        if (localPrefs) {
+          const parsedPrefs = JSON.parse(localPrefs);
+          if (parsedPrefs && Object.keys(parsedPrefs).length > 0 && parsedPrefs.questionnaireCompleted) {
+            console.log('[PersonalRecs] Detected completed questionnaire in localStorage, refreshing recommendations');
+            clearInterval(checkLocalStorageInterval);
+            setTimeout(() => fetchRecommendations(true), 500);
+          }
+        }
+      } catch (e) {
+        console.warn('[PersonalRecs] Error checking localStorage interval:', e);
+      }
+    }, 1000);
+
+    // Clear interval after 30 seconds to avoid infinite polling
+    setTimeout(() => clearInterval(checkLocalStorageInterval), 30000);
+
+    return () => clearInterval(checkLocalStorageInterval);
+  }, [isAuthenticated, userId, fetchRecommendations]);
+
   // Refresh recommendations when user preferences change
   useEffect(() => {
-    if (!initialAppLoadComplete || !propHasCompletedQuestionnaire) return;
+    if (!initialAppLoadComplete) return;
 
     const currentPrefs = JSON.stringify(propUserPreferences || {});
     const previousPrefsString = prevPreferencesRef.current !== null ? prevPreferencesRef.current : JSON.stringify({});

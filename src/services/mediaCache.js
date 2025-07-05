@@ -90,20 +90,22 @@ export const fetchCachedMedia = async (options = {}) => {
     }
 
     const apiUrl = `${API_GATEWAY_URL}/recommendations`;
-    // Debug logging (commented out for production)
-    // console.log('[MediaCache] Making API request with token:', {
-    //   hasToken: !!token,
-    //   tokenLength: token ? token.length : 0,
-    //   tokenStart: token ? token.substring(0, 20) + '...' : 'none',
-    //   url: apiUrl,
-    //   params: {
-    //     mediaType,
-    //     exclude: currentExcludeIdsStr.join(','),
-    //     hasPreferences: Object.keys(preferences).length > 0,
-    //     hasFavorites: favoriteIdsStr.length > 0,
-    //     hasWatchlist: watchlistIdsStr.length > 0
-    //   }
-    // });
+    // Debug logging for this specific issue
+    console.log('[MediaCache] Making API request with token:', {
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0,
+      tokenStart: token ? token.substring(0, 20) + '...' : 'none',
+      url: apiUrl,
+      preferences: preferences,
+      preferencesStringified: Object.keys(preferences).length > 0 ? JSON.stringify(preferences) : 'none',
+      params: {
+        mediaType,
+        exclude: currentExcludeIdsStr.join(','),
+        hasPreferences: Object.keys(preferences).length > 0,
+        hasFavorites: favoriteIdsStr.length > 0,
+        hasWatchlist: watchlistIdsStr.length > 0
+      }
+    });
 
     const response = await axios.get(
       apiUrl,
@@ -120,18 +122,18 @@ export const fetchCachedMedia = async (options = {}) => {
       }
     );
 
-    // Debug logging (commented out for production)
-    // console.log('[MediaCache] API Response received:', {
-    //   status: response.status,
-    //   hasData: !!response.data,
-    //   dataKeys: response.data ? Object.keys(response.data) : [],
-    //   itemsIsArray: response.data ? Array.isArray(response.data.items) : false,
-    //   itemsLength: response.data && response.data.items ? response.data.items.length : 0,
-    //   source: response.data ? response.data.source : null,
-    //   message: response.data ? response.data.message : null,
-    //   error: response.data ? response.data.error : null,
-    //   fullData: response.data // Remove this after debugging
-    // });
+    // Debug logging for this specific issue
+    console.log('[MediaCache] API Response received:', {
+      status: response.status,
+      hasData: !!response.data,
+      dataKeys: response.data ? Object.keys(response.data) : [],
+      itemsIsArray: response.data ? Array.isArray(response.data.items) : false,
+      itemsLength: response.data && response.data.items ? response.data.items.length : 0,
+      source: response.data ? response.data.source : null,
+      message: response.data ? response.data.message : null,
+      error: response.data ? response.data.error : null,
+      fullData: response.data // Remove this after debugging
+    });
 
     if (response.status === 200 && response.data && Array.isArray(response.data.items)) {
       const fetchedItems = response.data.items;

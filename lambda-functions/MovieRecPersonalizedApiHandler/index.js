@@ -824,20 +824,43 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'GET') {
       try {
-        // Get user preferences for personalization
-        const preferencesCommand = new GetCommand({
-          TableName: process.env.USER_PREFERENCES_TABLE,
-          Key: { userId: userId }
-        });
-
-        const preferencesResult = await dynamoDB.send(preferencesCommand);
-        const userPreferences = preferencesResult.Item || {};
-
         // Get query parameters
         const queryParams = event.queryStringParameters || {};
         const mediaType = queryParams.mediaType || 'both';
         const excludeIds = queryParams.exclude ? queryParams.exclude.split(',').map(id => id.trim()) : [];
         const limit = Math.min(parseInt(queryParams.limit) || 9, 9); // Default to 9 for batch processing
+        
+        // Get user preferences for personalization
+        let userPreferences = {};
+        
+        // First, try to use preferences from query parameters (from localStorage)
+        if (queryParams.preferences) {
+          try {
+            const queryPrefs = JSON.parse(queryParams.preferences);
+            console.log('Using preferences from query parameters:', queryPrefs);
+            userPreferences = queryPrefs;
+          } catch (error) {
+            console.warn('Failed to parse preferences from query parameters:', error);
+          }
+        }
+        
+        // If no valid preferences from query params, fall back to DynamoDB
+        if (!userPreferences || Object.keys(userPreferences).length === 0) {
+          console.log('Falling back to DynamoDB preferences');
+          const preferencesCommand = new GetCommand({
+            TableName: process.env.USER_PREFERENCES_TABLE,
+            Key: { userId: userId }
+          });
+
+          const preferencesResult = await dynamoDB.send(preferencesCommand);
+          userPreferences = preferencesResult.Item || {};
+        }
+        
+        console.log('Final userPreferences being used:', {
+          hasPreferences: Object.keys(userPreferences).length > 0,
+          preferenceKeys: Object.keys(userPreferences),
+          questionnaireCompleted: userPreferences.questionnaireCompleted
+        });
         
         console.log('Fetching recommendations with params:', { mediaType, excludeIds, limit, userId });
 

@@ -751,8 +751,12 @@ const OnboardingQuestionnaire = ({
 
       // Save to localStorage for offline/cache use
       try {
-        localStorage.setItem(`userPrefs_${currentUser.attributes.sub}`, JSON.stringify(prefsToSave));
-        localStorage.setItem(`questionnaire_completed_${currentUser.attributes.sub}`, prefsToSave.questionnaireCompleted.toString());
+        const userIdForStorage = currentUser.attributes.sub;
+        console.log('[Questionnaire] Saving to localStorage with userId:', userIdForStorage);
+        console.log('[Questionnaire] Saving preferences:', prefsToSave);
+        localStorage.setItem(`userPrefs_${userIdForStorage}`, JSON.stringify(prefsToSave));
+        localStorage.setItem(`questionnaire_completed_${userIdForStorage}`, prefsToSave.questionnaireCompleted.toString());
+        console.log('[Questionnaire] Successfully saved to localStorage');
       } catch (storageError) {
         console.warn('Could not save preferences to localStorage:', storageError);
       }
@@ -762,7 +766,10 @@ const OnboardingQuestionnaire = ({
 
       // Trigger the callback to recalculate recommendations if requested
       if (triggerUpdateCallback && onPreferencesUpdated) {
-        onPreferencesUpdated(prefsToSave);
+        setTimeout(() => {
+          console.log('[Questionnaire] Triggering onPreferencesUpdated callback');
+          onPreferencesUpdated(prefsToSave);
+        }, 100);
       }
 
       // If this is the final step and save, call onComplete
