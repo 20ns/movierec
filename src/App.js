@@ -8,7 +8,7 @@ import Bg from './components/Bg';
 import AuthPage from './auth/authPage.jsx';
 import OnboardingQuestionnaire from './components/OnboardingQuestionnaire';
 import TrendingSection from './components/TrendingSection';
-import PersonalizedRecommendations from './components/PersonalizedRecommendations';
+import PersonalizedRecommendations from './components/PersonalizedRecommendationsV2';
 import CategoryBrowser from './components/CategoryBrowser';
 import GenreResults from './components/GenreResults';
 import FavoritesSection from './components/FavoritesSection';

@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import PersonalizedRecommendations from './PersonalizedRecommendations';
+import PersonalizedRecommendations from './PersonalizedRecommendationsV2';
 import TrendingSection from './TrendingSection';
 import CategoryBrowser from './CategoryBrowser';
 import GenreResults from './GenreResults';

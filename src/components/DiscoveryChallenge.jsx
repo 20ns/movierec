@@ -228,12 +228,13 @@ const DiscoveryChallenge = ({
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50"
+        className="mb-12 max-w-7xl mx-auto px-4"
       >
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
@@ -398,7 +399,8 @@ const DiscoveryChallenge = ({
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+        </div>
+      </motion.section>
     </AnimatePresence>
   );
 };

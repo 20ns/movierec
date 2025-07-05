@@ -2,9 +2,27 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import MediaCard from './MediaCard';
-import { ArrowPathIcon, LightBulbIcon, FilmIcon, TvIcon, VideoCameraIcon } from '@heroicons/react/24/solid';
+import { ArrowPathIcon, LightBulbIcon, FilmIcon, TvIcon, VideoCameraIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { fetchCachedMedia } from '../services/mediaCache';
 import { markPerformance, measurePerformance } from '../utils/webVitals';
+import { 
+  validateUserPreferences, 
+  getUserGuidance, 
+  shouldAttemptRecommendations 
+} from '../utils/userDataValidator';
+import {
+  createInitialState,
+  processApiResponse,
+  handleApiError,
+  shouldRetry,
+  createRotationState,
+  getStatusMessage,
+  shouldShowRecommendations,
+  shouldShowLoading,
+  shouldShowError,
+  shouldShowEmpty,
+  RECOMMENDATION_STATES
+} from '../utils/recommendationStateManager';
 
 // --- Constants ---
 const MIN_RECOMMENDATION_COUNT = 3;
@@ -46,41 +64,24 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const userId = isAuthenticated ? currentUser?.attributes?.sub : null;
   const navigate = useNavigate();
 
-  // --- State Management ---
-  const [state, setState] = useState({
-    allRecommendations: [], // All 9 recommendations from backend
-    recommendations: [], // Currently displayed 3 recommendations
-    displayIndex: 0, // Current rotation index (0, 3, 6)
-    dataSource: null,
-    recommendationReason: '',
-    shownItemsHistory: new Set(),
-    isLoading: false,
-    isThinking: false,
-    isRefreshing: false,
-    hasError: false,
-    errorMessage: '',
-    refreshCounter: 0,
-    contentTypeFilter: 'both',
-    canRotate: false, // Whether we have more items to rotate
-    processingTime: null, // Track recommendation processing time
-  });
+  // --- Robust State Management ---
+  const [recState, setRecState] = useState(() => createInitialState());
+  const [shownItemsHistory, setShownItemsHistory] = useState(new Set());
+  const [contentTypeFilter, setContentTypeFilter] = useState('both');
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
+  // Extract current state values for easier access
   const {
-    allRecommendations,
+    state: currentState,
     recommendations,
-    displayIndex,
-    dataSource,
-    recommendationReason,
-    shownItemsHistory,
-    isLoading,
-    isThinking,
-    hasError,
-    errorMessage,
-    refreshCounter,
-    contentTypeFilter,
+    allRecommendations,
     canRotate,
-    processingTime,
-  } = state;
+    userValidation,
+    userGuidance,
+    errorMessage,
+    dataSource,
+    processingTime
+  } = recState;
 
   // --- Refs ---
   const isFetchingRef = useRef(false);
@@ -102,10 +103,14 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     };
   }, []);
 
-  // Safe method to update state when component is mounted
-  const safeSetState = useCallback((newState) => {
+  // Safe method to update recommendation state when component is mounted
+  const safeSetRecState = useCallback((newState) => {
     if (mountedRef.current) {
-      setState((prev) => ({ ...prev, ...newState }));
+      if (typeof newState === 'function') {
+        setRecState(newState);
+      } else {
+        setRecState((prev) => ({ ...prev, ...newState }));
+      }
     }
   }, []);
 
@@ -266,38 +271,27 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         // Also check localStorage for recently saved preferences
         let hasLocalPreferences = false;
         try {
-          console.log('[PersonalRecs] Checking localStorage for userId:', userId);
           const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
-          console.log('[PersonalRecs] LocalStorage raw data:', localPrefs);
           
           if (localPrefs) {
             const parsedPrefs = JSON.parse(localPrefs);
-            console.log('[PersonalRecs] Parsed localStorage preferences:', parsedPrefs);
             hasLocalPreferences = parsedPrefs && Object.keys(parsedPrefs).length > 0;
             
             // If we have local preferences but not props, use local preferences
             if (hasLocalPreferences && Object.keys(prefs).length === 0) {
-              console.log('[PersonalRecs] Using localStorage preferences for API call');
-              
               // Flatten nested preferences structure if it exists
               let flattenedPrefs = { ...parsedPrefs };
               if (parsedPrefs.preferences && typeof parsedPrefs.preferences === 'object') {
-                console.log('[PersonalRecs] Flattening nested preferences structure');
                 flattenedPrefs = { ...parsedPrefs, ...parsedPrefs.preferences };
                 delete flattenedPrefs.preferences; // Remove the nested object
               }
               
               prefs = flattenedPrefs;
-              console.log('[PersonalRecs] Flattened preferences:', prefs);
             }
-          } else {
-            console.log('[PersonalRecs] No localStorage preferences found');
           }
         } catch (e) {
           console.warn('[PersonalRecs] Could not check localStorage preferences:', e);
         }
-        
-        console.log('[PersonalRecs] Final preferences being used:', { prefs, hasLocalPreferences, propPrefs: propUserPreferences });
 
         // Check if user has completed questionnaire
         const hasPreferences = prefs && Object.keys(prefs).length > 0;
@@ -309,29 +303,22 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           let hasLocalPrefsDoubleCheck = false;
           try {
             const allLocalStorageKeys = Object.keys(localStorage);
-            console.log('[PersonalRecs] All localStorage keys:', allLocalStorageKeys);
             const userPrefKeys = allLocalStorageKeys.filter(key => key.includes('userPrefs_'));
-            console.log('[PersonalRecs] User pref keys found:', userPrefKeys);
             
             for (const key of userPrefKeys) {
               const data = localStorage.getItem(key);
               if (data) {
                 const parsed = JSON.parse(data);
                 if (parsed && Object.keys(parsed).length > 0) {
-                  console.log('[PersonalRecs] Found preferences in key:', key, parsed);
                   if (key === `userPrefs_${userId}`) {
-                    console.log('[PersonalRecs] Found matching userId preferences!');
-                    
                     // Flatten nested preferences structure if it exists
                     let flattenedPrefs = { ...parsed };
                     if (parsed.preferences && typeof parsed.preferences === 'object') {
-                      console.log('[PersonalRecs] Flattening nested preferences in double-check');
                       flattenedPrefs = { ...parsed, ...parsed.preferences };
                       delete flattenedPrefs.preferences; // Remove the nested object
                     }
                     
                     prefs = flattenedPrefs;
-                    console.log('[PersonalRecs] Double-check flattened preferences:', prefs);
                     hasLocalPrefsDoubleCheck = true;
                     break;
                   }
@@ -353,8 +340,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
               errorMessage: '',
             });
             return true; // Return success to avoid error state
-          } else {
-            console.log('[PersonalRecs] Double-check found preferences, proceeding with API call');
           }
         }
 
@@ -608,9 +593,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   ]);
 
 
-  // Check localStorage for preferences changes periodically
+  // Check localStorage for preferences changes periodically (only when no recommendations exist)
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
+    
+    // Only run polling if we currently have no recommendations
+    if (recommendations.length > 0) return;
 
     const checkLocalStorageInterval = setInterval(() => {
       try {
@@ -632,7 +620,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     setTimeout(() => clearInterval(checkLocalStorageInterval), 30000);
 
     return () => clearInterval(checkLocalStorageInterval);
-  }, [isAuthenticated, userId, fetchRecommendations]);
+  }, [isAuthenticated, userId, recommendations.length, fetchRecommendations]);
 
   // Refresh recommendations when user preferences change
   useEffect(() => {
