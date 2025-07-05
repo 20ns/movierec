@@ -13,6 +13,17 @@ import UserProgress from '../components/UserProgress';
 import AchievementSystem from '../components/AchievementSystem';
 import DiscoveryChallenge from '../components/DiscoveryChallenge';
 
+// Utility function to get a nice display name from user data
+const getDisplayName = (currentUser) => {
+  if (!currentUser?.attributes?.email) {
+    return 'Movie Lover';
+  }
+  
+  const username = currentUser.attributes.email.split('@')[0];
+  // Capitalize first letter and clean up common patterns
+  return username.charAt(0).toUpperCase() + username.slice(1).replace(/[._-]/g, ' ');
+};
+
 const UserDashboard = ({ currentUser, isAuthenticated }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [userStats, setUserStats] = useState({});
@@ -76,7 +87,7 @@ const UserDashboard = ({ currentUser, isAuthenticated }) => {
           className="text-center mb-8"
         >
           <h1 className="text-4xl font-bold text-white mb-2">
-            Welcome back, {currentUser?.username || 'Movie Lover'}!
+            Welcome back, {getDisplayName(currentUser)}!
           </h1>
           <p className="text-gray-400">
             Track your progress and discover new content

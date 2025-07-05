@@ -547,7 +547,13 @@ const Header = memo(function Header({
                       className="px-4 py-3 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-colors duration-150"
                       role="menuitem"
                     >
-                      <div className="font-medium text-white text-sm">Account</div>
+                      <div className="font-medium text-white text-sm">
+                        {currentUser?.attributes?.email ? 
+                          currentUser.attributes.email.split('@')[0].charAt(0).toUpperCase() + 
+                          currentUser.attributes.email.split('@')[0].slice(1).replace(/[._-]/g, ' ')
+                          : 'Account'
+                        }
+                      </div>
                       <div className="text-xs text-gray-300 truncate">
                         {currentUser?.attributes?.email}
                       </div>
