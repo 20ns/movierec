@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperat
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import MediaCard from './MediaCard';
-import { ArrowPathIcon, LightBulbIcon, FilmIcon, TvIcon, VideoCameraIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { fetchCachedMedia } from '../services/mediaCache';
-import { markPerformance, measurePerformance } from '../utils/webVitals';
 import { 
   validateUserPreferences, 
   getUserGuidance, 
@@ -24,33 +23,14 @@ import {
   RECOMMENDATION_STATES
 } from '../utils/recommendationStateManager';
 
-// --- Constants ---
-const MIN_RECOMMENDATION_COUNT = 3;
-const ITEMS_TO_FETCH = 9; // Fetch 9 items for rotation
-const ITEMS_TO_SHOW = 3; // Show 3 at a time
-const SHOWN_ITEMS_LIMIT = 150;
-const RETRY_DELAY = 1500;
-const MAX_RETRIES = 2;
-const LOADING_TIMEOUT = 30000; // Increased to 30 seconds for advanced processing
-
 const DEBUG_LOGGING = false;
 
-// --- Helper Functions ---
 const logMessage = (message, data) => {
   if (DEBUG_LOGGING) {
-    try {
-      console.log(`[PersonalRecs] ${message}`, data !== undefined ? JSON.parse(JSON.stringify(data)) : '');
-    } catch (e) {
-      console.log(`[PersonalRecs] ${message} (raw data due to stringify error):`, data);
-    }
+    console.log(`[PersonalRecs] ${message}`, data || '');
   }
 };
 
-const logError = (message, error) => {
-  console.error(`[PersonalRecs] ${message}`, error);
-};
-
-// --- Component Definition ---
 export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const {
     currentUser,
@@ -64,13 +44,16 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const userId = isAuthenticated ? currentUser?.attributes?.sub : null;
   const navigate = useNavigate();
 
-  // --- Robust State Management ---
+  // --- State Management ---
   const [recState, setRecState] = useState(() => createInitialState());
-  const [shownItemsHistory, setShownItemsHistory] = useState(new Set());
   const [contentTypeFilter, setContentTypeFilter] = useState('both');
   const [refreshCounter, setRefreshCounter] = useState(0);
 
-  // Extract current state values for easier access
+  // --- Refs ---
+  const isMounted = useRef(true);
+  const fetchInProgress = useRef(false);
+
+  // Extract current state for easier access
   const {
     state: currentState,
     recommendations,
@@ -80,859 +63,377 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     userGuidance,
     errorMessage,
     dataSource,
-    processingTime
+    processingTime,
+    attemptCount
   } = recState;
 
-  // --- Refs ---
-  const isFetchingRef = useRef(false);
-  const retryCountRef = useRef(0);
-  const mountedRef = useRef(true);
-  const loadingTimeoutRef = useRef(null);
-  const prevPreferencesRef = useRef(null);
-  const prevUserIdRef = useRef(null);
-  const dataLoadAttemptedRef = useRef(false);
-
-  // --- Lifecycle and Cleanup ---
+  // --- Cleanup on unmount ---
   useEffect(() => {
-    mountedRef.current = true;
-    const currentLoadingTimeout = loadingTimeoutRef.current;
+    isMounted.current = true;
     return () => {
-      mountedRef.current = false;
-      if (currentLoadingTimeout) clearTimeout(currentLoadingTimeout);
-      isFetchingRef.current = false;
+      isMounted.current = false;
     };
   }, []);
 
-  // Safe method to update recommendation state when component is mounted
-  const safeSetRecState = useCallback((newState) => {
-    if (mountedRef.current) {
-      if (typeof newState === 'function') {
-        setRecState(newState);
+  // --- Safe state update helper ---
+  const safeSetState = useCallback((updates) => {
+    if (isMounted.current) {
+      if (typeof updates === 'function') {
+        setRecState(updates);
       } else {
-        setRecState((prev) => ({ ...prev, ...newState }));
+        setRecState(prev => ({ ...prev, ...updates }));
       }
     }
   }, []);
 
-  // Reset component state when user changes
-  useEffect(() => {
-    const currentUserId = currentUser?.attributes?.sub;
-    if (currentUserId !== prevUserIdRef.current) {
-      logMessage('User ID changed, resetting component state');
-      safeSetState({
-        allRecommendations: [],
-        recommendations: [],
-        displayIndex: 0,
-        dataSource: null,
-        recommendationReason: '',
-        shownItemsHistory: new Set(),
-        isLoading: false,
-        isThinking: false,
-        isRefreshing: false,
-        hasError: false,
-        errorMessage: '',
-        refreshCounter: 0,
-        contentTypeFilter: 'both',
-        canRotate: false,
-        processingTime: null,
-      });
-      isFetchingRef.current = false;
-      dataLoadAttemptedRef.current = false;
-      retryCountRef.current = 0;
-      prevPreferencesRef.current = null;
-      prevUserIdRef.current = currentUserId;
-    }
-  }, [currentUser, safeSetState]);
-
-
-  // Wrapper for the API fetch function
-  const fetchFromPersonalizedApi = useCallback(async (currentContentTypeFilter, excludeIdsSet = new Set(), preferences = {}, favoriteIdsList = [], watchlistIdsList = [], forceRefresh = false) => {
-    logMessage('Calling fetchCachedMedia', { currentContentTypeFilter, excludeIdsCount: excludeIdsSet.size, preferences, favoriteIdsCount: favoriteIdsList.length, watchlistIdsCount: watchlistIdsList.length, forceRefresh });
-    
-    // Enhanced debugging for preferences (commented out for production)
-    // console.log('[PersonalizedRecommendations] 🔍 Request Debug:', {
-    //   hasPreferences: Object.keys(preferences).length > 0,
-    //   preferencesKeys: Object.keys(preferences),
-    //   preferences: preferences,
-    //   hasFavorites: favoriteIdsList.length > 0,
-    //   hasWatchlist: watchlistIdsList.length > 0,
-    //   excludeIdsCount: excludeIdsSet.size,
-    //   mediaType: currentContentTypeFilter
-    // });
-    try {
-      // Safely extract access token - return early if not available
-      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-        logError('No valid access token available for recommendations');
-        console.log('[PersonalizedRecommendations] Auth Debug:', {
-          userExists: !!currentUser,
-          sessionExists: !!currentUser?.signInUserSession,
-          accessTokenExists: !!currentUser?.signInUserSession?.accessToken,
-          jwtTokenExists: !!currentUser?.signInUserSession?.accessToken?.jwtToken
-        });
-        return {
-          success: false,
-          recommendations: [],
-          dataSource: 'auth-error',
-          reason: 'Authentication required for recommendations'
-        };
-      }
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
-
-      const mediaType = currentContentTypeFilter === 'both' ? 'both' : currentContentTypeFilter === 'movies' ? 'movie' : 'tv';
-
-      const result = await fetchCachedMedia({
-        mediaType,
-        excludeIds: Array.from(excludeIdsSet),
-        token,
-        preferences,
-        favoriteIds: favoriteIdsList,
-        watchlistIds: watchlistIdsList,
-        forceRefresh,
-        limit: ITEMS_TO_FETCH, // Request 9 items for rotation
-      });
-
-      if (result.items && result.items.length > 0) {
-        logMessage(`Successfully fetched ${result.items.length} items via fetchCachedMedia. Source: ${result.source}`);
-        return {
-          success: true,
-          recommendations: result.items,
-          dataSource: result.source,
-          reason: result.source === 'client-cache' ? 'From your recent recommendations' : 'Fresh recommendations for you'
-        };
-      }
-
-      logMessage('fetchCachedMedia returned no items or an error state', result);
-      return { success: false, dataSource: result.source };
-
-    } catch (error) {
-      logError('Error calling fetchCachedMedia', error);
-      return { success: false, dataSource: 'error' };
-    }
-  }, [currentUser]);
-
-  // Main function to fetch recommendations
-  const fetchRecommendations = useCallback(
-    async (forceRefresh = false) => {
-      // Mark the start of recommendation fetching
-      markPerformance('recommendations-fetch-start');
-      
-      logMessage('fetchRecommendations: called', { forceRefresh, currentPrefsFromProps: propUserPreferences, isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
-      
-      if (!isAuthenticated || !userId || !initialAppLoadComplete || isFetchingRef.current) {
-        if (!isFetchingRef.current) {
-             safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
-        }
-        logMessage('Fetch skipped (conditions not met or already fetching)', { isAuthenticated, userId, initialAppLoadComplete, isFetching: isFetchingRef.current });
-        return false;
-      }
-
-      logMessage(`Starting fetchRecommendations (forceRefresh: ${forceRefresh})`, { currentPrefsFromProps: propUserPreferences });
-      isFetchingRef.current = true;
-      dataLoadAttemptedRef.current = true;
-      retryCountRef.current = 0;
-
-      safeSetState({
-        isRefreshing: forceRefresh,
-        isThinking: true,
-        hasError: false,
-        errorMessage: '',
-        isLoading: true,
-      });
-
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-      loadingTimeoutRef.current = setTimeout(() => {
-        if (isFetchingRef.current && mountedRef.current) {
-          logError('Loading timeout reached');
-          safeSetState({
-            isLoading: false,
-            isThinking: false,
-            isRefreshing: false,
-            hasError: true,
-            errorMessage: 'Loading recommendations timed out. Please try refreshing.',
-            dataSource: 'error',
-            allRecommendations: [],
-            recommendations: [],
-            displayIndex: 0,
-          });
-          isFetchingRef.current = false;
-        }
-      }, LOADING_TIMEOUT);
-
-
-      let fetchSuccessful = false;
-      let resultDataSource = 'none';
-      let resultReason = '';
-      let fetchedRecs = [];
-
-      try {
-        const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
-        let prefs = propUserPreferences || {};
-        
-        // Also check localStorage for recently saved preferences
-        let hasLocalPreferences = false;
-        try {
-          const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
-          
-          if (localPrefs) {
-            const parsedPrefs = JSON.parse(localPrefs);
-            hasLocalPreferences = parsedPrefs && Object.keys(parsedPrefs).length > 0;
-            
-            // If we have local preferences but not props, use local preferences
-            if (hasLocalPreferences && Object.keys(prefs).length === 0) {
-              // Flatten nested preferences structure if it exists
-              let flattenedPrefs = { ...parsedPrefs };
-              if (parsedPrefs.preferences && typeof parsedPrefs.preferences === 'object') {
-                flattenedPrefs = { ...parsedPrefs, ...parsedPrefs.preferences };
-                delete flattenedPrefs.preferences; // Remove the nested object
-              }
-              
-              prefs = flattenedPrefs;
-            }
-          }
-        } catch (e) {
-          console.warn('[PersonalRecs] Could not check localStorage preferences:', e);
-        }
-
-        // Check if user has completed questionnaire
-        const hasPreferences = prefs && Object.keys(prefs).length > 0;
-        
-        if (!hasPreferences) {
-          logMessage('User has not completed questionnaire - showing welcome message instead of API call');
-          
-          // Double-check localStorage one more time with different approach
-          let hasLocalPrefsDoubleCheck = false;
-          try {
-            const allLocalStorageKeys = Object.keys(localStorage);
-            const userPrefKeys = allLocalStorageKeys.filter(key => key.includes('userPrefs_'));
-            
-            for (const key of userPrefKeys) {
-              const data = localStorage.getItem(key);
-              if (data) {
-                const parsed = JSON.parse(data);
-                if (parsed && Object.keys(parsed).length > 0) {
-                  if (key === `userPrefs_${userId}`) {
-                    // Flatten nested preferences structure if it exists
-                    let flattenedPrefs = { ...parsed };
-                    if (parsed.preferences && typeof parsed.preferences === 'object') {
-                      flattenedPrefs = { ...parsed, ...parsed.preferences };
-                      delete flattenedPrefs.preferences; // Remove the nested object
-                    }
-                    
-                    prefs = flattenedPrefs;
-                    hasLocalPrefsDoubleCheck = true;
-                    break;
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('[PersonalRecs] Error in double-check:', e);
-          }
-          
-          if (!hasLocalPrefsDoubleCheck) {
-            safeSetState({
-              allRecommendations: [],
-              recommendations: [],
-              displayIndex: 0,
-              dataSource: 'no_questionnaire',
-              recommendationReason: '🎬 Welcome! Complete your taste profile questionnaire to get personalized recommendations tailored just for you!',
-              hasError: false,
-              errorMessage: '',
-            });
-            return true; // Return success to avoid error state
-          }
-        }
-
-        const excludeIds = new Set(Array.from(shownItemsHistory));
-
-        const favoriteIdsList = [];
-        const watchlistIdsList = [];
-
-        // Mark API call start
-        markPerformance('recommendations-api-start');
-        
-        logMessage('Attempting fetch via fetchFromPersonalizedApi');
-        const apiResult = await fetchFromPersonalizedApi(
-          contentTypeFilter,
-          excludeIds,
-          prefs,
-          favoriteIdsList,
-          watchlistIdsList,
-          forceRefresh
-        );
-
-        // Mark API call end and measure duration
-        markPerformance('recommendations-api-end');
-        const apiDuration = measurePerformance('recommendations-api-duration', 'recommendations-api-start', 'recommendations-api-end');
-        
-        if (apiResult.success && apiResult.recommendations.length > 0) {
-          fetchedRecs = apiResult.recommendations;
-          resultDataSource = apiResult.dataSource;
-          resultReason = apiResult.reason;
-          fetchSuccessful = true;
-          logMessage(`Fetch successful, received ${fetchedRecs.length} items. Source: ${resultDataSource}. API Duration: ${apiDuration}ms`);
-
-          // Extract processing time from first item if available
-          const processingTimeMs = fetchedRecs[0]?.processingTime || null;
-
-          const newHistory = new Set([...Array.from(shownItemsHistory), ...fetchedRecs.map((r) => r.id?.toString())].slice(-SHOWN_ITEMS_LIMIT));
-
-          // Show first 3 items, keep all 9 for rotation
-          const displayedItems = fetchedRecs.slice(0, ITEMS_TO_SHOW);
-          const canRotateItems = fetchedRecs.length > ITEMS_TO_SHOW;
-
-          safeSetState({
-            allRecommendations: fetchedRecs,
-            recommendations: displayedItems,
-            displayIndex: 0,
-            dataSource: resultDataSource,
-            recommendationReason: resultReason,
-            hasError: false,
-            errorMessage: '',
-            shownItemsHistory: newHistory,
-            canRotate: canRotateItems,
-            processingTime: processingTimeMs,
-          });
-
-        } else {
-          logMessage('Fetch did not return successful recommendations', apiResult);
-          
-          // Check if user has no preferences (common cause of empty recommendations)
-          const hasPreferences = prefs && Object.keys(prefs).length > 0;
-          const hasFavorites = favoriteIdsList && favoriteIdsList.length > 0;
-          const hasWatchlist = watchlistIdsList && watchlistIdsList.length > 0;
-          
-          let recommendationReason;
-          if (!hasPreferences && !hasFavorites && !hasWatchlist) {
-            recommendationReason = '🎬 Welcome! Complete your taste profile questionnaire to get personalized recommendations tailored just for you!';
-          } else if (!hasPreferences) {
-            recommendationReason = '📋 Complete your questionnaire to get better personalized recommendations!';
-          } else {
-            recommendationReason = 'Could not find recommendations matching your profile. Try adjusting preferences or adding favorites!';
-          }
-          
-          // Debug logging (commented out for production)
-          // console.log('[PersonalizedRecommendations] 🔍 Empty Recommendations Debug:', {
-          //   hasPreferences,
-          //   hasFavorites,
-          //   hasWatchlist,
-          //   preferencesKeys: hasPreferences ? Object.keys(prefs) : [],
-          //   apiResultDataSource: apiResult.dataSource,
-          //   recommendationReason
-          // });
-          
-          safeSetState({
-            allRecommendations: [],
-            recommendations: [],
-            displayIndex: 0,
-            dataSource: apiResult.dataSource || 'none',
-            recommendationReason,
-            hasError: apiResult.dataSource === 'error',
-            errorMessage: apiResult.dataSource === 'error' ? 'Failed to fetch recommendations from the server.' : '',
-          });
-        }
-
-      } catch (error) {
-        logError('Fetch recommendations main error', error);
-        
-        if (retryCountRef.current < MAX_RETRIES) {
-          retryCountRef.current++;
-          logMessage(`Retrying fetch (${retryCountRef.current}/${MAX_RETRIES})...`);
-          isFetchingRef.current = false;
-          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-          setTimeout(() => fetchRecommendations(forceRefresh), RETRY_DELAY);
-          return false;
-        }
-        
-        safeSetState({
-          allRecommendations: [],
-          recommendations: [],
-          displayIndex: 0,
-          dataSource: 'error',
-          recommendationReason: 'Error fetching recommendations',
-          hasError: true,
-          errorMessage: error.message || 'An unexpected error occurred',
-        });
-        fetchSuccessful = false;      } finally {
-          // Mark the end of recommendation fetching and measure total duration
-          markPerformance('recommendations-fetch-end');
-          const totalDuration = measurePerformance('recommendations-fetch-total', 'recommendations-fetch-start', 'recommendations-fetch-end');
-          
-          if (totalDuration) {
-            logMessage(`Total recommendation fetch duration: ${totalDuration}ms`);
-          }
-          
-          if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-          if (mountedRef.current) {
-              safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
-          }
-          isFetchingRef.current = false;
-      }
-      
-      return fetchSuccessful && retryCountRef.current < MAX_RETRIES;
-    },
-    [
-      currentUser,
-      isAuthenticated,
-      userId,
-      initialAppLoadComplete,
-      propUserPreferences,
-      contentTypeFilter,
-      shownItemsHistory,
-      fetchFromPersonalizedApi,
-      safeSetState,
-    ]
-  );
-
-
-  // Handle media favorite status changes
-  const handleMediaFavoriteToggle = useCallback((mediaId, isFavorited) => {
-    logMessage(`Media favorite status changed: ${mediaId} - ${isFavorited ? 'Added to' : 'Removed from'} favorites`);
-    
-    if (isFavorited) {
-      safeSetState(prevState => ({
-        recommendations: prevState.recommendations.filter(item => item.id?.toString() !== mediaId?.toString()),
-        allRecommendations: prevState.allRecommendations.filter(item => item.id?.toString() !== mediaId?.toString()),
-        shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId?.toString()])
-      }));
-    }
-  }, [safeSetState]);
-
-  // Handle media watchlist status changes
-  const handleMediaWatchlistToggle = useCallback((mediaId, isInWatchlist) => {
-    logMessage(`Media watchlist status changed: ${mediaId} - ${isInWatchlist ? 'Added to' : 'Removed from'} watchlist`);
-    
-    if (isInWatchlist) {
-      safeSetState(prevState => ({
-        recommendations: prevState.recommendations.filter(item => item.id?.toString() !== mediaId?.toString()),
-        allRecommendations: prevState.allRecommendations.filter(item => item.id?.toString() !== mediaId?.toString()),
-        shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId?.toString()])
-      }));
-    }
-  }, [safeSetState]);
-
-  // Rotate to next set of recommendations
-  const handleRotateRecommendations = useCallback(() => {
-    if (!canRotate || allRecommendations.length === 0) return;
-
-    const nextIndex = (displayIndex + ITEMS_TO_SHOW) % allRecommendations.length;
-    const nextItems = allRecommendations.slice(nextIndex, nextIndex + ITEMS_TO_SHOW);
-    
-    // If we don't have enough items for a full rotation, wrap around
-    if (nextItems.length < ITEMS_TO_SHOW) {
-      const remainingItems = allRecommendations.slice(0, ITEMS_TO_SHOW - nextItems.length);
-      nextItems.push(...remainingItems);
-    }
-
-    logMessage(`Rotating recommendations: ${displayIndex} -> ${nextIndex}`);
-    
-    safeSetState({
-      recommendations: nextItems,
-      displayIndex: nextIndex,
-      refreshCounter: refreshCounter + 1,
-    });
-  }, [canRotate, allRecommendations, displayIndex, refreshCounter, safeSetState]);
-
-  // Refresh recommendations (get new batch from backend)
-  const handleRefresh = useCallback(async () => {
-    if (isFetchingRef.current || !userId || !isAuthenticated) {
-        return;
-    }
-
-    logMessage('Forcing new batch fetch from backend due to handleRefresh call.');
-    
-    safeSetState({
-        isLoading: true,
-        isThinking: true,
-        isRefreshing: true,
-        refreshCounter: refreshCounter + 1,
-    });
-    
-    await fetchRecommendations(true);
-  }, [
-      userId,
-      isAuthenticated,
-      fetchRecommendations,
-      safeSetState,
-      refreshCounter
-  ]);
-
-
-  // Load recommendations on initial mount
-  useEffect(() => {
-    if (
-      !isAuthenticated ||
-      !userId ||
-      !initialAppLoadComplete ||
-      dataLoadAttemptedRef.current ||
-      isFetchingRef.current
-    ) {
-      logMessage('Skipping initial load', {
-        isAuthenticated,
-        userId,
-        initialAppLoadComplete,
-        dataLoadAttempted: dataLoadAttemptedRef.current,
-        isFetching: isFetchingRef.current,
-      });
-      
-      if (!isFetchingRef.current) {
-        safeSetState({ isLoading: false, isThinking: false, isRefreshing: false });
-      }
+  // --- Core recommendation fetching function ---
+  const fetchRecommendations = useCallback(async (forceRefresh = false) => {
+    if (fetchInProgress.current) {
+      logMessage('Fetch already in progress, skipping');
       return;
     }
 
-    logMessage('Initial load useEffect: proceeding to call fetchRecommendations', { currentPrefs: propUserPreferences, dataLoadAttempted: dataLoadAttemptedRef.current, initialAppLoadComplete });
-    fetchRecommendations(false);
-
-  }, [
-    isAuthenticated,
-    userId,
-    initialAppLoadComplete,
-    fetchRecommendations,
-    safeSetState,
-  ]);
-
-
-  // Check localStorage for preferences changes periodically (only when no recommendations exist)
-  useEffect(() => {
-    if (!isAuthenticated || !userId) return;
-    
-    // Only run polling if we currently have no recommendations
-    if (recommendations.length > 0) return;
-
-    const checkLocalStorageInterval = setInterval(() => {
-      try {
-        const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
-        if (localPrefs) {
-          const parsedPrefs = JSON.parse(localPrefs);
-          if (parsedPrefs && Object.keys(parsedPrefs).length > 0 && parsedPrefs.questionnaireCompleted) {
-            console.log('[PersonalRecs] Detected completed questionnaire in localStorage, refreshing recommendations');
-            clearInterval(checkLocalStorageInterval);
-            setTimeout(() => fetchRecommendations(true), 500);
-          }
-        }
-      } catch (e) {
-        console.warn('[PersonalRecs] Error checking localStorage interval:', e);
-      }
-    }, 1000);
-
-    // Clear interval after 30 seconds to avoid infinite polling
-    setTimeout(() => clearInterval(checkLocalStorageInterval), 30000);
-
-    return () => clearInterval(checkLocalStorageInterval);
-  }, [isAuthenticated, userId, recommendations.length, fetchRecommendations]);
-
-  // Refresh recommendations when user preferences change
-  useEffect(() => {
-    if (!initialAppLoadComplete) return;
-
-    const currentPrefs = JSON.stringify(propUserPreferences || {});
-    const previousPrefsString = prevPreferencesRef.current !== null ? prevPreferencesRef.current : JSON.stringify({});
-
-    if (previousPrefsString !== currentPrefs) {
-      logMessage('Preference change useEffect: detected change', {
-        prevStoredString: prevPreferencesRef.current,
-        newPropPrefsObject: propUserPreferences,
-        newPrefsString: currentPrefs,
-        initialAppLoadComplete,
-        propHasCompletedQuestionnaire
-      });
-      
-      if (prevPreferencesRef.current !== null && propHasCompletedQuestionnaire) {
-         logMessage('Preference change useEffect: Conditions met, calling handleRefresh.');
-        handleRefresh();
-      } else {
-        logMessage('Preference change useEffect: Conditions not met for handleRefresh or first pref setting.', {
-            wasPrevNull: prevPreferencesRef.current === null,
-            hasCompletedQuestionnaire: propHasCompletedQuestionnaire
-        });
-      }
+    if (!isAuthenticated || !userId) {
+      logMessage('Not authenticated, cannot fetch recommendations');
+      return;
     }
-    
-    prevPreferencesRef.current = currentPrefs;
-  }, [initialAppLoadComplete, propHasCompletedQuestionnaire, propUserPreferences, handleRefresh]);
 
+    fetchInProgress.current = true;
 
-  // Expose methods to parent components
-  useImperativeHandle(ref, () => ({
-    refreshRecommendations: (updatedPrefs = null) => {
-      logMessage('Refreshing recommendations from external trigger');
+    // Get user preferences from props or localStorage (moved outside try block)
+    let userPreferences = propUserPreferences || {};
+
+    try {
+      // Set loading state
+      safeSetState({ state: RECOMMENDATION_STATES.LOADING });
       
-      if (updatedPrefs) {
-        prevPreferencesRef.current = JSON.stringify(updatedPrefs);
+      // Check localStorage as fallback
+      if (!userPreferences || Object.keys(userPreferences).length === 0) {
+        try {
+          const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
+          if (localPrefs) {
+            const parsedPrefs = JSON.parse(localPrefs);
+            
+            // Flatten nested preferences if needed
+            if (parsedPrefs.preferences && typeof parsedPrefs.preferences === 'object') {
+              userPreferences = { ...parsedPrefs, ...parsedPrefs.preferences };
+              delete userPreferences.preferences;
+            } else {
+              userPreferences = parsedPrefs;
+            }
+          }
+        } catch (e) {
+          console.warn('Error reading localStorage preferences:', e);
+        }
       }
-      
-      handleRefresh();
-    },
-  }));
 
-  // Listen for external favorites and watchlist updates
-  useEffect(() => {
-    const handleExternalUpdate = (event) => {
-      const { mediaId, type } = event.detail || {};
-      if (!mediaId) return;
+      logMessage('Using preferences for API call', { 
+        hasPreferences: Object.keys(userPreferences).length > 0,
+        source: propUserPreferences ? 'props' : 'localStorage'
+      });
 
-      logMessage(`External ${type} update detected for: ${mediaId}. Removing from current display.`);
-      
-      safeSetState(prevState => ({
-        recommendations: prevState.recommendations.filter(item => item.id?.toString() !== mediaId?.toString()),
-        allRecommendations: prevState.allRecommendations.filter(item => item.id?.toString() !== mediaId?.toString()),
-        shownItemsHistory: new Set([...prevState.shownItemsHistory, mediaId?.toString()])
-      }));
-    };
-
-    const handleFavoritesUpdate = (event) => handleExternalUpdate({ ...event, detail: { ...event.detail, type: 'favorite' } });
-    const handleWatchlistUpdate = (event) => handleExternalUpdate({ ...event, detail: { ...event.detail, type: 'watchlist' } });
-
-    document.addEventListener('favorites-updated', handleFavoritesUpdate);
-    document.addEventListener('watchlist-updated', handleWatchlistUpdate);
-
-    return () => {
-      document.removeEventListener('favorites-updated', handleFavoritesUpdate);
-      document.removeEventListener('watchlist-updated', handleWatchlistUpdate);
-    };
-  }, [safeSetState]);
-
-
-  // --- Render Logic ---
-  if (!isAuthenticated || !initialAppLoadComplete) {
-    logMessage('Not rendering: Not authenticated or initial app load incomplete');
-    return null;
-  }
-
-  const showLoading = isLoading;
-  const showRecs = !isLoading && recommendations.length > 0;
-  const showError = !isLoading && hasError;
-  const showEmpty = !isLoading && !hasError && dataLoadAttemptedRef.current && recommendations.length === 0;
-
-  let content;
-  if (showLoading) {
-    content = (
-      <motion.div
-        key={`loading-${refreshCounter}`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[...Array(MIN_RECOMMENDATION_COUNT)].map((_, i) => (
-            <div key={i} className="bg-gray-800 rounded-xl h-[350px] shadow-md overflow-hidden animate-pulse">
-              <div className="h-3/5 bg-gray-700"></div>
-              <div className="p-4 space-y-3">
-                <div className="h-5 bg-gray-700 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-700 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-700 rounded w-full"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    );
-  } else if (showRecs) {
-    content = (
-      <motion.div
-        key={`recommendations-${refreshCounter}-${displayIndex}`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
-      >
-        {recommendations.map((item) => (
-          <motion.div
-            key={item.id}
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: { opacity: 0, y: 20 },
-              visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-            }}
-          >
-            <MediaCard
-              result={item}
-              currentUser={currentUser}
-              onFavoriteToggle={handleMediaFavoriteToggle}
-              onWatchlistToggle={handleMediaWatchlistToggle}
-              onClick={onMediaClick}
-              showRecommendationReason={true}
-              recommendationReason={item.recommendationReason}
-              recommendationScore={item.score}
-            />
-          </motion.div>
-        ))}
-      </motion.div>
-    );
-  } else if (showError) {
-    content = (
-      <motion.div
-        key="error"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="text-center py-12 bg-gray-800/50 rounded-xl p-8 border border-red-700"
-      >
-        <div className="mb-4 text-5xl text-red-400">⚠️</div>
-        <h3 className="text-xl font-semibold text-white mb-3">Something went wrong</h3>
-        <p className="text-gray-400 mb-6">{errorMessage || "We couldn't load recommendations"}</p>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleRefresh}
-          disabled={isThinking}
-          className={`bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full ${isThinking ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isThinking ? 'Trying...' : 'Try Again'}
-        </motion.button>
-      </motion.div>
-    );
-  } else if (showEmpty) {
-    content = (
-      <motion.div
-        key="empty"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="text-center py-12 bg-gray-800/50 rounded-xl p-8 border border-gray-700"
-      >
-        <div className="mb-4 text-5xl text-indigo-400">🤷‍♂️</div>
-        <h3 className="text-xl font-semibold text-white mb-3">No Recommendations Found</h3>
-        <p className="text-gray-400 mb-6">{recommendationReason || "We couldn't find anything matching your profile right now."}</p>
+      // Validate if we should attempt recommendations
+      if (!shouldAttemptRecommendations(userPreferences || {})) {
+        logMessage('Insufficient data for recommendations');
+        const validation = validateUserPreferences(userPreferences);
+        const guidance = getUserGuidance(validation);
         
-        {/* Show different buttons based on whether user has preferences */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {(!propUserPreferences || Object.keys(propUserPreferences).length === 0) ? (
-            // User has no preferences - show questionnaire button
-            <>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/onboarding')}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-full font-medium"
-              >
-                🎯 Complete Questionnaire
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleRefresh}
-                disabled={isThinking}
-                className={`bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-full ${isThinking ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isThinking ? 'Loading...' : 'Try Again'}
-              </motion.button>
-            </>
-          ) : (
-            // User has preferences - show refresh button
+        safeSetState({
+          state: RECOMMENDATION_STATES.EMPTY_INSUFFICIENT_DATA,
+          userValidation: validation,
+          userGuidance: guidance,
+          errorMessage: guidance.message
+        });
+        return;
+      }
+
+      // Make API call
+      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      const excludeIds = []; // You can implement exclusion logic here if needed
+
+      logMessage('Making API call with params:', {
+        mediaType: contentTypeFilter,
+        limit: 9,
+        hasToken: !!token,
+        hasPreferences: !!userPreferences,
+        preferencesKeys: userPreferences ? Object.keys(userPreferences) : [],
+        forceRefresh
+      });
+
+      const response = await fetchCachedMedia({
+        mediaType: contentTypeFilter,
+        limit: 9,
+        excludeIds,
+        token,
+        preferences: userPreferences,
+        favoriteIds: [], // You can pass actual favorites here
+        watchlistIds: [], // You can pass actual watchlist here
+        forceRefresh
+      });
+
+      logMessage('API response received', {
+        status: response ? 'success' : 'failed',
+        itemCount: response?.items?.length || 0,
+        responseStructure: response ? Object.keys(response) : 'no response',
+        responseData: response?.data ? Object.keys(response.data) : 'no data',
+        fullResponse: response
+      });
+
+      // Process the response
+      const newState = processApiResponse(response, userPreferences, recState);
+      logMessage('Processed state:', {
+        newStateType: newState.state,
+        recommendationsCount: newState.recommendations?.length || 0,
+        allRecommendationsCount: newState.allRecommendations?.length || 0,
+        canRotate: newState.canRotate,
+        errorMessage: newState.errorMessage
+      });
+      safeSetState(newState);
+
+    } catch (error) {
+      logMessage('Error fetching recommendations:', error);
+      console.error('Full error details:', error);
+      const errorState = handleApiError(error, userPreferences || {}, recState);
+      safeSetState(errorState);
+    } finally {
+      fetchInProgress.current = false;
+    }
+  }, [isAuthenticated, userId, currentUser, propUserPreferences, contentTypeFilter, safeSetState]);
+
+  // --- Handle rotation ---
+  const handleRotate = useCallback(() => {
+    if (!canRotate) return;
+    
+    const newState = createRotationState(recState);
+    safeSetState(newState);
+    setRefreshCounter(prev => prev + 1);
+  }, [canRotate, recState, safeSetState]);
+
+  // --- Handle refresh ---
+  const handleRefresh = useCallback(() => {
+    fetchRecommendations(true);
+    setRefreshCounter(prev => prev + 1);
+  }, [fetchRecommendations]);
+
+  // --- Handle retry ---
+  const handleRetry = useCallback(() => {
+    if (shouldRetry(recState)) {
+      fetchRecommendations(false);
+    }
+  }, [recState, fetchRecommendations]);
+
+  // --- Expose methods via ref ---
+  useImperativeHandle(ref, () => ({
+    refresh: () => handleRefresh(),
+    rotate: () => handleRotate()
+  }), [handleRefresh, handleRotate]);
+
+  // --- Initial load when component mounts and user is ready ---
+  useEffect(() => {
+    if (isAuthenticated && userId && initialAppLoadComplete && currentState === RECOMMENDATION_STATES.UNINITIALIZED && !fetchInProgress.current) {
+      logMessage('Initial load triggered');
+      fetchRecommendations(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userId, initialAppLoadComplete, currentState]);
+
+  // --- Auto-retry on certain errors ---
+  useEffect(() => {
+    if (shouldRetry(recState) && !fetchInProgress.current) {
+      const retryDelay = Math.min(2000 * Math.pow(2, attemptCount), 10000); // Exponential backoff
+      logMessage(`Auto-retry in ${retryDelay}ms (attempt ${attemptCount + 1})`);
+      
+      const timer = setTimeout(() => {
+        if (!fetchInProgress.current) {
+          handleRetry();
+        }
+      }, retryDelay);
+
+      return () => clearTimeout(timer);
+    }
+  }, [recState.state, attemptCount, handleRetry]);
+
+  // --- Render helpers ---
+  const renderStatusBar = () => {
+    const statusMessage = getStatusMessage(recState);
+    
+    return (
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          {currentState === RECOMMENDATION_STATES.SUCCESS && (
+            <CheckCircleIcon className="w-5 h-5 text-green-400" />
+          )}
+          {shouldShowError(recState) && (
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-400" />
+          )}
+          <div>
+            <h2 className="text-2xl font-bold text-white">
+              {currentState === RECOMMENDATION_STATES.SUCCESS ? 'Personalized Recommendations' : 'Recommendations'}
+            </h2>
+            <p className="text-sm text-gray-400">{statusMessage}</p>
+          </div>
+        </div>
+        
+        {canRotate && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleRotate}
+            className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <ChevronRightIcon className="w-4 h-4" />
+            <span>More</span>
+          </motion.button>
+        )}
+      </div>
+    );
+  };
+
+  const renderUserGuidance = () => {
+    if (!userGuidance) return null;
+
+    return (
+      <div className="bg-gray-800/50 rounded-xl p-6 mb-6">
+        <h4 className="text-lg font-medium text-white mb-2">{userGuidance.title}</h4>
+        <p className="text-gray-300 mb-4">{userGuidance.message}</p>
+        
+        {userGuidance.showProgress && (
+          <div className="mb-4">
+            <div className="flex justify-between text-sm text-gray-400 mb-1">
+              <span>Profile Completion</span>
+              <span>{userGuidance.progressPercent}%</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${userGuidance.progressPercent}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          {userGuidance.primaryAction && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={handleRefresh}
-              disabled={isThinking}
-              className={`bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full ${isThinking ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => {
+                if (userGuidance.primaryAction.action === 'questionnaire') {
+                  navigate('/onboarding');
+                } else if (userGuidance.primaryAction.action === 'refresh') {
+                  handleRefresh();
+                }
+              }}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                userGuidance.primaryAction.variant === 'primary'
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : 'bg-gray-600 hover:bg-gray-700 text-white'
+              }`}
             >
-              {isThinking ? 'Loading...' : 'Get New Recommendations'}
+              {userGuidance.primaryAction.text}
             </motion.button>
           )}
-        </div>
-      </motion.div>
-    );
-  } else {
-    content = <div key="fallback" className="min-h-[200px]"></div>;
-  }
 
-  // Dynamic Title based on dataSource
-  let title = 'Recommendations For You';
-  if (dataSource === 'error') title = "Error Loading";
-  else if (dataSource === 'client-cache') title = 'Recent Recommendations';
-  else if (dataSource === 'personalized_lambda' || dataSource === 'dynamo_personalized') title = 'Fresh Recommendations';
-  else if (dataSource === 'none') title = 'No Recommendations Found';
-
-
-  return (
-    <motion.section
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="mb-12 max-w-7xl mx-auto px-4"
-    >
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-        <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
-        <div className="flex flex-wrap gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => { safeSetState({ contentTypeFilter: 'both' }); handleRefresh(); }}
-            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'both' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
-            disabled={isThinking}
-          >
-            <VideoCameraIcon className="h-3 w-3 sm:h-4 sm:w-4" /> <span>Both</span>
-          </motion.button>
-          <motion.button
-             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => { safeSetState({ contentTypeFilter: 'movies' }); handleRefresh(); }}
-            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'movies' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
-            disabled={isThinking}
-          >
-            <FilmIcon className="h-3 w-3 sm:h-4 sm:w-4" /> <span>Movies</span>
-          </motion.button>
-          <motion.button
-             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => { safeSetState({ contentTypeFilter: 'tv' }); handleRefresh(); }}
-            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${contentTypeFilter === 'tv' ? 'bg-indigo-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}`}
-            disabled={isThinking}
-          >
-            <TvIcon className="h-3 w-3 sm:h-4 sm:w-4" /> <span>TV Shows</span>
-          </motion.button>
-          {canRotate && !isLoading && (
+          {userGuidance.secondaryAction && (
             <motion.button
-              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={handleRotateRecommendations}
-              className="flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm bg-purple-600 text-white hover:bg-purple-700"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (userGuidance.secondaryAction.action === 'questionnaire') {
+                  navigate('/onboarding');
+                } else if (userGuidance.secondaryAction.action === 'refresh') {
+                  handleRefresh();
+                }
+              }}
+              className="px-6 py-3 rounded-lg font-medium bg-gray-600 hover:bg-gray-700 text-white transition-colors"
             >
-              <ArrowPathIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span>Show More</span>
+              {userGuidance.secondaryAction.text}
             </motion.button>
           )}
-          <motion.button
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
-            disabled={isThinking}
-            className={`flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm ${isThinking ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-          >
-            <motion.div
-              animate={isThinking ? { rotate: 360 } : { rotate: 0 }}
-              transition={isThinking ? { repeat: Infinity, duration: 1, ease: "linear" } : { duration: 0.3 }}
-            >
-              <ArrowPathIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-            </motion.div>
-            <span>{isThinking ? 'Processing...' : 'New Batch'}</span>
-          </motion.button>
         </div>
       </div>
+    );
+  };
 
-      {!isLoading && !hasError && recommendations.length > 0 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-4 space-y-2">
-          {recommendationReason && (
-            <div className="text-gray-300 text-sm flex items-center">
-              <LightBulbIcon className="h-4 w-4 text-yellow-400 mr-1.5 flex-shrink-0" />
-              <span>{recommendationReason}</span>
-            </div>
-          )}
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>
-              Showing {recommendations.length} of {allRecommendations.length} personalized recommendations
-              {canRotate && ` • ${Math.floor(allRecommendations.length / ITEMS_TO_SHOW)} sets available`}
-            </span>
-            {processingTime && (
-              <span>Generated in {(processingTime / 1000).toFixed(1)}s</span>
-            )}
-          </div>
-        </motion.div>
+  // --- Main render logic ---
+  if (!isAuthenticated || !initialAppLoadComplete) {
+    return null;
+  }
+
+  return (
+    <section className="mb-12 max-w-7xl mx-auto px-4">
+      {renderStatusBar()}
+
+      <AnimatePresence mode="wait">
+        {shouldShowLoading(recState) && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-gray-800 rounded-xl overflow-hidden h-[350px] shadow-lg animate-pulse max-w-full">
+                <div className="h-[180px] bg-gray-700"></div>
+                <div className="p-4 space-y-3">
+                  <div className="h-5 bg-gray-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-700 rounded w-full"></div>
+                  <div className="flex justify-between pt-2">
+                    <div className="h-4 bg-gray-700 rounded w-16"></div>
+                    <div className="h-4 bg-gray-700 rounded w-12"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+
+        {shouldShowRecommendations(recState) && (
+          <motion.div
+            key={`recommendations-${refreshCounter}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {recommendations.map((item) => (
+              <MediaCard
+                key={item.id}
+                result={item}
+                currentUser={currentUser}
+                onClick={onMediaClick}
+                showRecommendationReason={true}
+                recommendationReason={item.recommendationReason}
+                recommendationScore={item.score}
+              />
+            ))}
+          </motion.div>
+        )}
+
+        {(shouldShowEmpty(recState) || shouldShowError(recState)) && (
+          <motion.div
+            key="empty-or-error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {renderUserGuidance()}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {processingTime && (
+        <div className="text-center text-xs text-gray-500 mt-4">
+          Generated in {(processingTime / 1000).toFixed(1)}s
+        </div>
       )}
-
-      <AnimatePresence mode="wait">{content}</AnimatePresence>
-    </motion.section>
+    </section>
   );
 });
 
