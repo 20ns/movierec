@@ -243,6 +243,19 @@ export class InfrastructureStack extends cdk.Stack {
       layers: [awsSdkLayer],
     });
 
+    // User Stats Lambda Function
+    const userStatsFunction = new lambda.Function(this, 'UserStatsFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/UserStatsFunction'), {
+        exclude: ['node_modules', '.git', '*.md', 'test', 'tests', '.env*']
+      }),
+      role: lambdaExecutionRole,
+      environment: sharedEnvironment,
+      timeout: Duration.seconds(30),
+      layers: [awsSdkLayer],
+    });
+
     // ===========================
     // API GATEWAY
     // ===========================
@@ -311,6 +324,12 @@ export class InfrastructureStack extends cdk.Stack {
     watchlistResource.addMethod('GET', new apigateway.LambdaIntegration(watchlistFunction));
     watchlistResource.addMethod('POST', new apigateway.LambdaIntegration(watchlistFunction));
     watchlistResource.addMethod('DELETE', new apigateway.LambdaIntegration(watchlistFunction));
+
+    // User stats/dashboard
+    const statsResource = userResource.addResource('stats');
+    const statsActionResource = statsResource.addResource('{action}');
+    statsActionResource.addMethod('GET', new apigateway.LambdaIntegration(userStatsFunction));
+    statsActionResource.addMethod('POST', new apigateway.LambdaIntegration(userStatsFunction));
 
     // Movie recommendations
     const recommendationsResource = api.root.addResource('recommendations');

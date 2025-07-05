@@ -197,6 +197,20 @@ functions:
           method: delete
           cors: ${self:custom.corsConfig}
 
+  userStats:
+    handler: lambda-functions/UserStatsFunction/index.handler
+    layers:
+      - { Ref: AwsSdkLayerLambdaLayer }
+    events:
+      - http:
+          path: user/stats/{action}
+          method: get
+          cors: ${self:custom.corsConfig}
+      - http:
+          path: user/stats/{action}
+          method: post
+          cors: ${self:custom.corsConfig}
+
   recommendations:
     handler: lambda-functions/MovieRecPersonalizedApiHandler/index.handler
     layers:

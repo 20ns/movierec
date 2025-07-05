@@ -12,6 +12,7 @@ import {
 import UserProgress from '../components/UserProgress';
 import AchievementSystem from '../components/AchievementSystem';
 import DiscoveryChallenge from '../components/DiscoveryChallenge';
+import { getUserStats, updateUserStats, syncLocalStorageToBackend } from '../services/userStatsService';
 
 // Utility function to get a nice display name from user data
 const getDisplayName = (currentUser) => {
@@ -30,26 +31,79 @@ const UserDashboard = ({ currentUser, isAuthenticated }) => {
   const [totalXP, setTotalXP] = useState(0);
   const [userLevel, setUserLevel] = useState(1);
   const [showChallenges, setShowChallenges] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load user data
+  // Load user data from backend
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      loadUserStats();
+    }
+  }, [isAuthenticated, currentUser]);
+
+  const loadUserStats = async () => {
+    try {
+      setIsLoading(true);
+      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      const userId = currentUser?.attributes?.sub;
+      
+      if (!token || !userId) {
+        console.error('Missing token or userId');
+        return;
+      }
+
+      // First, try to sync any existing localStorage data
+      await syncLocalStorageToBackend(token, userId);
+      
+      // Then load the current stats from backend
+      const stats = await getUserStats(token);
+      
+      setUserStats({
+        moviesWatched: stats.moviesWatched,
+        showsWatched: stats.showsWatched,
+        dailyStreak: stats.dailyStreak
+      });
+      setTotalXP(stats.totalXP);
+      setUserLevel(stats.userLevel);
+      
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+      // Fallback to localStorage if backend fails
       const savedStats = JSON.parse(localStorage.getItem('movieRec_userStats') || '{}');
       const savedXP = parseInt(localStorage.getItem('movieRec_userXP') || '0');
       
       setUserStats(savedStats);
       setTotalXP(savedXP);
       setUserLevel(Math.floor(savedXP / 1000) + 1);
+    } finally {
+      setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  };
 
   // Handle achievement unlocked
-  const handleAchievementUnlocked = (achievement) => {
-    // Award XP
-    const newXP = totalXP + achievement.xpReward;
-    setTotalXP(newXP);
-    setUserLevel(Math.floor(newXP / 1000) + 1);
-    localStorage.setItem('movieRec_userXP', newXP.toString());
+  const handleAchievementUnlocked = async (achievement) => {
+    try {
+      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      if (!token) return;
+
+      // Award XP via backend
+      const updatedStats = await updateUserStats(token, {
+        totalXP: totalXP + achievement.xpReward,
+        achievements: [...(userStats.achievements || []), {
+          ...achievement,
+          unlockedAt: new Date().toISOString()
+        }]
+      });
+
+      setTotalXP(updatedStats.totalXP);
+      setUserLevel(updatedStats.userLevel);
+      
+    } catch (error) {
+      console.error('Error handling achievement unlock:', error);
+      // Fallback to local state
+      const newXP = totalXP + achievement.xpReward;
+      setTotalXP(newXP);
+      setUserLevel(Math.floor(newXP / 1000) + 1);
+    }
   };
 
   // Handle challenge completion
@@ -102,20 +156,56 @@ const UserDashboard = ({ currentUser, isAuthenticated }) => {
           className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
         >
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 text-center">
-            <div className="text-2xl font-bold text-purple-400">{userLevel}</div>
-            <div className="text-sm text-gray-400">Level</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 bg-gray-700 rounded w-12 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-purple-400">{userLevel}</div>
+                <div className="text-sm text-gray-400">Level</div>
+              </>
+            )}
           </div>
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 text-center">
-            <div className="text-2xl font-bold text-blue-400">{totalXP.toLocaleString()}</div>
-            <div className="text-sm text-gray-400">Total XP</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 bg-gray-700 rounded w-16 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-blue-400">{totalXP.toLocaleString()}</div>
+                <div className="text-sm text-gray-400">Total XP</div>
+              </>
+            )}
           </div>
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 text-center">
-            <div className="text-2xl font-bold text-green-400">{userStats.moviesWatched || 0}</div>
-            <div className="text-sm text-gray-400">Movies</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 bg-gray-700 rounded w-12 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-green-400">{userStats.moviesWatched || 0}</div>
+                <div className="text-sm text-gray-400">Movies</div>
+              </>
+            )}
           </div>
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 text-center">
-            <div className="text-2xl font-bold text-yellow-400">{userStats.dailyStreak || 0}</div>
-            <div className="text-sm text-gray-400">Day Streak</div>
+            {isLoading ? (
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 bg-gray-700 rounded w-16 mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-yellow-400">{userStats.dailyStreak || 0}</div>
+                <div className="text-sm text-gray-400">Day Streak</div>
+              </>
+            )}
           </div>
         </motion.div>
 
