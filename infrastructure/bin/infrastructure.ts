@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { InfrastructureStack } from '../lib/infrastructure-stack';
+import * as path from 'path';
+
+// Load environment variables from parent directory .env file
+import * as dotenv from 'dotenv';
+const envPath = path.join(__dirname, '../../.env');
+dotenv.config({ path: envPath });
+
+console.log('Loaded TMDB API Key:', process.env.REACT_APP_TMDB_API_KEY ? 'Present' : 'Missing');
 
 const app = new cdk.App();
 new InfrastructureStack(app, 'InfrastructureStack', {

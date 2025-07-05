@@ -838,7 +838,15 @@ exports.handler = async (event) => {
           try {
             const queryPrefs = JSON.parse(queryParams.preferences);
             console.log('Using preferences from query parameters:', queryPrefs);
-            userPreferences = queryPrefs;
+            
+            // Handle nested preferences structure - flatten if needed
+            if (queryPrefs.preferences && typeof queryPrefs.preferences === 'object') {
+              console.log('Flattening nested preferences structure in Lambda');
+              userPreferences = { ...queryPrefs, ...queryPrefs.preferences };
+              delete userPreferences.preferences; // Remove the nested object
+            } else {
+              userPreferences = queryPrefs;
+            }
           } catch (error) {
             console.warn('Failed to parse preferences from query parameters:', error);
           }
