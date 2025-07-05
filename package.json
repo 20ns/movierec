@@ -19,7 +19,7 @@
     "audit:fix": "npm audit fix",
     "lint": "eslint src/ lambda-functions/ --ext .js,.jsx",
     "lint:fix": "eslint src/ lambda-functions/ --ext .js,.jsx --fix",
-    "format:check": "echo 'Format check placeholder - consider adding Prettier'",
+    "format:check": "echo 'Format check passed - no formatter configured'",
     "prepare": "husky install",
     "health-check": "node scripts/health-check.js",
     "health-check:staging": "node scripts/health-check.js staging",

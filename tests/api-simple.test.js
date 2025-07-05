@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // Test configuration
-const BASE_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'http://localhost:3001';
+const BASE_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
 
 describe('MovieRec API Integration Tests', () => {
   beforeAll(async () => {
@@ -15,7 +15,7 @@ describe('MovieRec API Integration Tests', () => {
       
       try {
         // Try to hit any endpoint - we expect some response (even errors)
-        await axios.get(`${BASE_URL}/dev/recommendations`, { timeout: 5000 });
+        await axios.get(`${BASE_URL}/recommendations`, { timeout: 5000 });
         serverIsRunning = true;
       } catch (error) {
         // If we get a structured HTTP error response, server is running
@@ -34,19 +34,19 @@ describe('MovieRec API Integration Tests', () => {
 
   describe('API Endpoint Availability', () => {
     const endpoints = [
-      { method: 'POST', path: '/dev/auth/signin', name: 'Sign In' },
-      { method: 'POST', path: '/dev/auth/signup', name: 'Sign Up' },
-      { method: 'POST', path: '/dev/auth/refresh', name: 'Token Refresh' },
-      { method: 'GET', path: '/dev/user/preferences', name: 'Get Preferences' },
-      { method: 'POST', path: '/dev/user/preferences', name: 'Update Preferences' },
-      { method: 'GET', path: '/dev/user/favourites', name: 'Get Favourites' },
-      { method: 'POST', path: '/dev/user/favourites', name: 'Add Favourite' },
-      { method: 'DELETE', path: '/dev/user/favourites', name: 'Remove Favourite' },
-      { method: 'GET', path: '/dev/user/watchlist', name: 'Get Watchlist' },
-      { method: 'POST', path: '/dev/user/watchlist', name: 'Add to Watchlist' },
-      { method: 'DELETE', path: '/dev/user/watchlist', name: 'Remove from Watchlist' },
-      { method: 'GET', path: '/dev/recommendations', name: 'Get Recommendations' },
-      { method: 'GET', path: '/dev/media', name: 'Media Search' }
+      { method: 'POST', path: '/auth/signin', name: 'Sign In' },
+      { method: 'POST', path: '/auth/signup', name: 'Sign Up' },
+      { method: 'POST', path: '/auth/refresh', name: 'Token Refresh' },
+      { method: 'GET', path: '/user/preferences', name: 'Get Preferences' },
+      { method: 'POST', path: '/user/preferences', name: 'Update Preferences' },
+      { method: 'GET', path: '/user/favourites', name: 'Get Favourites' },
+      { method: 'POST', path: '/user/favourites', name: 'Add Favourite' },
+      { method: 'DELETE', path: '/user/favourites', name: 'Remove Favourite' },
+      { method: 'GET', path: '/user/watchlist', name: 'Get Watchlist' },
+      { method: 'POST', path: '/user/watchlist', name: 'Add to Watchlist' },
+      { method: 'DELETE', path: '/user/watchlist', name: 'Remove from Watchlist' },
+      { method: 'GET', path: '/recommendations', name: 'Get Recommendations' },
+      { method: 'GET', path: '/media', name: 'Media Search' }
     ];
 
     endpoints.forEach(endpoint => {
@@ -86,7 +86,7 @@ describe('MovieRec API Integration Tests', () => {
   describe('API Response Characteristics', () => {
     test('should return proper error structure for invalid requests', async () => {
       try {
-        await axios.post(`${BASE_URL}/dev/auth/signin`, {
+        await axios.post(`${BASE_URL}/auth/signin`, {
           email: 'test@example.com',
           password: 'password123'
         });
@@ -103,7 +103,7 @@ describe('MovieRec API Integration Tests', () => {
 
     test('should handle CORS properly', async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/dev/recommendations`);
+        const response = await axios.get(`${BASE_URL}/recommendations`);
         // If successful, should have CORS headers (this won't happen with current setup)
         expect(response.headers).toBeDefined();
       } catch (error) {
@@ -123,7 +123,7 @@ describe('MovieRec API Integration Tests', () => {
       const startTime = Date.now();
       
       try {
-        await axios.get(`${BASE_URL}/dev/recommendations`, { timeout: 10000 });
+        await axios.get(`${BASE_URL}/recommendations`, { timeout: 10000 });
       } catch (error) {
         // Even errors should respond quickly
       }
@@ -145,9 +145,8 @@ afterAll(() => {
   ✅ Error handling is working
   ✅ Response times are acceptable
   
-  📝 Note: Lambda function errors (5xx) are expected in local development
-  without proper AWS credentials and DynamoDB setup. The important thing
-  is that the serverless offline server is running and routing requests
+  📝 Note: Lambda function errors (5xx) are expected without proper authentication.
+  The important thing is that the API Gateway is accessible and routing requests
   to the correct Lambda functions.
   `);
 });
