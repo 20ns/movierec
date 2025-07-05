@@ -251,6 +251,20 @@ const Header = memo(function Header({
       show: isAuthenticated
     },
     {
+      name: 'Dashboard',
+      icon: <UserIcon className="w-5 h-5" />,
+      onClick: () => {
+        if (showSearch) onSearchClick(false);
+        if (showFavorites) onFavoritesClick(false);
+        if (showWatchlist) onWatchlistClick(false);
+        setShowUserDropdown(false);
+        setShowMobileMenu(false);
+        navigate('/dashboard');
+      },
+      active: false,
+      show: isAuthenticated
+    },
+    {
       name: 'Account Settings',
       icon: <UserIcon className="w-5 h-5" />,
       onClick: () => handlePanelToggle('account'),
@@ -538,6 +552,20 @@ const Header = memo(function Header({
                         {currentUser?.attributes?.email}
                       </div>
                     </div>
+                    
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        if (showSearch) onSearchClick(false);
+                        if (showFavorites) onFavoritesClick(false);
+                        if (showWatchlist) onWatchlistClick(false);
+                        navigate('/dashboard');
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-700/50 transition-colors duration-150 flex items-center"
+                      role="menuitem"
+                    >
+                      <span>Dashboard</span>
+                    </button>
                     
                     <button
                       onClick={handleSignOut}

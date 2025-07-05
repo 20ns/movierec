@@ -62,6 +62,14 @@ const NAV_ITEMS = [
     icon: BookmarkOutlineIcon,
     activeIcon: BookmarkIcon,
     color: 'text-green-500'
+  },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    path: '/dashboard',
+    icon: UserOutlineIcon,
+    activeIcon: UserIcon,
+    color: 'text-amber-500'
   }
 ];
 
@@ -83,7 +91,7 @@ const MobileBottomNav = ({ currentUser, isAuthenticated }) => {
   }, [location.pathname]);
 
   const handleTabPress = (item) => {
-    if (!isAuthenticated && ['favorites', 'watchlist'].includes(item.id)) {
+    if (!isAuthenticated && ['favorites', 'watchlist', 'dashboard'].includes(item.id)) {
       // Show login prompt for authenticated features
       navigate('/auth');
       return;
