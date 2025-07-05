@@ -15,6 +15,9 @@ if [ "$current_branch" = "$protected_branch" ]; then
     echo "🧪 Running API connectivity tests..."
     cd tests && npm run test:simple
     
+    # Back to root directory for remaining checks
+    cd ..
+    
     # Run security audit
     echo "🔒 Running security audit..."
     npm audit --audit-level=moderate
@@ -30,7 +33,7 @@ else
     
     # Run basic checks for feature branches
     npm run lint
-    cd tests && npm run test:simple
+    cd tests && npm run test:simple && cd ..
     
     echo "✅ Pre-push checks completed!"
 fi
