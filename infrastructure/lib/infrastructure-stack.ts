@@ -233,7 +233,7 @@ export class InfrastructureStack extends cdk.Stack {
       }),
       role: lambdaExecutionRole,
       environment: sharedEnvironment,
-      timeout: Duration.seconds(30),
+      timeout: Duration.seconds(60),
       layers: [jwtLayer, awsSdkLayer],
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
@@ -344,6 +344,7 @@ export class InfrastructureStack extends cdk.Stack {
     // Movie recommendations
     const recommendationsResource = api.root.addResource('recommendations');
     recommendationsResource.addMethod('GET', new apigateway.LambdaIntegration(movieRecFunction));
+    recommendationsResource.addMethod('POST', new apigateway.LambdaIntegration(movieRecFunction));
 
     // Media cache (public endpoint)
     const mediaResource = api.root.addResource('media');

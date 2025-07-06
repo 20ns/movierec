@@ -884,6 +884,63 @@ exports.handler = async (event) => {
         console.error("Error getting recommendations:", error);
         return createCorsErrorResponse(500, "Internal server error", requestOrigin);
       }
+    } else if (event.httpMethod === 'POST') {
+      try {
+        // Parse request body
+        let requestBody = {};
+        if (event.body) {
+          try {
+            requestBody = JSON.parse(event.body);
+          } catch (error) {
+            console.error('Failed to parse request body:', error);
+            return createCorsErrorResponse(400, "Invalid JSON in request body", requestOrigin);
+          }
+        }
+
+        // Get parameters from request body
+        const mediaType = requestBody.mediaType || 'both';
+        const excludeIds = requestBody.exclude ? requestBody.exclude.split(',').map(id => id.trim()) : [];
+        const limit = Math.min(parseInt(requestBody.limit) || 9, 9);
+        
+        // Get user preferences from request body
+        let userPreferences = requestBody.preferences || {};
+        
+        // If no preferences in request body, fall back to DynamoDB
+        if (!userPreferences || Object.keys(userPreferences).length === 0) {
+          console.log('No preferences in request body, falling back to DynamoDB');
+          const preferencesCommand = new GetCommand({
+            TableName: process.env.USER_PREFERENCES_TABLE,
+            Key: { userId: userId }
+          });
+
+          const preferencesResult = await dynamoDB.send(preferencesCommand);
+          userPreferences = preferencesResult.Item || {};
+        }
+        
+        console.log('Final userPreferences being used (POST):', {
+          hasPreferences: Object.keys(userPreferences).length > 0,
+          keys: Object.keys(userPreferences),
+          quickModeCompleted: userPreferences.quickModeCompleted
+        });
+
+        // Generate recommendations using the recommendation engine
+        const recommendations = await getRecommendations(
+          mediaType, 
+          excludeIds, 
+          limit, 
+          userPreferences, 
+          userId
+        );
+
+        return createCorsSuccessResponse({
+          items: recommendations,
+          source: 'personalized_lambda_post',
+          userPreferences: userPreferences
+        }, requestOrigin);
+      } catch (error) {
+        console.error("Error getting recommendations (POST):", error);
+        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+      }
     } else {
       return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
     }

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import useAuth from './auth/auth';
+import useUserPreferences from './hooks/useUserPreferences';
 import Header from './components/Header';
 import Bg from './components/Bg';
 import AuthPage from './auth/authPage.jsx';
@@ -115,9 +116,6 @@ useEffect(() => {
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [showPreferencesPromptBanner, setShowPreferencesPromptBanner] = useState(false);
-  const [userPreferences, setUserPreferences] = useState(null);
-  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
-  const [preferencesLoading, setPreferencesLoading] = useState(false);
   const [initialAppLoadComplete, setInitialAppLoadComplete] = useState(false);
   // New state for recommendations visibility
   const [showRecommendations, setShowRecommendations] = useState(false);
@@ -131,17 +129,25 @@ useEffect(() => {
   const [selectedMoodFilter, setSelectedMoodFilter] = useState(null);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState(null);
 
+  // Use the centralized preferences hook
+  const {
+    userPreferences,
+    hasCompletedQuestionnaire,
+    preferencesLoading,
+    validationResult,
+    userGuidance,
+    handleQuestionnaireComplete: hookHandleQuestionnaireComplete,
+    completionPercentage,
+    canGenerateRecommendations,
+    hasBasicProfile
+  } = useUserPreferences(currentUser, isAuthenticated, initialAppLoadComplete);
+
   // Calculate if user has only completed basic preferences but not detailed ones
   const hasBasicPreferencesOnly = userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted;
 
   // --- Refs ---
   const personalizedRecommendationsRef = useRef(null);
-  const prevPreferencesRef = useRef(null);
-  const fetchingPreferencesRef = useRef(false);
-  const prevUserIdRef = useRef(null);
-  const refreshCycleRef = useRef(0); // Track refresh cycles to prevent repeated refreshes
-  const processingAuthChangeRef = useRef(false); // Prevent concurrent auth processing
-  const searchAreaRef = useRef(null); // Ref for the search container
+  const searchAreaRef = useRef(null);
 
   // --- Effect: Mark Initial App Load Complete ---
   useEffect(() => {
@@ -149,12 +155,8 @@ useEffect(() => {
       logApp('Initial App Load Complete (Auth check finished)');
       setInitialAppLoadComplete(true);
       if (!isAuthenticated) {
-        setPreferencesLoading(false);
-        setHasCompletedQuestionnaire(false);
-        setUserPreferences(null);
-        prevPreferencesRef.current = null;
         setShowRecommendations(false);
-        logApp('User logged out, resetting preference state.');
+        logApp('User logged out, resetting recommendation state.');
       }
     }
   }, [authLoading, isAuthenticated]);
@@ -172,56 +174,25 @@ useEffect(() => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- Effect: Detect User Change ---
+  // --- Effect: Detect User Sign In ---
   useEffect(() => {
     const currentUserId = currentUser?.attributes?.sub;
-    if (prevUserIdRef.current !== currentUserId && currentUserId && !processingAuthChangeRef.current) {
-      // Set processing flag to prevent concurrent processing
-      processingAuthChangeRef.current = true;
-      
-      logApp(`User changed from ${prevUserIdRef.current} to ${currentUserId}. Resetting state.`);
-      setUserPreferences(null);
-      setHasCompletedQuestionnaire(false);
-      setPreferencesLoading(false);
-      prevPreferencesRef.current = null;
-      prevUserIdRef.current = currentUserId;
-      
-      // Set justSignedIn to true when user signs in
-      if (!prevUserIdRef.current && currentUserId) {
-        setJustSignedIn(true);
-        setShowRecommendations(false);
-      }
-      
-      // Reset processing flag after a short delay
-      setTimeout(() => {
-        processingAuthChangeRef.current = false;
-      }, 500);
+    if (currentUserId && isAuthenticated && !justSignedIn) {
+      logApp(`User signed in: ${currentUserId}`);
+      setJustSignedIn(true);
+      setShowRecommendations(false);
     }
-  }, [currentUser]);
+  }, [currentUser, isAuthenticated, justSignedIn]);
 
   // --- Modified handleSigninSuccess ---
   const handleCustomSigninSuccess = useCallback((user, isNew = false) => {
     logApp('User signed in successfully', { userId: user.attributes?.sub });
     handleSigninSuccess(user, isNew);
     
-    // Force reset all recommendation-related state
+    // Reset recommendation-related state
     setJustSignedIn(true);
     setShowRecommendations(false);
-    
-    // Force immediately start preference loading
-    fetchingPreferencesRef.current = false;
-    refreshCycleRef.current = 0;
-
-    // Removed toast call on sign-in
-    // setTimeout(() => {
-    //   showToast({
-    //     title: 'Welcome back!',
-    //     message: 'Fetching your personalized recommendations...',
-    //     type: 'success',
-    //     duration: 4000,
-    //   });
-    // }, 100);
-  }, [handleSigninSuccess]); // Removed showToast from dependencies
+  }, [handleSigninSuccess]);
 
   // --- Mobile Detection ---
   useEffect(() => {
@@ -248,132 +219,6 @@ useEffect(() => {
     setShowSearch(!showSearch);
   };
 
-  // --- Fetch User Preferences ---
-  const fetchUserPreferences = useCallback(async () => {
-    // Track refresh cycles to prevent repeated refreshes
-    refreshCycleRef.current++;
-    const currentRefreshCycle = refreshCycleRef.current;
-    
-    if (!isAuthenticated || !currentUser || fetchingPreferencesRef.current) {
-      logApp('Fetch Preferences skipped:', {
-        isAuthenticated,
-        hasUser: !!currentUser,
-        isFetching: fetchingPreferencesRef.current,
-      });
-      if (!isAuthenticated || !currentUser) {
-        setPreferencesLoading(false);
-        setHasCompletedQuestionnaire(false);
-        setUserPreferences(null);
-        prevPreferencesRef.current = null;
-        setShowRecommendations(false);
-      }
-      return;
-    }
-
-    logApp('Fetching user preferences...', { refreshCycle: currentRefreshCycle });
-    fetchingPreferencesRef.current = true;
-    setPreferencesLoading(true);
-
-    try {
-      // If this is no longer the current refresh cycle, abort
-      if (currentRefreshCycle !== refreshCycleRef.current) {
-        logApp('Aborting outdated preferences fetch', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
-        return;
-      }
-
-      // Safely extract access token with proper error handling
-      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-        throw new Error('No valid access token available');
-      }
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
-      const userId = currentUser.attributes.sub;
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences`, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        credentials: 'include',
-        mode: 'cors',
-      });
-
-      // Check if this is still the current refresh cycle
-      if (currentRefreshCycle !== refreshCycleRef.current) {
-        logApp('Aborting outdated preferences fetch response handling', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
-        return;
-      }
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          logApp('Preferences fetch returned 404 (No preferences saved yet)');
-          setUserPreferences(null);
-          setHasCompletedQuestionnaire(false);
-          if (userId) {
-            try {
-              localStorage.removeItem(`questionnaire_completed_${userId}`);
-            } catch (e) {}
-          }
-        } else {
-          throw new Error(`Preferences API Error: Status ${response.status}`);
-        }
-      } else {
-        const data = await response.json();
-        logApp('Preferences fetched successfully:', data);
-        const apiCompleted = data?.questionnaireCompleted || false;
-        setUserPreferences(data);
-        setHasCompletedQuestionnaire(apiCompleted);
-        if (userId) {
-          try {
-            localStorage.setItem(`questionnaire_completed_${userId}`, apiCompleted ? 'true' : 'false');
-          } catch (e) {
-            logError('Error writing to localStorage:', e);
-          }
-        }
-      }
-    } catch (error) {
-      logError('Error fetching preferences:', error);
-      setUserPreferences(null);
-      setHasCompletedQuestionnaire(false);
-    } finally {
-      // Check if this is still the current refresh cycle
-      if (currentRefreshCycle === refreshCycleRef.current) {
-        setPreferencesLoading(false);
-        fetchingPreferencesRef.current = false;
-        logApp('Preferences fetch finished.', { cycle: currentRefreshCycle });
-        
-        // After preferences fetch is complete, determine whether to show recommendations
-        if (justSignedIn) {
-          // Short timeout to ensure DOM is ready 
-          setTimeout(() => {
-            setShowRecommendations(true);
-            setJustSignedIn(false);
-            logApp('Showing recommendations after sign-in and preferences fetch');
-
-            // Removed toast notification
-            // showToast({
-            //   title: 'Welcome back!',
-            //   message: 'Your personalized recommendations are ready',
-            //   type: 'success',
-            //   duration: 4000,
-            // });
-          }, 300);
-        }
-      } else {
-        logApp('Skipping state updates for outdated fetch cycle',
-          { cycle: currentRefreshCycle, current: refreshCycleRef.current });
-      }
-    }
-  }, [isAuthenticated, currentUser, justSignedIn]); // Removed showToast from dependencies
-
-  // --- Effect: Initial Preference Fetch ---
-  useEffect(() => {
-    if (initialAppLoadComplete && isAuthenticated) {
-      logApp('Triggering initial preference fetch.');
-      fetchUserPreferences();
-    } else if (initialAppLoadComplete && !isAuthenticated) {
-      setPreferencesLoading(false);
-      setHasCompletedQuestionnaire(false);
-      setUserPreferences(null);
-      prevPreferencesRef.current = null;
-      setShowRecommendations(false);
-    }
-  }, [initialAppLoadComplete, isAuthenticated, fetchUserPreferences]);
 
   // --- Effect: Show Preference Prompt Banner ---
   useEffect(() => {
@@ -392,8 +237,8 @@ useEffect(() => {
       setJustSignedIn(false);
     }
     
-    logApp('Preference prompt banner check:', { shouldShow });
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn]);
+    logApp('Preference prompt banner check:', { shouldShow, completionPercentage });
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn, completionPercentage]);
 
   // --- Effect: Show recommendations after app load ---
   useEffect(() => {
@@ -405,42 +250,26 @@ useEffect(() => {
   }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, justSignedIn, showRecommendations]);
 
   // --- Questionnaire Completion Handler ---
-  const handleQuestionnaireComplete = useCallback(() => {
-    logApp('Questionnaire completed.');
-    const userId = currentUser?.attributes?.sub;
-    if (!userId) {
-      logError('No user ID for questionnaire completion.');
-      return;
-    }
-
-    setHasCompletedQuestionnaire(true);
-    setShowQuestionnaireModal(false);
-    setShowPreferencesPromptBanner(false);
-
-    try {
-      localStorage.setItem(`questionnaire_completed_${userId}`, 'true');
-    } catch (e) {
-      logError('Error writing to localStorage:', e);
-    }
-
-    fetchUserPreferences();
-    if (location.pathname === '/onboarding') {
-      navigate('/');
-    }
+  const handleQuestionnaireComplete = useCallback((updatedPreferences) => {
+    logApp('Questionnaire completed from App.js.');
     
-    // Add a small delay before showing recommendations after questionnaire completion
-    setTimeout(() => {
-      setShowRecommendations(true);
-
-      // Removed toast notification
-      // showToast({
-      //   title: 'Preferences updated!',
-      //   message: 'Your recommendations have been refreshed',
-      //   type: 'success',
-      //   duration: 4000,
-      // });
-    }, 500);
-  }, [currentUser, fetchUserPreferences, location.pathname, navigate]); // Removed showToast from dependencies
+    // Use the hook's handler which includes proper coordination
+    const success = hookHandleQuestionnaireComplete(updatedPreferences);
+    
+    if (success) {
+      setShowQuestionnaireModal(false);
+      setShowPreferencesPromptBanner(false);
+      
+      if (location.pathname === '/onboarding') {
+        navigate('/');
+      }
+      
+      // Add a small delay before showing recommendations after questionnaire completion
+      setTimeout(() => {
+        setShowRecommendations(true);
+      }, 500);
+    }
+  }, [hookHandleQuestionnaireComplete, location.pathname, navigate]);
 
   // --- Navigation Handlers ---
   const handleSignInClick = useCallback(() => navigate('/signin'), [navigate]);
@@ -579,14 +408,16 @@ useEffect(() => {
   // Function to handle preference updates from onboarding questionnaire
   const handlePreferencesUpdated = useCallback((updatedPreferences) => {
     logApp('Preferences updated from questionnaire', updatedPreferences);
-    setUserPreferences(updatedPreferences);
+    
+    // Use the hook's update function which includes validation
+    hookHandleQuestionnaireComplete(updatedPreferences);
     
     // Trigger recommendation refresh if reference is available
     if (personalizedRecommendationsRef.current) {
       logApp('Triggering recommendation refresh with updated preferences');
       personalizedRecommendationsRef.current.refreshRecommendations(updatedPreferences);
     }
-  }, []);
+  }, [hookHandleQuestionnaireComplete]);
 
   return (
     <>
@@ -634,11 +465,20 @@ useEffect(() => {
                 </button>
               </div>
               <div className="p-3">
+                <div className="mb-2 text-xs text-gray-300">
+                  Profile Completion: {completionPercentage}%
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-1.5 mb-3">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all duration-500" 
+                    style={{ width: `${completionPercentage}%` }}
+                  ></div>
+                </div>
                 <button
                   onClick={() => setShowQuestionnaireModal(true)}
                   className="w-full text-center bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 px-3 py-1.5 rounded text-xs font-medium text-white transition-colors"
                 >
-                  Set Preferences
+                  {hasCompletedQuestionnaire ? 'Improve Profile' : 'Complete Questionnaire'}
                 </button>
               </div>
             </motion.div>

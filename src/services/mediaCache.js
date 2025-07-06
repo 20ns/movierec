@@ -107,17 +107,22 @@ export const fetchCachedMedia = async (options = {}) => {
     //   }
     // });
 
-    const response = await axios.get(
+    const requestData = {
+      mediaType,
+      exclude: currentExcludeIdsStr.join(','),
+      preferences: Object.keys(preferences).length > 0 ? preferences : {},
+      favorites: favoriteIdsStr.length > 0 ? favoriteIdsStr.join(',') : '',
+      watchlist: watchlistIdsStr.length > 0 ? watchlistIdsStr.join(',') : '',
+    };
+
+    const response = await axios.post(
       apiUrl,
+      requestData,
       {
-        params: {
-          mediaType,
-          exclude: currentExcludeIdsStr.join(','),
-          ...(Object.keys(preferences).length > 0 && { preferences: JSON.stringify(preferences) }),
-          ...(favoriteIdsStr.length > 0 && { favorites: favoriteIdsStr.join(',') }),
-          ...(watchlistIdsStr.length > 0 && { watchlist: watchlistIdsStr.join(',') }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
         },
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         timeout: 25000,
       }
     );

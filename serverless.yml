@@ -215,6 +215,10 @@ functions:
           path: recommendations
           method: get
           cors: ${self:custom.corsConfig}
+      - http:
+          path: recommendations
+          method: post
+          cors: ${self:custom.corsConfig}
 
   mediaCache:
     handler: lambda-functions/MediaCache/index.handler

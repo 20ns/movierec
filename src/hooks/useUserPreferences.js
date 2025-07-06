@@ -1,7 +1,8 @@
 // src/hooks/useUserPreferences.js
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useToast } from '../components/ToastManager'; // Assuming ToastManager provides this
+import { useToast } from '../components/ToastManager';
 import ENV_CONFIG from '../config/environment';
+import { validateUserPreferences, getUserGuidance } from '../utils/userDataValidator';
 
 // Helper for logging
 const logHook = (message, data) => {
@@ -17,11 +18,14 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
   const [userPreferences, setUserPreferences] = useState(null);
   const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(false);
-  const [justRefreshedPrefs, setJustRefreshedPrefs] = useState(false); // Flag for post-refresh actions
+  const [justRefreshedPrefs, setJustRefreshedPrefs] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  const [userGuidance, setUserGuidance] = useState(null);
 
   const fetchingPreferencesRef = useRef(false);
-  const refreshCycleRef = useRef(0); // Track refresh cycles
+  const refreshCycleRef = useRef(0);
   const prevUserIdRef = useRef(null);
+  const processingAuthChangeRef = useRef(false); // Prevent concurrent auth processing
   const { showToast } = useToast();
 
   const fetchUserPreferences = useCallback(async (forceRefresh = false) => {
@@ -84,15 +88,21 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
         setHasCompletedQuestionnaire(apiCompleted);
         try { localStorage.setItem(`questionnaire_completed_${currentUserId}`, apiCompleted ? 'true' : 'false'); } catch (e) { logError('Error writing to localStorage:', e); }
       }
-      setJustRefreshedPrefs(true); // Set flag after successful fetch/handling
-      return fetchedData; // Return the fetched data
+      setJustRefreshedPrefs(true);
+      
+      // Update validation and guidance after successful fetch
+      updateValidationAndGuidance(fetchedData);
+      
+      return fetchedData;
 
     } catch (error) {
       logError('Error fetching preferences:', error);
       setUserPreferences(null);
       setHasCompletedQuestionnaire(false);
+      setValidationResult(null);
+      setUserGuidance(null);
       showToast({ title: 'Error', message: 'Could not load your preferences.', type: 'error' });
-      return null; // Return null on error
+      return null;
     } finally {
       // Only update loading state if this is the latest fetch cycle
       if (currentRefreshCycle === refreshCycleRef.current) {
@@ -103,20 +113,90 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
          logHook('Skipping final state updates for outdated fetch cycle', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
       }
     }
-  }, [isAuthenticated, currentUser, showToast]); // Dependencies for the fetch function itself
+  }, [isAuthenticated, currentUser, showToast]);
 
-  // Effect: Initial Fetch and User Change Detection
+  // Function to update validation and guidance based on preferences
+  const updateValidationAndGuidance = useCallback((preferences) => {
+    const validation = validateUserPreferences(preferences);
+    const guidance = getUserGuidance(validation);
+    
+    setValidationResult(validation);
+    setUserGuidance(guidance);
+    
+    logHook('Validation updated:', {
+      completionLevel: validation.completionLevel,
+      confidence: validation.confidence,
+      canGenerateRecommendations: validation.canGenerateRecommendations,
+      genreRatingCount: validation.genreRatingCount
+    });
+  }, []);
+
+  // Function to handle questionnaire completion with proper coordination
+  const handleQuestionnaireComplete = useCallback((updatedPreferences) => {
+    const userId = currentUser?.attributes?.sub;
+    if (!userId) {
+      logError('No user ID for questionnaire completion.');
+      return;
+    }
+
+    logHook('Questionnaire completed, updating state');
+    
+    // Update state immediately for UI responsiveness
+    setUserPreferences(updatedPreferences);
+    setHasCompletedQuestionnaire(true);
+    updateValidationAndGuidance(updatedPreferences);
+    
+    // Update localStorage with coordination
+    try {
+      localStorage.setItem(`questionnaire_completed_${userId}`, 'true');
+      localStorage.setItem(`userPrefs_${userId}`, JSON.stringify(updatedPreferences));
+    } catch (e) {
+      logError('Error writing to localStorage:', e);
+    }
+
+    // Trigger a fresh fetch to ensure API is in sync (but don't wait for it)
+    setTimeout(() => {
+      fetchUserPreferences(true); // Force refresh to sync with API
+    }, 100);
+
+    return true;
+  }, [currentUser, fetchUserPreferences, updateValidationAndGuidance]);
+
+  // Function to safely update preferences with validation
+  const updatePreferences = useCallback((newPreferences) => {
+    const userId = currentUser?.attributes?.sub;
+    if (!userId) return;
+
+    setUserPreferences(newPreferences);
+    updateValidationAndGuidance(newPreferences);
+    
+    // Update localStorage
+    try {
+      localStorage.setItem(`userPrefs_${userId}`, JSON.stringify(newPreferences));
+    } catch (e) {
+      logError('Error updating localStorage:', e);
+    }
+  }, [currentUser, updateValidationAndGuidance]);
+
+  // Effect: Initial Fetch and User Change Detection with coordination
   useEffect(() => {
     const currentUserId = currentUser?.attributes?.sub;
 
-    // User changed or logged in
-    if (prevUserIdRef.current !== currentUserId) {
+    // User changed or logged in (with race condition protection)
+    if (prevUserIdRef.current !== currentUserId && !processingAuthChangeRef.current) {
+      // Set processing flag to prevent concurrent processing
+      processingAuthChangeRef.current = true;
+      
       logHook(`User changed from ${prevUserIdRef.current} to ${currentUserId}. Resetting state and fetching.`);
+      
+      // Reset all state
       setUserPreferences(null);
       setHasCompletedQuestionnaire(false);
-      setPreferencesLoading(false); // Reset loading state
-      fetchingPreferencesRef.current = false; // Reset fetching flag
-      refreshCycleRef.current = 0; // Reset cycle count
+      setValidationResult(null);
+      setUserGuidance(null);
+      setPreferencesLoading(false);
+      fetchingPreferencesRef.current = false;
+      refreshCycleRef.current = 0;
       prevUserIdRef.current = currentUserId;
 
       if (isAuthenticated && currentUserId && initialAppLoadComplete) {
@@ -125,8 +205,15 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
          // Explicitly clear state on logout
          setUserPreferences(null);
          setHasCompletedQuestionnaire(false);
+         setValidationResult(null);
+         setUserGuidance(null);
          setPreferencesLoading(false);
       }
+      
+      // Reset processing flag after a short delay
+      setTimeout(() => {
+        processingAuthChangeRef.current = false;
+      }, 500);
     }
     // Initial load fetch for already authenticated user
     else if (isAuthenticated && currentUserId && initialAppLoadComplete && !userPreferences && !preferencesLoading && !fetchingPreferencesRef.current) {
@@ -134,16 +221,33 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
        fetchUserPreferences();
     }
 
-  }, [currentUser, isAuthenticated, initialAppLoadComplete, fetchUserPreferences, userPreferences, preferencesLoading]); // Added userPreferences, preferencesLoading to dependencies
+  }, [currentUser, isAuthenticated, initialAppLoadComplete, fetchUserPreferences, userPreferences, preferencesLoading]);
+
+  // Effect: Update validation when preferences change
+  useEffect(() => {
+    if (userPreferences) {
+      updateValidationAndGuidance(userPreferences);
+    }
+  }, [userPreferences, updateValidationAndGuidance]);
 
 
   return {
     userPreferences,
     hasCompletedQuestionnaire,
     preferencesLoading,
-    fetchUserPreferences, // Expose the function to allow manual refresh
+    validationResult,
+    userGuidance,
+    fetchUserPreferences,
     justRefreshedPrefs,
-    setHasCompletedQuestionnaire, // Allow manual setting after questionnaire completion
-    setUserPreferences, // Allow manual setting if needed elsewhere
+    handleQuestionnaireComplete,
+    updatePreferences,
+    setHasCompletedQuestionnaire,
+    setUserPreferences,
+    // Computed properties for convenience
+    completionPercentage: validationResult?.confidence || 0,
+    canGenerateRecommendations: validationResult?.canGenerateRecommendations || false,
+    hasBasicProfile: validationResult?.hasBasicProfile || false,
+    genreRatingCount: validationResult?.genreRatingCount || 0,
+    completionLevel: validationResult?.completionLevel || 'none'
   };
 }
