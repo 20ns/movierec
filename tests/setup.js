@@ -17,7 +17,7 @@ jest.setTimeout(30000);
 
 // Mock environment variables for testing
 process.env.NODE_ENV = 'test';
-process.env.REACT_APP_API_GATEWAY_INVOKE_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'http://localhost:3001';
+process.env.REACT_APP_API_GATEWAY_INVOKE_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
 
 // Global test utilities
 global.testUtils = {
