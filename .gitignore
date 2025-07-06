@@ -109,5 +109,13 @@ pids/
 *.pid
 *.seed
 *.pid.lock
-
 CLAUDE.md
+
+# Development artifacts  
+webpack.log
+serverless*.log
+cors-config.js
+tables-only.yml
+
+# AWS Generated files
+infrastructure/cdk.out/*
