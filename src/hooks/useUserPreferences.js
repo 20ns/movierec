@@ -1,6 +1,5 @@
 // src/hooks/useUserPreferences.js
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useToast } from '../components/ToastManager';
 import ENV_CONFIG from '../config/environment';
 import { validateUserPreferences, getUserGuidance } from '../utils/userDataValidator';
 
@@ -26,7 +25,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
   const refreshCycleRef = useRef(0);
   const prevUserIdRef = useRef(null);
   const processingAuthChangeRef = useRef(false); // Prevent concurrent auth processing
-  const { showToast } = useToast();
+  const fetchUserPreferencesRef = useRef(null); // Store function ref
 
   const fetchUserPreferences = useCallback(async (forceRefresh = false) => {
     const currentUserId = currentUser?.attributes?.sub;
@@ -101,7 +100,8 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       setHasCompletedQuestionnaire(false);
       setValidationResult(null);
       setUserGuidance(null);
-      showToast({ title: 'Error', message: 'Could not load your preferences.', type: 'error' });
+      // Log error but don't break the app - user can still use the application
+      console.error('[useUserPreferences] Could not load preferences:', error);
       return null;
     } finally {
       // Only update loading state if this is the latest fetch cycle
@@ -113,15 +113,32 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
          logHook('Skipping final state updates for outdated fetch cycle', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
       }
     }
-  }, [isAuthenticated, currentUser, showToast]);
+  }, [isAuthenticated, currentUser?.attributes?.sub]);
+
+  // Update the ref whenever the function changes
+  fetchUserPreferencesRef.current = fetchUserPreferences;
 
   // Function to update validation and guidance based on preferences
   const updateValidationAndGuidance = useCallback((preferences) => {
+    if (!preferences) return;
+    
     const validation = validateUserPreferences(preferences);
     const guidance = getUserGuidance(validation);
     
-    setValidationResult(validation);
-    setUserGuidance(guidance);
+    // Only update if validation result has actually changed to prevent loops
+    setValidationResult(prev => {
+      if (prev?.confidence !== validation.confidence || prev?.completionLevel !== validation.completionLevel) {
+        return validation;
+      }
+      return prev;
+    });
+    
+    setUserGuidance(prev => {
+      if (prev?.progressPercent !== guidance.progressPercent || prev?.message !== guidance.message) {
+        return guidance;
+      }
+      return prev;
+    });
     
     logHook('Validation updated:', {
       completionLevel: validation.completionLevel,
@@ -144,7 +161,14 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     // Update state immediately for UI responsiveness
     setUserPreferences(updatedPreferences);
     setHasCompletedQuestionnaire(true);
-    updateValidationAndGuidance(updatedPreferences);
+    
+    // Update validation without triggering dependency
+    if (updatedPreferences) {
+      const validation = validateUserPreferences(updatedPreferences);
+      const guidance = getUserGuidance(validation);
+      setValidationResult(validation);
+      setUserGuidance(guidance);
+    }
     
     // Update localStorage with coordination
     try {
@@ -156,11 +180,11 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
 
     // Trigger a fresh fetch to ensure API is in sync (but don't wait for it)
     setTimeout(() => {
-      fetchUserPreferences(true); // Force refresh to sync with API
+      fetchUserPreferencesRef.current?.(true); // Force refresh to sync with API
     }, 100);
 
     return true;
-  }, [currentUser, fetchUserPreferences, updateValidationAndGuidance]);
+  }, [currentUser?.attributes?.sub]);
 
   // Function to safely update preferences with validation
   const updatePreferences = useCallback((newPreferences) => {
@@ -168,7 +192,14 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     if (!userId) return;
 
     setUserPreferences(newPreferences);
-    updateValidationAndGuidance(newPreferences);
+    
+    // Update validation inline to avoid circular dependency
+    if (newPreferences) {
+      const validation = validateUserPreferences(newPreferences);
+      const guidance = getUserGuidance(validation);
+      setValidationResult(validation);
+      setUserGuidance(guidance);
+    }
     
     // Update localStorage
     try {
@@ -176,7 +207,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     } catch (e) {
       logError('Error updating localStorage:', e);
     }
-  }, [currentUser, updateValidationAndGuidance]);
+  }, [currentUser?.attributes?.sub]);
 
   // Effect: Initial Fetch and User Change Detection with coordination
   useEffect(() => {
@@ -200,7 +231,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       prevUserIdRef.current = currentUserId;
 
       if (isAuthenticated && currentUserId && initialAppLoadComplete) {
-        fetchUserPreferences();
+        fetchUserPreferencesRef.current?.();
       } else if (!isAuthenticated) {
          // Explicitly clear state on logout
          setUserPreferences(null);
@@ -216,12 +247,15 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       }, 500);
     }
     // Initial load fetch for already authenticated user
-    else if (isAuthenticated && currentUserId && initialAppLoadComplete && !userPreferences && !preferencesLoading && !fetchingPreferencesRef.current) {
-       logHook('Triggering initial preference fetch for existing session.');
-       fetchUserPreferences();
+    else if (isAuthenticated && currentUserId && initialAppLoadComplete && !fetchingPreferencesRef.current) {
+       // Only fetch if we don't have preferences loaded yet
+       if (!userPreferences) {
+         logHook('Triggering initial preference fetch for existing session.');
+         fetchUserPreferencesRef.current?.();
+       }
     }
 
-  }, [currentUser, isAuthenticated, initialAppLoadComplete, fetchUserPreferences, userPreferences, preferencesLoading]);
+  }, [currentUser, isAuthenticated, initialAppLoadComplete]);
 
   // Effect: Update validation when preferences change
   useEffect(() => {

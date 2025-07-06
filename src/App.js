@@ -182,7 +182,7 @@ useEffect(() => {
       setJustSignedIn(true);
       setShowRecommendations(false);
     }
-  }, [currentUser, isAuthenticated, justSignedIn]);
+  }, [currentUser, isAuthenticated]); // Removed justSignedIn from dependencies to break the loop
 
   // --- Modified handleSigninSuccess ---
   const handleCustomSigninSuccess = useCallback((user, isNew = false) => {
@@ -238,7 +238,7 @@ useEffect(() => {
     }
     
     logApp('Preference prompt banner check:', { shouldShow, completionPercentage });
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn, completionPercentage]);
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn]);
 
   // --- Effect: Show recommendations after app load ---
   useEffect(() => {
@@ -247,7 +247,7 @@ useEffect(() => {
       logApp('Showing recommendations after app initialization');
       setShowRecommendations(true);
     }
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, justSignedIn, showRecommendations]);
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, justSignedIn]); // Removed showRecommendations from dependencies to break the loop
 
   // --- Questionnaire Completion Handler ---
   const handleQuestionnaireComplete = useCallback((updatedPreferences) => {
@@ -269,7 +269,7 @@ useEffect(() => {
         setShowRecommendations(true);
       }, 500);
     }
-  }, [hookHandleQuestionnaireComplete, location.pathname, navigate]);
+  }, [location.pathname, navigate]); // Removed hookHandleQuestionnaireComplete from dependencies
 
   // --- Navigation Handlers ---
   const handleSignInClick = useCallback(() => navigate('/signin'), [navigate]);
