@@ -151,7 +151,8 @@ module.exports = (env, argv) => {
         { from: 'public/blog', to: 'blog' },
         { from: 'public/robots.txt', to: 'robots.txt' },
         { from: 'public/sitemap.xml', to: 'sitemap.xml', noErrorOnMissing: true },
-        { from: 'public/manifest.json', to: 'manifest.json', noErrorOnMissing: true }
+        { from: 'public/manifest.json', to: 'manifest.json', noErrorOnMissing: true },
+        { from: 'public/logo.png', to: 'logo.png' }
       ] 
     }),
     new webpack.DefinePlugin({

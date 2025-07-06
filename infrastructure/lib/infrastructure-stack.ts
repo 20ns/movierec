@@ -5,6 +5,7 @@ import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import { Duration } from 'aws-cdk-lib';
 import * as path from 'path';
 
@@ -160,6 +161,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // Signup Handler Lambda Function
@@ -171,6 +173,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // Refresh Token Lambda Function
@@ -182,6 +185,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // User Preferences Lambda Function
@@ -193,6 +197,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [jwtLayer, awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // Favourites Lambda Function
@@ -204,6 +209,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [jwtLayer, awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // Watchlist Lambda Function
@@ -215,6 +221,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [jwtLayer, awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // Movie Recommendations Lambda Function
@@ -228,6 +235,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [jwtLayer, awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // Media Cache Lambda Function
@@ -241,6 +249,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // User Stats Lambda Function
@@ -254,6 +263,7 @@ export class InfrastructureStack extends cdk.Stack {
       environment: sharedEnvironment,
       timeout: Duration.seconds(30),
       layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
     // ===========================
@@ -283,9 +293,9 @@ export class InfrastructureStack extends cdk.Stack {
       },
       deployOptions: {
         stageName: 'prod',
-        tracingEnabled: true,
-        dataTraceEnabled: true,
-        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        tracingEnabled: false,
+        dataTraceEnabled: false,
+        loggingLevel: apigateway.MethodLoggingLevel.ERROR,
       },
     });
 
