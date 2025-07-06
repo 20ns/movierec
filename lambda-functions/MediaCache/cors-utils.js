@@ -29,8 +29,8 @@ const generateCorsHeaders = (requestOrigin) => {
   if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) {
     headers['Access-Control-Allow-Origin'] = requestOrigin;
   } else {
-    // Default to localhost:3000 for development if origin not recognized
-    headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[2]; // localhost:3000
+    // Default to production domain if origin not recognized
+    headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[1]; // https://www.movierec.net
   }
   
   return headers;

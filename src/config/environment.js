@@ -14,8 +14,8 @@ const ENV_CONFIG = {
   COGNITO_CLIENT_ID: process.env.REACT_APP_COGNITO_CLIENT_ID || '4gob38of1s9tu7h9ciik5unjrl',
   
   // Redirect URLs
-  REDIRECT_SIGN_IN: process.env.REACT_APP_REDIRECT_SIGN_IN || 'http://localhost:3000/',
-  REDIRECT_SIGN_OUT: process.env.REACT_APP_REDIRECT_SIGN_OUT || 'http://localhost:3000/',
+  REDIRECT_SIGN_IN: process.env.REACT_APP_REDIRECT_SIGN_IN || 'https://www.movierec.net/',
+  REDIRECT_SIGN_OUT: process.env.REACT_APP_REDIRECT_SIGN_OUT || 'https://www.movierec.net/',
   
   // Development flags
   NODE_ENV: process.env.NODE_ENV || 'development',
