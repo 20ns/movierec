@@ -1,5 +1,6 @@
 // src/hooks/useFavorites.js
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import ENV_CONFIG from '../config/environment';
 
 // --- Cache Utilities ---
 const FAVORITES_CACHE_KEY = 'user_favorites_cache';
@@ -97,7 +98,7 @@ function useFavorites(currentUser, isAuthenticated) {
     isFetchingRef.current = true;
 
     try {      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
+        ENV_CONFIG.getApiUrl('/user/favourites'),
         {
           headers: {
             Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
@@ -170,7 +171,7 @@ function useFavorites(currentUser, isAuthenticated) {
     cacheFavorites(userId, updatedFavorites); // Update cache optimistically
 
     try {      const response = await fetch(
-        `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`,
+        ENV_CONFIG.getApiUrl('/user/favourites'),
         {
           method: 'DELETE',
           headers: {

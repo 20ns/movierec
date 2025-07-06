@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { fetchCachedMedia } from '../services/mediaCache'; // Assuming mediaCache service exists
+import ENV_CONFIG from '../config/environment';
 
 // --- Constants ---
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -313,7 +314,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
     if (!apiKey) return { favorites: [], genres: [], contentTypeRatio: { movies: 0.5, tv: 0.5 } };
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/favourites`, {
+      const response = await fetch(ENV_CONFIG.getApiUrl('/user/favourites'), {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         credentials: 'include',
       });
@@ -355,7 +356,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
   const fetchUserWatchlist = useCallback(async (token) => {
     if (!token) return [];
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/watchlist`, {
+      const response = await fetch(ENV_CONFIG.getApiUrl('/user/watchlist'), {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         credentials: 'include',
       });

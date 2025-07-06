@@ -1,6 +1,7 @@
 // src/hooks/useUserPreferences.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../components/ToastManager'; // Assuming ToastManager provides this
+import ENV_CONFIG from '../config/environment';
 
 // Helper for logging
 const logHook = (message, data) => {
@@ -53,7 +54,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
         throw new Error('No valid access token available');
       }
       const token = currentUser.signInUserSession.accessToken.jwtToken;
-      const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences`, {
+      const response = await fetch(ENV_CONFIG.getApiUrl('/user/preferences'), {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         credentials: 'include',
         mode: 'cors',

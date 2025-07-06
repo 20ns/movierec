@@ -42,7 +42,7 @@ provider:
   name: aws
   runtime: nodejs18.x
   region: eu-north-1 # Ensure this matches your deployed region
-  stage: dev
+  stage: prod
   environment:
     USER_POOL_ID: ${env:REACT_APP_COGNITO_USER_POOL_ID}
     COGNITO_CLIENT_ID: ${env:REACT_APP_COGNITO_CLIENT_ID}
