@@ -6,7 +6,7 @@ const {
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
   createCorsSuccessResponse 
-} = require("./cors-utils");
+} = require("./shared/cors-utils");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};

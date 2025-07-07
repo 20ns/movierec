@@ -6,7 +6,7 @@ const {
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
   createCorsSuccessResponse 
-} = require('./cors-utils');
+} = require('./shared/cors-utils');
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);

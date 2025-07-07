@@ -4,7 +4,7 @@ const {
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
   createCorsSuccessResponse 
-} = require("./cors-utils");
+} = require("./shared/cors-utils");
 
 // Initialize clients
 const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });

@@ -150,6 +150,7 @@ export class InfrastructureStack extends cdk.Stack {
       COGNITO_CLIENT_ID: existingUserPoolClient.userPoolClientId,
       REACT_APP_TMDB_API_KEY: process.env.REACT_APP_TMDB_API_KEY || '',
       REGION: this.region,
+      ALLOWED_CORS_ORIGINS: 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000',
     };
 
     // Sign-in Lambda Function

@@ -8,7 +8,7 @@ const {
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
   createCorsSuccessResponse 
-} = require("./cors-utils");
+} = require("./shared/cors-utils");
 
 exports.handler = async (event) => {
   console.log('Event received:', JSON.stringify(event, null, 2));
@@ -70,3 +70,4 @@ exports.handler = async (event) => {
   // Invalid request handler
   return createCorsErrorResponse(400, 'Invalid request method or path', requestOrigin);
 };
+

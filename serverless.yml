@@ -51,6 +51,7 @@ provider:
     USER_FAVORITES_TABLE: Favourites
     USER_WATCHLIST_TABLE: Watchlist
     TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment
+    ALLOWED_CORS_ORIGINS: ${env:ALLOWED_CORS_ORIGINS, 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000'}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -73,7 +74,7 @@ plugins:
 
 custom:
   corsConfig:
-    origin: "https://www.movierec.net,http://localhost:3000"
+    origin: "https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000"
     headers:
       - Content-Type
       - Authorization

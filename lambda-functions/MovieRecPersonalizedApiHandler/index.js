@@ -7,7 +7,7 @@ const {
   createCorsPreflightResponse, 
   createCorsErrorResponse, 
   createCorsSuccessResponse 
-} = require("./cors-utils");
+} = require("./shared/cors-utils");
 
 // Create a Cognito JWT verifier
 const verifier = CognitoJwtVerifier.create({

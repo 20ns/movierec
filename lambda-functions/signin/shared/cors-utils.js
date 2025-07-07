@@ -1,13 +1,18 @@
 // Shared CORS Utilities for Lambda Functions
 // Consistent CORS handling across all endpoints
 
-const ALLOWED_ORIGINS = [
-  'https://movierec.net',
-  'https://www.movierec.net', 
+// Get allowed origins from environment variable or use defaults
+const getDefaultOrigins = () => [
+  'https://www.movierec.net',
+  'https://movierec.net', 
   'http://localhost:3000',
   'http://localhost:8080',
   'http://127.0.0.1:3000'
 ];
+
+const ALLOWED_ORIGINS = process.env.ALLOWED_CORS_ORIGINS 
+  ? process.env.ALLOWED_CORS_ORIGINS.split(',').map(origin => origin.trim())
+  : getDefaultOrigins();
 
 const DEFAULT_HEADERS = {
   'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
@@ -25,12 +30,18 @@ const DEFAULT_HEADERS = {
 const generateCorsHeaders = (requestOrigin) => {
   const headers = { ...DEFAULT_HEADERS };
   
+  // Log for debugging
+  console.log('CORS Debug - Request Origin:', requestOrigin);
+  console.log('CORS Debug - Allowed Origins:', ALLOWED_ORIGINS);
+  
   // For credentialed requests, we must specify an exact origin, not '*'
   if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) {
     headers['Access-Control-Allow-Origin'] = requestOrigin;
+    console.log('CORS Debug - Origin matched, allowing:', requestOrigin);
   } else {
     // Default to production domain if origin not recognized
-    headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[1]; // https://www.movierec.net
+    headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0]; // https://www.movierec.net
+    console.log('CORS Debug - Origin not matched, defaulting to:', ALLOWED_ORIGINS[0]);
   }
   
   return headers;
@@ -89,10 +100,18 @@ const createCorsSuccessResponse = (data, requestOrigin, statusCode = 200) => {
  * @returns {string} Request origin
  */
 const extractOrigin = (event) => {
-  return event.headers?.origin || 
-         event.headers?.Origin || 
-         event.headers?.['Origin'] || 
-         '';
+  // Check various header formats (case-insensitive)
+  const headers = event.headers || {};
+  const origin = headers.origin || 
+                 headers.Origin || 
+                 headers['Origin'] || 
+                 headers['origin'] ||
+                 '';
+  
+  console.log('CORS Debug - Extracted origin:', origin);
+  console.log('CORS Debug - All headers:', JSON.stringify(headers, null, 2));
+  
+  return origin;
 };
 
 module.exports = {

@@ -10,7 +10,7 @@ const {
     createCorsPreflightResponse, 
     createCorsErrorResponse, 
     createCorsSuccessResponse 
-  } = require("./cors-utils");
+  } = require("./shared/cors-utils");
   
   const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });
