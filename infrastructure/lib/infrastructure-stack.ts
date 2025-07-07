@@ -14,6 +14,13 @@ export class InfrastructureStack extends cdk.Stack {
     super(scope, id, props);
 
     // ============================================
+    // ENVIRONMENT CONFIGURATION
+    // ============================================
+    
+    // Determine environment context for deployment-specific configurations
+    const environmentContext = this.node.tryGetContext('environment') || 'development';
+
+    // ============================================
     // EXISTING RESOURCES IMPORT
     // ============================================
     
@@ -267,20 +274,38 @@ export class InfrastructureStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    // Health Check Lambda Function
+    const healthFunction = new lambda.Function(this, 'HealthFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/health'), {
+        exclude: ['node_modules', '.git', '*.md', 'test', 'tests', '.env*']
+      }),
+      role: lambdaExecutionRole,
+      environment: {
+        ...sharedEnvironment,
+        ENVIRONMENT: environmentContext,
+      },
+      timeout: Duration.seconds(30),
+      layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
     // ===========================
     // API GATEWAY
     // ===========================
     
-    // Create REST API
+    // Create REST API with comprehensive CORS configuration
     const api = new apigateway.RestApi(this, 'MovieRecApi', {
       restApiName: 'MovieRec API',
       description: 'Movie Recommendation API Gateway',
       defaultCorsPreflightOptions: {
         allowOrigins: [
-          'https://movierec.net',
-          'https://www.movierec.net', 
+          'https://www.movierec.net',
+          'https://movierec.net', 
           'http://localhost:3000',
-          'http://localhost:8080'
+          'http://localhost:8080',
+          'http://127.0.0.1:3000'
         ],
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
@@ -289,8 +314,12 @@ export class InfrastructureStack extends cdk.Stack {
           'Authorization',
           'X-Api-Key',
           'X-Amz-Security-Token',
+          'Accept',
+          'Origin',
+          'X-Requested-With'
         ],
         allowCredentials: true,
+        maxAge: Duration.seconds(86400),
       },
       deployOptions: {
         stageName: 'prod',
@@ -351,50 +380,70 @@ export class InfrastructureStack extends cdk.Stack {
     const mediaResource = api.root.addResource('media');
     mediaResource.addMethod('GET', new apigateway.LambdaIntegration(mediaCacheFunction));
 
+    // Health check endpoint (public endpoint for monitoring)
+    const healthResource = api.root.addResource('health');
+    healthResource.addMethod('GET', new apigateway.LambdaIntegration(healthFunction));
+    healthResource.addMethod('OPTIONS', new apigateway.LambdaIntegration(healthFunction));
+
     // ===========================
     // API GATEWAY CORS FOR ERROR RESPONSES
     // ===========================
     
+    // Determine primary origin based on environment context
+    // For production deployments, prioritize production domain
+    // For development, prioritize localhost
+    const primaryOrigin = environmentContext === 'production' 
+      ? "'https://www.movierec.net'" 
+      : "'http://localhost:3000'";
+    
+    const corsResponseHeaders = {
+      'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept,Origin,X-Requested-With'",
+      'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+      'Access-Control-Allow-Credentials': "'true'",
+      'Access-Control-Max-Age': "'86400'",
+    };
+
     // Add CORS headers to authorization error responses
-    // Note: Cannot use '*' for Access-Control-Allow-Origin when credentials: 'include'
-    // Need to set specific origin, defaulting to localhost for development
+    // Using primary origin for Gateway Response headers
+    // Lambda functions will handle specific origin matching for 200 responses
     api.addGatewayResponse('UnauthorizedResponse', {
       type: apigateway.ResponseType.UNAUTHORIZED,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'http://localhost:3000'",
-        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
-        'Access-Control-Allow-Credentials': "'true'",
+        'Access-Control-Allow-Origin': primaryOrigin,
+        ...corsResponseHeaders,
       },
     });
 
     api.addGatewayResponse('ForbiddenResponse', {
       type: apigateway.ResponseType.ACCESS_DENIED,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'http://localhost:3000'",
-        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
-        'Access-Control-Allow-Credentials': "'true'",
+        'Access-Control-Allow-Origin': primaryOrigin,
+        ...corsResponseHeaders,
       },
     });
 
     api.addGatewayResponse('BadRequestResponse', {
       type: apigateway.ResponseType.BAD_REQUEST_BODY,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'http://localhost:3000'",
-        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
-        'Access-Control-Allow-Credentials': "'true'",
+        'Access-Control-Allow-Origin': primaryOrigin,
+        ...corsResponseHeaders,
       },
     });
 
     api.addGatewayResponse('InternalServerErrorResponse', {
       type: apigateway.ResponseType.DEFAULT_5XX,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'http://localhost:3000'",
-        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
-        'Access-Control-Allow-Credentials': "'true'",
+        'Access-Control-Allow-Origin': primaryOrigin,
+        ...corsResponseHeaders,
+      },
+    });
+
+    // Add additional Gateway Response for 4XX errors
+    api.addGatewayResponse('Default4XXResponse', {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': primaryOrigin,
+        ...corsResponseHeaders,
       },
     });
 
@@ -465,6 +514,11 @@ export class InfrastructureStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'MovieRecFunctionArn', {
       value: movieRecFunction.functionArn,
       description: 'Movie Recommendations Lambda Function ARN',
+    });
+
+    new cdk.CfnOutput(this, 'HealthFunctionArn', {
+      value: healthFunction.functionArn,
+      description: 'Health Check Lambda Function ARN',
     });
   }
 }
