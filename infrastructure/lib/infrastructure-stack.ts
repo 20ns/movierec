@@ -383,7 +383,6 @@ export class InfrastructureStack extends cdk.Stack {
     // Health check endpoint (public endpoint for monitoring)
     const healthResource = api.root.addResource('health');
     healthResource.addMethod('GET', new apigateway.LambdaIntegration(healthFunction));
-    healthResource.addMethod('OPTIONS', new apigateway.LambdaIntegration(healthFunction));
 
     // ===========================
     // API GATEWAY CORS FOR ERROR RESPONSES
