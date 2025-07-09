@@ -1,12 +1,7 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
-const { 
-  extractOrigin, 
-  createCorsPreflightResponse, 
-  createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require("./shared/cors-utils");
+const { createApiResponse } = require("./shared/response");
 
 // Configure DynamoDB client for production (always use cloud DynamoDB)
 const dynamoDbClientConfig = {};
@@ -15,26 +10,35 @@ const dynamoDbClientConfig = {};
 const client = new DynamoDBClient(dynamoDbClientConfig);
 const docClient = DynamoDBDocumentClient.from(client);
 
-// Create a Cognito JWT verifier
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.USER_POOL_ID,
-  tokenUse: "access",
-  clientId: process.env.COGNITO_CLIENT_ID,
-});
+let verifier;
+try {
+  verifier = CognitoJwtVerifier.create({
+    userPoolId: process.env.USER_POOL_ID,
+    tokenUse: "access",
+    clientId: process.env.COGNITO_CLIENT_ID,
+  });
+} catch (error) {
+  console.error("Failed to create Cognito JWT verifier:", error);
+}
 
 exports.handler = async (event) => {
-  const requestOrigin = extractOrigin(event);
+  console.log('Received event:', JSON.stringify(event, null, 2));
 
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return createCorsPreflightResponse(requestOrigin);
+    return createApiResponse(204, null, event);
+  }
+
+  if (!process.env.USER_PREFERENCES_TABLE) {
+    console.error("USER_PREFERENCES_TABLE environment variable is not set");
+    return createApiResponse(500, { error: "Server configuration error" }, event);
   }
 
   try {
     // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
+      return createApiResponse(401, { error: "Unauthorized" }, event);
     }
 
     const token = authHeader.substring(7);
@@ -44,11 +48,15 @@ exports.handler = async (event) => {
       // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
+      if (!verifier) {
+        console.error("JWT verifier not available");
+        return createApiResponse(500, { error: "JWT verifier configuration error" }, event);
+      }
       try {
         payload = await verifier.verify(token);
       } catch (error) {
         console.error("Token verification failed:", error);
-        return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
+        return createApiResponse(401, { error: "Unauthorized" }, event);
       }
     }
 
@@ -74,10 +82,10 @@ exports.handler = async (event) => {
           releaseYearEnd: new Date().getFullYear()
         };
 
-        return createCorsSuccessResponse({ preferences }, requestOrigin);
+        return createApiResponse(200, { preferences }, event);
       } catch (error) {
         console.error("Error getting preferences:", error);
-        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+        return createApiResponse(500, { error: "Internal server error" }, event);
       }
     } else if (event.httpMethod === 'POST') {
       // Update user preferences
@@ -95,16 +103,16 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return createCorsSuccessResponse({ message: "Preferences updated successfully" }, requestOrigin);
+        return createApiResponse(200, { message: "Preferences updated successfully" }, event);
       } catch (error) {
         console.error("Error updating preferences:", error);
-        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+        return createApiResponse(500, { error: "Internal server error" }, event);
       }
     } else {
-      return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
+      return createApiResponse(405, { error: "Method not allowed" }, event);
     }
   } catch (error) {
-    console.error("Unexpected error:", error);
-    return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+    console.error("=== UNEXPECTED ERROR IN USER PREFERENCES FUNCTION ===", error);
+    return createApiResponse(500, { error: "Internal server error", details: error.message }, event);
   }
 };

@@ -1,0 +1,18 @@
+{
+  "InfrastructureStack": {
+    "MovieRecFunctionArn": "arn:aws:lambda:eu-north-1:976193253924:function:InfrastructureStack-MovieRecFunctionD78028BB-UlKpUNVass97",
+    "WatchlistTableName": "Watchlist",
+    "MovieRecApiEndpointBC991878": "https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod/",
+    "MovieRecCacheTableName": "MovieRecCache",
+    "ApiGatewayUrl": "https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod/",
+    "UserPoolClientId": "4gob38of1s9tu7h9ciik5unjrl",
+    "SigninFunctionArn": "arn:aws:lambda:eu-north-1:976193253924:function:InfrastructureStack-SigninFunctionF7F181E7-GLD2OfssnWCX",
+    "UserPreferencesTableName": "UserPreferences",
+    "UserPoolId": "eu-north-1_x2FwI0mFK",
+    "FavouritesFunctionArn": "arn:aws:lambda:eu-north-1:976193253924:function:InfrastructureStack-FavouritesFunctionA99F73A4-MWEOUxZ1hqfr",
+    "UserPreferencesFunctionArn": "arn:aws:lambda:eu-north-1:976193253924:function:InfrastructureStack-UserPreferencesFunctionE60C62F-56vyqbB1Qoum",
+    "WatchlistFunctionArn": "arn:aws:lambda:eu-north-1:976193253924:function:InfrastructureStack-WatchlistFunction0F6DE204-qNQHIyHNONeN",
+    "HealthFunctionArn": "arn:aws:lambda:eu-north-1:976193253924:function:InfrastructureStack-HealthFunction19D7724A-DVY75q8PpOTV",
+    "FavouritesTableName": "Favourites"
+  }
+}

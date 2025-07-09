@@ -5,12 +5,7 @@ const {
   } = require('@aws-sdk/client-cognito-identity-provider');
   const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
   const crypto = require('crypto');
-  const { 
-    extractOrigin, 
-    createCorsPreflightResponse, 
-    createCorsErrorResponse, 
-    createCorsSuccessResponse 
-  } = require("./shared/cors-utils");
+  const { createApiResponse } = require("./shared/response");
   
   const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });
@@ -124,10 +119,8 @@ const {
     }
     
     // Otherwise, assume the event is from API Gateway.
-    const requestOrigin = extractOrigin(event);
-    
     if (event.httpMethod === 'OPTIONS') {
-      return createCorsPreflightResponse(requestOrigin);
+      return createApiResponse(204, null, event);
     }
   
     if (event.httpMethod === 'POST') {
@@ -138,10 +131,10 @@ const {
         // If a verification code is provided, handle confirmation.
         if (body.code) {
           response = await handleVerification(body.email, body.code);
-          return createCorsSuccessResponse({
+          return createApiResponse(200, {
             message: 'Email verified successfully!',
             email: body.email
-          }, requestOrigin);
+          }, event);
         }
         
         // Handle the sign-up request via Cognito.
@@ -155,17 +148,17 @@ const {
           // Optionally, decide if this should block registration.
         }
         
-        return createCorsSuccessResponse({
+        return createApiResponse(200, {
           message: 'Signup successful! Please check your email for verification code',
           userSub: response.UserSub
-        }, requestOrigin);
+        }, event);
   
       } catch (err) {
         console.error('Operation Error:', err);
-        return createCorsErrorResponse(400, mapCognitoError(err), requestOrigin, { code: err.name });
+        return createApiResponse(400, { error: mapCognitoError(err), code: err.name }, event);
       }
     }
   
-    return createCorsErrorResponse(400, 'Invalid request method', requestOrigin);
+    return createApiResponse(400, { error: 'Invalid request method' }, event);
   };
   

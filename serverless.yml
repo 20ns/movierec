@@ -2,8 +2,6 @@ service: movierec-backend
 
 frameworkVersion: '^4.0.0'
 
-# Custom CORS configuration for consistent setup
-
 # Package configuration to reduce deployment size
 package:
   patterns:
@@ -51,7 +49,7 @@ provider:
     USER_FAVORITES_TABLE: Favourites
     USER_WATCHLIST_TABLE: Watchlist
     TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment
-    ALLOWED_CORS_ORIGINS: ${env:ALLOWED_CORS_ORIGINS, 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000'}
+    ALLOWED_CORS_ORIGINS: ${env:ALLOWED_CORS_ORIGINS}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -70,27 +68,9 @@ provider:
 plugins:
   - serverless-offline
   # - serverless-dynamodb-local  # Temporarily disabled due to Java dependency
-  - enkonix-serverless-dotenv-plugin
+  # - enkonix-serverless-dotenv-plugin  # Temporarily disabled due to permissions issue
 
 custom:
-  corsConfig:
-    origin: "https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000"
-    headers:
-      - Content-Type
-      - Authorization
-      - X-Amz-Date
-      - X-Api-Key
-      - X-Amz-Security-Token
-      - Accept
-      - Origin
-      - X-Requested-With
-    allowCredentials: true
-    methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - OPTIONS
   serverless-offline:
     httpPort: 3001
     lambdaPort: 3002
@@ -105,12 +85,6 @@ custom:
       - dev
     migration:
       dir: offline/migrations
-  #     - dev
-  #   tables:
-  #     - UserPreferences
-  #     - MovieRecCache
-  #     - Favourites
-  #     - Watchlist
 
 functions:
   signin:
@@ -121,7 +95,6 @@ functions:
       - http:
           path: auth/signin
           method: post
-          cors: ${self:custom.corsConfig}
 
   signup:
     handler: lambda-functions/SignupHandler/index.handler
@@ -131,7 +104,6 @@ functions:
       - http:
           path: auth/signup
           method: post
-          cors: ${self:custom.corsConfig}
 
   refreshToken:
     handler: lambda-functions/RefreshTokenLambda/index.handler
@@ -141,7 +113,6 @@ functions:
       - http:
           path: auth/refresh
           method: post
-          cors: ${self:custom.corsConfig}
 
   userPreferences:
     handler: lambda-functions/UserPreferencesFunction/index.handler
@@ -151,11 +122,9 @@ functions:
       - http:
           path: user/preferences
           method: get
-          cors: ${self:custom.corsConfig}
       - http:
           path: user/preferences
           method: post
-          cors: ${self:custom.corsConfig}
 
   favourites:
     handler: lambda-functions/FavouritesFunction/index.handler
@@ -165,15 +134,12 @@ functions:
       - http:
           path: user/favourites
           method: get
-          cors: ${self:custom.corsConfig}
       - http:
           path: user/favourites
           method: post
-          cors: ${self:custom.corsConfig}
       - http:
           path: user/favourites
           method: delete
-          cors: ${self:custom.corsConfig}
 
   watchlist:
     handler: lambda-functions/watchlist/index.handler
@@ -183,15 +149,12 @@ functions:
       - http:
           path: user/watchlist
           method: get
-          cors: ${self:custom.corsConfig}
       - http:
           path: user/watchlist
           method: post
-          cors: ${self:custom.corsConfig}
       - http:
           path: user/watchlist
           method: delete
-          cors: ${self:custom.corsConfig}
 
   userStats:
     handler: lambda-functions/UserStatsFunction/index.handler
@@ -201,11 +164,9 @@ functions:
       - http:
           path: user/stats/{action}
           method: get
-          cors: ${self:custom.corsConfig}
       - http:
           path: user/stats/{action}
           method: post
-          cors: ${self:custom.corsConfig}
 
   recommendations:
     handler: lambda-functions/MovieRecPersonalizedApiHandler/index.handler
@@ -215,11 +176,9 @@ functions:
       - http:
           path: recommendations
           method: get
-          cors: ${self:custom.corsConfig}
       - http:
           path: recommendations
           method: post
-          cors: ${self:custom.corsConfig}
 
   mediaCache:
     handler: lambda-functions/MediaCache/index.handler
@@ -229,6 +188,5 @@ functions:
       - http:
           path: media
           method: get
-          cors: ${self:custom.corsConfig}
 
 # DynamoDB tables are managed by CDK infrastructure

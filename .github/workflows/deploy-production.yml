@@ -137,6 +137,9 @@ jobs:
     - name: Install CDK dependencies
       run: cd infrastructure && npm ci
       
+    - name: Prepare Lambda functions with shared code
+      run: cd infrastructure && npm run pre-deploy
+      
     - name: Preview infrastructure changes
       run: |
         echo "📋 Previewing infrastructure changes..."
@@ -145,7 +148,7 @@ jobs:
     - name: Deploy production infrastructure
       run: |
         echo "🏗️ Deploying infrastructure..."
-        cd infrastructure && npx cdk deploy --require-approval never --context environment=production
+        cd infrastructure && npm run deploy:production
       env:
         CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
         CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}

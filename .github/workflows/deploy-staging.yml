@@ -80,12 +80,15 @@ jobs:
     - name: Install CDK dependencies
       run: cd infrastructure && npm ci
       
+    - name: Prepare Lambda functions with shared code
+      run: cd infrastructure && npm run pre-deploy
+      
     - name: CDK Bootstrap (if needed)
       run: cd infrastructure && npx cdk bootstrap
       continue-on-error: true
       
     - name: Deploy staging infrastructure
-      run: cd infrastructure && npx cdk deploy --require-approval never --context environment=staging
+      run: cd infrastructure && npm run deploy:staging
       env:
         CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
         CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}

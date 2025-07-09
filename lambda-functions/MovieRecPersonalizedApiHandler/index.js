@@ -2,19 +2,18 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, BatchGetCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const axios = require('axios');
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
-const { 
-  extractOrigin, 
-  createCorsPreflightResponse, 
-  createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require("./shared/cors-utils");
+const { createApiResponse } = require("./shared/response");
 
-// Create a Cognito JWT verifier
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.USER_POOL_ID,
-  tokenUse: "access",
-  clientId: process.env.COGNITO_CLIENT_ID,
-});
+let verifier;
+try {
+  verifier = CognitoJwtVerifier.create({
+    userPoolId: process.env.USER_POOL_ID,
+    tokenUse: "access",
+    clientId: process.env.COGNITO_CLIENT_ID,
+  });
+} catch (error) {
+  console.error("Failed to create Cognito JWT verifier:", error);
+}
 
 // Initialize DynamoDB with retry configuration
 const client = new DynamoDBClient({
@@ -789,34 +788,33 @@ async function getRecommendations(mediaType, excludeIds, limit, userPreferences,
 }
 
 exports.handler = async (event) => {
-  const requestOrigin = extractOrigin(event);
-
   console.log('Event received:', JSON.stringify(event, null, 2));
 
-  // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return createCorsPreflightResponse(requestOrigin);
+    return createApiResponse(204, null, event);
   }
 
   try {
-    // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
+      return createApiResponse(401, { error: "Unauthorized" }, event);
     }
 
     const token = authHeader.substring(7);
     let payload;
     
     if (process.env.IS_OFFLINE === 'true') {
-      // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
+      if (!verifier) {
+        console.error("JWT verifier not available");
+        return createApiResponse(500, { error: "JWT verifier configuration error" }, event);
+      }
       try {
         payload = await verifier.verify(token);
       } catch (error) {
         console.error("Token verification failed:", error);
-        return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
+        return createApiResponse(401, { error: "Unauthorized" }, event);
       }
     }
 
@@ -824,26 +822,19 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'GET') {
       try {
-        // Get query parameters
         const queryParams = event.queryStringParameters || {};
         const mediaType = queryParams.mediaType || 'both';
         const excludeIds = queryParams.exclude ? queryParams.exclude.split(',').map(id => id.trim()) : [];
-        const limit = Math.min(parseInt(queryParams.limit) || 9, 9); // Default to 9 for batch processing
+        const limit = Math.min(parseInt(queryParams.limit) || 9, 9);
         
-        // Get user preferences for personalization
         let userPreferences = {};
         
-        // First, try to use preferences from query parameters (from localStorage)
         if (queryParams.preferences) {
           try {
             const queryPrefs = JSON.parse(queryParams.preferences);
-            console.log('Using preferences from query parameters:', queryPrefs);
-            
-            // Handle nested preferences structure - flatten if needed
             if (queryPrefs.preferences && typeof queryPrefs.preferences === 'object') {
-              console.log('Flattening nested preferences structure in Lambda');
               userPreferences = { ...queryPrefs, ...queryPrefs.preferences };
-              delete userPreferences.preferences; // Remove the nested object
+              delete userPreferences.preferences;
             } else {
               userPreferences = queryPrefs;
             }
@@ -852,78 +843,53 @@ exports.handler = async (event) => {
           }
         }
         
-        // If no valid preferences from query params, fall back to DynamoDB
         if (!userPreferences || Object.keys(userPreferences).length === 0) {
-          console.log('Falling back to DynamoDB preferences');
           const preferencesCommand = new GetCommand({
             TableName: process.env.USER_PREFERENCES_TABLE,
             Key: { userId: userId }
           });
-
           const preferencesResult = await dynamoDB.send(preferencesCommand);
           userPreferences = preferencesResult.Item || {};
         }
         
-        console.log('Final userPreferences being used:', {
-          hasPreferences: Object.keys(userPreferences).length > 0,
-          preferenceKeys: Object.keys(userPreferences),
-          questionnaireCompleted: userPreferences.questionnaireCompleted
-        });
-        
-        console.log('Fetching recommendations with params:', { mediaType, excludeIds, limit, userId });
-
-        // Fetch personalized recommendations using advanced algorithm
         const recommendations = await getRecommendations(mediaType, excludeIds, limit, userPreferences, userId);
 
-        return createCorsSuccessResponse({
+        return createApiResponse(200, {
           items: recommendations,
           source: 'personalized_lambda',
           userPreferences: userPreferences
-        }, requestOrigin);
+        }, event);
       } catch (error) {
         console.error("Error getting recommendations:", error);
-        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+        return createApiResponse(500, { error: "Internal server error" }, event);
       }
     } else if (event.httpMethod === 'POST') {
       try {
-        // Parse request body
         let requestBody = {};
         if (event.body) {
           try {
             requestBody = JSON.parse(event.body);
           } catch (error) {
             console.error('Failed to parse request body:', error);
-            return createCorsErrorResponse(400, "Invalid JSON in request body", requestOrigin);
+            return createApiResponse(400, { error: "Invalid JSON in request body" }, event);
           }
         }
 
-        // Get parameters from request body
         const mediaType = requestBody.mediaType || 'both';
         const excludeIds = requestBody.exclude ? requestBody.exclude.split(',').map(id => id.trim()) : [];
         const limit = Math.min(parseInt(requestBody.limit) || 9, 9);
         
-        // Get user preferences from request body
         let userPreferences = requestBody.preferences || {};
         
-        // If no preferences in request body, fall back to DynamoDB
         if (!userPreferences || Object.keys(userPreferences).length === 0) {
-          console.log('No preferences in request body, falling back to DynamoDB');
           const preferencesCommand = new GetCommand({
             TableName: process.env.USER_PREFERENCES_TABLE,
             Key: { userId: userId }
           });
-
           const preferencesResult = await dynamoDB.send(preferencesCommand);
           userPreferences = preferencesResult.Item || {};
         }
         
-        console.log('Final userPreferences being used (POST):', {
-          hasPreferences: Object.keys(userPreferences).length > 0,
-          keys: Object.keys(userPreferences),
-          quickModeCompleted: userPreferences.quickModeCompleted
-        });
-
-        // Generate recommendations using the recommendation engine
         const recommendations = await getRecommendations(
           mediaType, 
           excludeIds, 
@@ -932,20 +898,20 @@ exports.handler = async (event) => {
           userId
         );
 
-        return createCorsSuccessResponse({
+        return createApiResponse(200, {
           items: recommendations,
           source: 'personalized_lambda_post',
           userPreferences: userPreferences
-        }, requestOrigin);
+        }, event);
       } catch (error) {
         console.error("Error getting recommendations (POST):", error);
-        return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+        return createApiResponse(500, { error: "Internal server error" }, event);
       }
     } else {
-      return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
+      return createApiResponse(405, { error: "Method not allowed" }, event);
     }
   } catch (error) {
     console.error("Unexpected error:", error);
-    return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+    return createApiResponse(500, { error: "Internal server error" }, event);
   }
 };

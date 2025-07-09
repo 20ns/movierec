@@ -1,20 +1,13 @@
 const { DynamoDBClient, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
-const { 
-  extractOrigin, 
-  createCorsPreflightResponse, 
-  createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require("./shared/cors-utils");
+const { createApiResponse } = require("./shared/response");
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });
 
 // Health check endpoint for monitoring deployment success
 exports.handler = async (event) => {
-  const requestOrigin = extractOrigin(event);
-
   // Handle preflight CORS requests
   if (event.httpMethod === 'OPTIONS') {
-    return createCorsPreflightResponse(requestOrigin);
+    return createApiResponse(200, null, event);
   }
 
   try {
@@ -79,14 +72,16 @@ exports.handler = async (event) => {
       }
     };
 
-    return createCorsSuccessResponse(response, requestOrigin, allHealthy ? 200 : 503);
+    return createApiResponse(allHealthy ? 200 : 503, response, event);
 
   } catch (error) {
     console.error('Health check failed:', error);
 
-    return createCorsErrorResponse(503, 'Health check endpoint failed', requestOrigin, {
+    return createApiResponse(503, {
+      status: 'unhealthy',
       timestamp: new Date().toISOString(),
       error: error.message
-    });
+    }, event);
   }
 };
+

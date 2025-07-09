@@ -1,22 +1,15 @@
 const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const { createApiResponse } = require("./shared/response");
 
 // Initialize clients
 const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
 
-const { 
-  extractOrigin, 
-  createCorsPreflightResponse, 
-  createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require("./shared/cors-utils");
-
 exports.handler = async (event) => {
   console.log('Event received:', JSON.stringify(event, null, 2));
-  const requestOrigin = extractOrigin(event);
 
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return createCorsPreflightResponse(requestOrigin);
+    return createApiResponse(204, null, event);
   }
 
   // Handle POST request for signin
@@ -26,7 +19,7 @@ exports.handler = async (event) => {
       const { email, password } = body;
 
       if (!email || !password) {
-        return createCorsErrorResponse(400, 'Email and password are required', requestOrigin);
+        return createApiResponse(400, { error: 'Email and password are required' }, event);
       }
 
       // Authenticate with Cognito
@@ -42,12 +35,12 @@ exports.handler = async (event) => {
       const response = await cognitoClient.send(authCommand);
       const { AccessToken, IdToken, RefreshToken } = response.AuthenticationResult;
 
-      return createCorsSuccessResponse({
+      return createApiResponse(200, {
         AccessToken,
         IdToken,
         RefreshToken,
         email
-      }, requestOrigin);
+      }, event);
 
     } catch (err) {
       console.error('Authentication Error:', err);
@@ -63,11 +56,11 @@ exports.handler = async (event) => {
         errorMessage = 'User account not confirmed';
       }
 
-      return createCorsErrorResponse(statusCode, errorMessage, requestOrigin, { code: err.name });
+      return createApiResponse(statusCode, { error: errorMessage, code: err.name }, event);
     }
   }
 
   // Invalid request handler
-  return createCorsErrorResponse(400, 'Invalid request method or path', requestOrigin);
+  return createApiResponse(400, { error: 'Invalid request method or path' }, event);
 };
 

@@ -1,24 +1,23 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
-const { 
-  extractOrigin, 
-  createCorsPreflightResponse, 
-  createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require('./shared/cors-utils');
+const { createApiResponse } = require("./shared/response");
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 
 const TABLE_NAME = process.env.USER_PREFERENCES_TABLE || 'UserPreferences';
 
-// Create a Cognito JWT verifier
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.USER_POOL_ID,
-  tokenUse: "access",
-  clientId: process.env.COGNITO_CLIENT_ID,
-});
+let verifier;
+try {
+  verifier = CognitoJwtVerifier.create({
+    userPoolId: process.env.USER_POOL_ID,
+    tokenUse: "access",
+    clientId: process.env.COGNITO_CLIENT_ID,
+  });
+} catch (error) {
+  console.error("Failed to create Cognito JWT verifier:", error);
+}
 
 /**
  * Default user stats structure
@@ -175,19 +174,18 @@ async function awardXP(userId, xpAmount, reason = 'General activity') {
  * Lambda handler
  */
 exports.handler = async (event) => {
-  const requestOrigin = extractOrigin(event);
   console.log('UserStats Request:', JSON.stringify(event, null, 2));
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    return createCorsPreflightResponse(requestOrigin);
+    return createApiResponse(204, null, event);
   }
 
   try {
     // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return createCorsErrorResponse(401, "Unauthorized", requestOrigin);
+      return createApiResponse(401, { error: "Unauthorized" }, event);
     }
 
     const token = authHeader.substring(7);
@@ -197,11 +195,15 @@ exports.handler = async (event) => {
       // Bypass JWT verification in offline mode
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
+      if (!verifier) {
+        console.error("JWT verifier not available");
+        return createApiResponse(500, { error: "JWT verifier configuration error" }, event);
+      }
       try {
         payload = await verifier.verify(token);
       } catch (error) {
         console.error("Token verification failed:", error);
-        return createCorsErrorResponse(401, "Invalid or expired token", requestOrigin);
+        return createApiResponse(401, { error: "Invalid or expired token" }, event);
       }
     }
 
@@ -213,10 +215,10 @@ exports.handler = async (event) => {
       case 'GET':
         if (pathParameters.action === 'stats') {
           const stats = await getUserStats(userId);
-          return createCorsSuccessResponse({ 
+          return createApiResponse(200, { 
             success: true,
             data: stats 
-          }, requestOrigin);
+          }, event);
         }
         break;
 
@@ -226,29 +228,29 @@ exports.handler = async (event) => {
         if (pathParameters.action === 'award-xp') {
           const { xpAmount, reason } = body;
           const updatedStats = await awardXP(userId, xpAmount, reason);
-          return createCorsSuccessResponse({ 
+          return createApiResponse(200, { 
             success: true,
             data: updatedStats 
-          }, requestOrigin);
+          }, event);
         }
         
         if (pathParameters.action === 'update') {
           const updatedStats = await updateUserStats(userId, body);
-          return createCorsSuccessResponse({ 
+          return createApiResponse(200, { 
             success: true,
             data: updatedStats 
-          }, requestOrigin);
+          }, event);
         }
         break;
 
       default:
-        return createCorsErrorResponse(405, `Method ${method} not supported`, requestOrigin);
+        return createApiResponse(405, { error: `Method ${method} not supported` }, event);
     }
 
-    return createCorsErrorResponse(404, 'Endpoint not found', requestOrigin);
+    return createApiResponse(404, { error: 'Endpoint not found' }, event);
 
   } catch (error) {
     console.error('UserStats Error:', error);
-    return createCorsErrorResponse(500, error.message, requestOrigin);
+    return createApiResponse(500, { error: error.message }, event);
   }
 };

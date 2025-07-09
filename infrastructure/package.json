@@ -8,7 +8,11 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "pre-deploy": "node ../scripts/prepare-lambda-deployment.js",
+    "deploy": "npm run pre-deploy && cdk deploy --require-approval never",
+    "deploy:staging": "npm run pre-deploy && cdk deploy --require-approval never --context environment=staging",
+    "deploy:production": "npm run pre-deploy && cdk deploy --require-approval never --context environment=production"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

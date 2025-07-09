@@ -1,25 +1,18 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
 const axios = require('axios');
-const { 
-  extractOrigin, 
-  createCorsPreflightResponse, 
-  createCorsErrorResponse, 
-  createCorsSuccessResponse 
-} = require("./shared/cors-utils");
+const { createApiResponse } = require("./shared/response");
 
 // Initialize DynamoDB
 const client = new DynamoDBClient({});
 const dynamoDB = DynamoDBDocumentClient.from(client);
 
 exports.handler = async (event) => {
-  const requestOrigin = extractOrigin(event);
-
   console.log('Event received:', JSON.stringify(event, null, 2));
 
   // Handle OPTIONS request for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    return createCorsPreflightResponse(requestOrigin);
+    return createApiResponse(204, null, event);
   }
 
   if (event.httpMethod === 'GET') {
@@ -40,12 +33,12 @@ exports.handler = async (event) => {
         message: "Media cache feature coming soon"
       };
 
-      return createCorsSuccessResponse(mediaData, requestOrigin);
+      return createApiResponse(200, mediaData, event);
     } catch (error) {
       console.error("Error getting media cache:", error);
-      return createCorsErrorResponse(500, "Internal server error", requestOrigin);
+      return createApiResponse(500, { error: "Internal server error" }, event);
     }
   } else {
-    return createCorsErrorResponse(405, "Method not allowed", requestOrigin);
+    return createApiResponse(405, { error: "Method not allowed" }, event);
   }
 };

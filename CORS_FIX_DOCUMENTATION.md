@@ -1,8 +1,67 @@
-# CORS Issue Resolution - Production Deployment Fix
+# CORS Fix Documentation - Complete Solution
 
-## Problem Summary
-After CI/CD deployment to the main branch, CORS errors were occurring on production (https://www.movierec.net) with the following error pattern:
+## Problem
+The production website (https://www.movierec.net) was experiencing CORS errors when making requests to the API Gateway endpoints. The Lambda functions were incorrectly returning `http://localhost:3000` in the `Access-Control-Allow-Origin` header instead of the correct production domain.
+
+## Root Cause
+1. **Module Import Issue**: Lambda functions were trying to import from `../shared/response` but the shared directory wasn't being packaged with each function during deployment.
+2. **Logic Error**: The CORS handling logic in `shared/response.js` had flawed origin matching logic.
+
+## Solution
+1. **Fixed CORS Logic**: Updated `shared/response.js` to:
+   - Properly match origins against the `ALLOWED_CORS_ORIGINS` environment variable
+   - Default to the production domain when origin is not recognized
+   - Handle both development and production origins correctly
+
+2. **Fixed Module Structure**: 
+   - Copy the shared directory to each Lambda function directory before deployment
+   - Update import paths from `../shared/response` to `./shared/response`
+
+3. **Robust Origin Handling**:
+   - Production origin (`https://www.movierec.net`) → Returns same origin
+   - Localhost origin (`http://localhost:3000`) → Returns same origin  
+   - Invalid origin (`https://malicious.com`) → Returns production domain as default
+
+## Files Modified
+- `lambda-functions/shared/response.js` - Fixed CORS logic
+- All Lambda function `index.js` files - Updated import paths
+- `scripts/prepare-lambda-deployment.ps1` - Automated shared directory copying
+- `scripts/deploy.ps1` - Comprehensive deployment script
+- `scripts/test-cors.ps1` - CORS testing script
+
+## Deployment Process
+1. Run `scripts/prepare-lambda-deployment.ps1` to copy shared code
+2. Run `npm run cdk deploy` from the infrastructure directory
+3. Run `scripts/test-cors.ps1` to verify CORS is working
+
+Or use the all-in-one deployment script:
+```powershell
+.\scripts\deploy.ps1
 ```
+
+## Environment Variables
+The CORS handling relies on the `ALLOWED_CORS_ORIGINS` environment variable being set correctly:
+```
+ALLOWED_CORS_ORIGINS=https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000
+```
+
+## Testing
+Use the `test-cors.ps1` script to verify CORS is working correctly for all endpoints:
+- `/user/watchlist`
+- `/user/favourites` 
+- `/user/preferences`
+- `/user/stats/summary`
+- `/recommendations`
+- `/health`
+
+## Security
+- Only allows origins specified in `ALLOWED_CORS_ORIGINS`
+- Defaults to production domain for unrecognized origins
+- Supports credentials for authenticated requests
+- Properly handles preflight OPTIONS requests
+
+## Future Considerations
+Consider moving shared code to a Lambda Layer to avoid the need for copying directories during deployment.
 Access to fetch at 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod/user/favourites' 
 from origin 'https://www.movierec.net' has been blocked by CORS policy: 
 The 'Access-Control-Allow-Origin' header has a value 'http://localhost:3000' 
