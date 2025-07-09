@@ -35,10 +35,15 @@ function getCorsHeaders(requestOrigin) {
         headers['Access-Control-Allow-Origin'] = requestOrigin;
         console.log('CORS Debug - Origin matched, allowing:', requestOrigin);
     } else {
-        // Default to production domain if origin not recognized
-        headers['Access-Control-Allow-Origin'] = allowedOrigins[0]; // https://www.movierec.net
-        console.log('CORS Debug - Origin not matched, defaulting to:', allowedOrigins[0]);
-        console.log('CORS Debug - Request was from:', requestOrigin);
+        // Improved fallback: check if origin is localhost and allow it, otherwise use production
+        if (requestOrigin && (requestOrigin.includes('localhost') || requestOrigin.includes('127.0.0.1'))) {
+            headers['Access-Control-Allow-Origin'] = 'http://localhost:3000';
+            console.log('CORS Debug - Localhost detected, defaulting to localhost:3000');
+        } else {
+            headers['Access-Control-Allow-Origin'] = 'https://www.movierec.net';
+            console.log('CORS Debug - Non-localhost origin, defaulting to production domain');
+        }
+        console.log('CORS Debug - Origin not matched exactly, request was from:', requestOrigin);
     }
 
     return headers;
