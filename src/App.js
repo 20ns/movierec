@@ -137,6 +137,7 @@ useEffect(() => {
     validationResult,
     userGuidance,
     handleQuestionnaireComplete: hookHandleQuestionnaireComplete,
+    forceRefreshPreferences,
     completionPercentage,
     canGenerateRecommendations,
     hasBasicProfile
@@ -174,15 +175,24 @@ useEffect(() => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- Effect: Detect User Sign In ---
+  // --- Effect: Detect User Sign In and Force Preference Refresh ---
   useEffect(() => {
     const currentUserId = currentUser?.attributes?.sub;
-    if (currentUserId && isAuthenticated && !justSignedIn) {
+    if (currentUserId && isAuthenticated && !justSignedIn && initialAppLoadComplete) {
       logApp(`User signed in: ${currentUserId}`);
       setJustSignedIn(true);
       setShowRecommendations(false);
+      
+      // Force refresh preferences to ensure we have the latest data from the cloud
+      // This handles cases where user deleted cookies or is on a new device
+      if (forceRefreshPreferences) {
+        logApp('Forcing preference refresh after sign-in');
+        setTimeout(() => {
+          forceRefreshPreferences();
+        }, 1000); // Small delay to ensure auth is fully settled
+      }
     }
-  }, [currentUser, isAuthenticated]); // Removed justSignedIn from dependencies to break the loop
+  }, [currentUser, isAuthenticated, initialAppLoadComplete, forceRefreshPreferences]); // Added dependencies
 
   // --- Modified handleSigninSuccess ---
   const handleCustomSigninSuccess = useCallback((user, isNew = false) => {
@@ -192,6 +202,12 @@ useEffect(() => {
     // Reset recommendation-related state
     setJustSignedIn(true);
     setShowRecommendations(false);
+    
+    // For new users, don't force refresh as they won't have preferences yet
+    // For existing users, we'll let the effect above handle the refresh
+    if (isNew) {
+      logApp('New user detected, skipping preference refresh');
+    }
   }, [handleSigninSuccess]);
 
   // --- Mobile Detection ---
@@ -233,43 +249,123 @@ useEffect(() => {
     
     // When user has no preferences, we still want to show the recommendations section
     if (shouldShow && justSignedIn) {
+      logApp('Showing recommendations for user without preferences');
       setShowRecommendations(true);
       setJustSignedIn(false);
     }
     
-    logApp('Preference prompt banner check:', { shouldShow, completionPercentage });
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn]);
+    // When user has completed questionnaire, ensure recommendations are shown
+    if (initialAppLoadComplete && isAuthenticated && hasCompletedQuestionnaire && !showRecommendations) {
+      logApp('User has completed questionnaire, showing recommendations');
+      setShowRecommendations(true);
+    }
+    
+    logApp('Preference prompt banner check:', { 
+      shouldShow, 
+      completionPercentage, 
+      hasCompletedQuestionnaire,
+      showRecommendations
+    });
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn, showRecommendations]);
 
   // --- Effect: Show recommendations after app load ---
   useEffect(() => {
-    // Prevent this effect from triggering multiple times for the same state
+    // Show recommendations when app is loaded and user is authenticated
     if (initialAppLoadComplete && isAuthenticated && !preferencesLoading && !justSignedIn && !showRecommendations) {
-      logApp('Showing recommendations after app initialization');
+      logApp('Showing recommendations after app initialization', {
+        hasCompletedQuestionnaire,
+        canGenerateRecommendations,
+        userPreferences: !!userPreferences
+      });
       setShowRecommendations(true);
     }
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, justSignedIn]); // Removed showRecommendations from dependencies to break the loop
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, justSignedIn, hasCompletedQuestionnaire]); // Added hasCompletedQuestionnaire
+
+  // --- Effect: Handle preference loading completion ---
+  useEffect(() => {
+    // When preferences finish loading, ensure UI state is correct
+    if (initialAppLoadComplete && isAuthenticated && !preferencesLoading && !justSignedIn) {
+      logApp('Preferences loading completed, checking UI state', {
+        hasCompletedQuestionnaire,
+        showRecommendations,
+        userPreferences: !!userPreferences
+      });
+      
+      // If user has completed questionnaire but recommendations aren't showing, show them
+      if (hasCompletedQuestionnaire && !showRecommendations) {
+        logApp('User has completed preferences but recommendations not showing - fixing this');
+        setShowRecommendations(true);
+      }
+    }
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, justSignedIn, showRecommendations, userPreferences]);
+
+  // --- Effect: Monitor questionnaire completion status changes ---
+  useEffect(() => {
+    // This effect specifically monitors when hasCompletedQuestionnaire changes to true
+    if (hasCompletedQuestionnaire && initialAppLoadComplete && isAuthenticated) {
+      logApp('Questionnaire completion status changed to true', {
+        showRecommendations,
+        preferencesLoading,
+        userPreferences: !!userPreferences
+      });
+      
+      // Ensure recommendations are shown when questionnaire is completed
+      if (!showRecommendations) {
+        logApp('Questionnaire completed - showing recommendations');
+        setShowRecommendations(true);
+      }
+      
+      // Hide the preferences prompt banner
+      setShowPreferencesPromptBanner(false);
+    }
+  }, [hasCompletedQuestionnaire, initialAppLoadComplete, isAuthenticated, showRecommendations, preferencesLoading, userPreferences]);
 
   // --- Questionnaire Completion Handler ---
-  const handleQuestionnaireComplete = useCallback((updatedPreferences) => {
-    logApp('Questionnaire completed from App.js.');
+  const handleQuestionnaireComplete = useCallback((completionData) => {
+    logApp('Questionnaire completed from App.js.', completionData);
     
-    // Use the hook's handler which includes proper coordination
-    const success = hookHandleQuestionnaireComplete(updatedPreferences);
+    // Extract preferences from completion data (could be just preferences or enhanced data)
+    const updatedPreferences = completionData?.preferences || completionData;
+    const isEnhancedCallback = completionData && typeof completionData === 'object' && completionData.forceRefresh !== undefined;
     
-    if (success) {
+    // Use the hook's handler with enhanced completion data
+    const success = hookHandleQuestionnaireComplete(
+      updatedPreferences, 
+      isEnhancedCallback ? completionData : { 
+        forceRefresh: true, 
+        source: 'questionnaire_completion' 
+      }
+    );
+    
+    if (success !== false) {
+      logApp('Questionnaire completion successful, updating UI state');
+      
+      // Update UI state immediately
       setShowQuestionnaireModal(false);
       setShowPreferencesPromptBanner(false);
       
+      // Navigate if on onboarding page
       if (location.pathname === '/onboarding') {
         navigate('/');
       }
       
-      // Add a small delay before showing recommendations after questionnaire completion
+      // Force refresh of PersonalizedRecommendations if available
+      if (personalizedRecommendationsRef.current) {
+        logApp('Triggering PersonalizedRecommendations refresh');
+        setTimeout(() => {
+          personalizedRecommendationsRef.current.refreshRecommendations(updatedPreferences);
+        }, 200);
+      }
+      
+      // Show recommendations with a delay to ensure state is updated
       setTimeout(() => {
+        logApp('Showing recommendations after questionnaire completion');
         setShowRecommendations(true);
-      }, 500);
+      }, 300);
+    } else {
+      logError('Questionnaire completion failed');
     }
-  }, [location.pathname, navigate]); // Removed hookHandleQuestionnaireComplete from dependencies
+  }, [location.pathname, navigate, hookHandleQuestionnaireComplete]);
 
   // --- Navigation Handlers ---
   const handleSignInClick = useCallback(() => navigate('/signin'), [navigate]);
@@ -409,8 +505,11 @@ useEffect(() => {
   const handlePreferencesUpdated = useCallback((updatedPreferences) => {
     logApp('Preferences updated from questionnaire', updatedPreferences);
     
-    // Use the hook's update function which includes validation
-    hookHandleQuestionnaireComplete(updatedPreferences);
+    // Use the hook's update function with enhanced callback structure
+    hookHandleQuestionnaireComplete(updatedPreferences, {
+      forceRefresh: false, // This is an auto-save, not final completion
+      source: 'questionnaire_auto_save'
+    });
     
     // Trigger recommendation refresh if reference is available
     if (personalizedRecommendationsRef.current) {

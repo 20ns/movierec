@@ -753,24 +753,28 @@ const OnboardingQuestionnaire = ({
         console.warn('Cloud save failed, using local storage:', result.warning);
       }
 
-      // Trigger the callback to recalculate recommendations if requested
-      if (triggerUpdateCallback && onPreferencesUpdated) {
-        setTimeout(() => {
-          console.log('[Questionnaire] Triggering onPreferencesUpdated callback');
-          onPreferencesUpdated(result.preferences);
-        }, 100);
+      // Always trigger the callback for preference updates
+      if (onPreferencesUpdated) {
+        console.log('[Questionnaire] Triggering onPreferencesUpdated callback');
+        onPreferencesUpdated(result.preferences);
       }
 
-      // If this is the final step and save, call onComplete
+      // If this is the final step and save, call onComplete with additional coordination
       if (!isPartial && step === totalSteps && onComplete) {
-        if (onPreferencesUpdated && !triggerUpdateCallback) {
-          onPreferencesUpdated(result.preferences);
-        }
+        console.log('[Questionnaire] Final step completed, triggering onComplete');
         
-        // Small delay to ensure localStorage and callbacks have time to complete
-        setTimeout(() => {
-          onComplete();
-        }, 100);
+        // Trigger completion immediately to update parent state
+        onComplete({
+          preferences: result.preferences,
+          forceRefresh: true,
+          source: 'questionnaire_completion'
+        });
+      }
+      
+      // For partial saves, still trigger updates if it's an auto-save
+      if (isPartial && triggerUpdateCallback && onPreferencesUpdated) {
+        console.log('[Questionnaire] Auto-save triggered, updating parent state');
+        onPreferencesUpdated(result.preferences);
       }
     } catch (error) {
       console.error('Error saving preferences:', error);

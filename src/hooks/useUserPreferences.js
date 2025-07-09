@@ -76,7 +76,8 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
           logHook('Preferences loaded successfully:', {
             source: result.source,
             hasData: !!fetchedData,
-            questionnaireCompleted: fetchedData.questionnaireCompleted
+            questionnaireCompleted: fetchedData.questionnaireCompleted,
+            userId: currentUserId
           });
           
           const apiCompleted = fetchedData?.questionnaireCompleted || false;
@@ -87,16 +88,35 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
           if (result.source === 'local' && result.warning) {
             logHook('Warning: Using local data -', result.warning);
           }
+          
+          // Update localStorage to ensure consistency
+          if (result.source === 'cloud') {
+            try {
+              localStorage.setItem(`questionnaire_completed_${currentUserId}`, apiCompleted ? 'true' : 'false');
+            } catch (e) { logError('Error updating localStorage:', e); }
+          }
         } else {
           logHook('No preferences found, user needs to complete questionnaire');
           setUserPreferences(null);
           setHasCompletedQuestionnaire(false);
+          
+          // Clear any stale localStorage data
+          try {
+            localStorage.removeItem(`questionnaire_completed_${currentUserId}`);
+            localStorage.removeItem(`userPrefs_${currentUserId}`);
+          } catch (e) { logError('Error clearing localStorage:', e); }
         }
       } else {
         if (result.code === 'NO_DATA_FOUND') {
           logHook('No preferences found anywhere, user needs to complete questionnaire');
           setUserPreferences(null);
           setHasCompletedQuestionnaire(false);
+          
+          // Clear any stale localStorage data
+          try {
+            localStorage.removeItem(`questionnaire_completed_${currentUserId}`);
+            localStorage.removeItem(`userPrefs_${currentUserId}`);
+          } catch (e) { logError('Error clearing localStorage:', e); }
         } else {
           throw new Error(result.error || 'Failed to load preferences');
         }
@@ -106,6 +126,15 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       
       // Update validation and guidance after successful fetch
       updateValidationAndGuidance(fetchedData);
+      
+      // Force a state update to ensure parent components are notified
+      if (fetchedData && fetchedData.questionnaireCompleted) {
+        logHook('Preferences loaded with completed questionnaire - triggering state update');
+        // Small delay to ensure all state is updated
+        setTimeout(() => {
+          setJustRefreshedPrefs(true);
+        }, 50);
+      }
       
       return fetchedData;
 
@@ -164,18 +193,23 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
   }, []);
 
   // Function to handle questionnaire completion with proper coordination
-  const handleQuestionnaireComplete = useCallback((updatedPreferences) => {
+  const handleQuestionnaireComplete = useCallback((updatedPreferences, completionData = {}) => {
     const userId = currentUser?.attributes?.sub;
     if (!userId) {
       logError('No user ID for questionnaire completion.');
       return;
     }
 
-    logHook('Questionnaire completed, updating state');
+    logHook('Questionnaire completed, updating state', {
+      hasPreferences: !!updatedPreferences,
+      forceRefresh: completionData.forceRefresh,
+      source: completionData.source
+    });
     
     // Update state immediately for UI responsiveness
     setUserPreferences(updatedPreferences);
     setHasCompletedQuestionnaire(true);
+    setJustRefreshedPrefs(true); // Mark as just refreshed for immediate UI updates
     
     // Update validation without triggering dependency
     if (updatedPreferences) {
@@ -193,10 +227,13 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       logError('Error writing to localStorage:', e);
     }
 
-    // Trigger a fresh fetch to ensure API is in sync (but don't wait for it)
-    setTimeout(() => {
-      fetchUserPreferencesRef.current?.(true); // Force refresh to sync with API
-    }, 100);
+    // Force refresh preferences from cloud to ensure consistency
+    if (completionData.forceRefresh || completionData.source === 'questionnaire_completion') {
+      logHook('Forcing preference refresh after questionnaire completion');
+      setTimeout(() => {
+        fetchUserPreferencesRef.current?.(true); // Force refresh to sync with API
+      }, 200); // Reduced delay for faster UI response
+    }
 
     return true;
   }, [currentUser?.attributes?.sub]);
@@ -280,6 +317,12 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
   }, [userPreferences, updateValidationAndGuidance]);
 
 
+  // Add a force refresh function for external use
+  const forceRefreshPreferences = useCallback(() => {
+    logHook('Force refresh triggered externally');
+    fetchUserPreferencesRef.current?.(true);
+  }, []);
+
   return {
     userPreferences,
     hasCompletedQuestionnaire,
@@ -292,6 +335,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     updatePreferences,
     setHasCompletedQuestionnaire,
     setUserPreferences,
+    forceRefreshPreferences,
     // Computed properties for convenience
     completionPercentage: validationResult?.confidence || 0,
     canGenerateRecommendations: validationResult?.canGenerateRecommendations || false,

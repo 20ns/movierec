@@ -23,7 +23,7 @@ import {
   RECOMMENDATION_STATES
 } from '../utils/recommendationStateManager';
 
-const DEBUG_LOGGING = false;
+const DEBUG_LOGGING = true;
 
 const logMessage = (message, data) => {
   if (DEBUG_LOGGING) {
@@ -88,6 +88,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Core recommendation fetching function ---
   const fetchRecommendations = useCallback(async (forceRefresh = false) => {
+    logMessage('fetchRecommendations called', {
+      forceRefresh,
+      fetchInProgress: fetchInProgress.current,
+      isAuthenticated,
+      userId,
+      propUserPreferences: !!propUserPreferences,
+      propHasCompletedQuestionnaire
+    });
+
     if (fetchInProgress.current) {
       logMessage('Fetch already in progress, skipping');
       return;
@@ -105,6 +114,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
     try {
       // Set loading state
+      logMessage('Setting loading state');
       safeSetState({ state: RECOMMENDATION_STATES.LOADING });
       
       // Check localStorage as fallback
@@ -236,6 +246,36 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, userId, initialAppLoadComplete, currentState]);
+
+  // --- Handle questionnaire completion ---
+  useEffect(() => {
+    if (isAuthenticated && userId && initialAppLoadComplete && propHasCompletedQuestionnaire && !fetchInProgress.current) {
+      logMessage('Questionnaire completed - fetching recommendations', {
+        propHasCompletedQuestionnaire,
+        currentState,
+        propUserPreferences: !!propUserPreferences
+      });
+      
+      // Force fetch recommendations when questionnaire is completed
+      fetchRecommendations(true); // Force refresh
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userId, initialAppLoadComplete, propHasCompletedQuestionnaire]);
+
+  // --- Handle user preferences changes ---
+  useEffect(() => {
+    if (isAuthenticated && userId && initialAppLoadComplete && propUserPreferences && propUserPreferences.questionnaireCompleted && !fetchInProgress.current) {
+      logMessage('User preferences loaded with completed questionnaire - fetching recommendations', {
+        propHasCompletedQuestionnaire,
+        currentState,
+        propUserPreferences: !!propUserPreferences
+      });
+      
+      // Force fetch recommendations when user preferences are loaded with completed questionnaire
+      fetchRecommendations(true); // Force refresh
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userId, initialAppLoadComplete, propUserPreferences]);
 
   // --- Auto-retry on certain errors ---
   useEffect(() => {
