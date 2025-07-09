@@ -38,10 +38,20 @@ exports.handler = async (event) => {
     // Extract and verify JWT token
     const authHeader = event.headers.Authorization || event.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return createApiResponse(401, { error: "Unauthorized" }, event);
+      console.error('No authorization header or invalid format');
+      return createApiResponse(401, { error: "No authorization header provided" }, event);
     }
 
     const token = authHeader.substring(7);
+    console.log('Token received:', token.substring(0, 20) + '...');
+    
+    // Validate token format
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('Invalid token format: expected 3 parts, got', tokenParts.length);
+      return createApiResponse(401, { error: "Invalid token format" }, event);
+    }
+    
     let payload;
     
     if (process.env.IS_OFFLINE === 'true') {
@@ -54,9 +64,20 @@ exports.handler = async (event) => {
       }
       try {
         payload = await verifier.verify(token);
+        console.log('Token verified successfully for user:', payload.sub);
       } catch (error) {
-        console.error("Token verification failed:", error);
-        return createApiResponse(401, { error: "Unauthorized" }, event);
+        console.error("Token verification failed:", {
+          errorMessage: error.message,
+          errorName: error.name,
+          tokenLength: token.length,
+          tokenStart: token.substring(0, 20),
+          userPoolId: process.env.USER_POOL_ID,
+          clientId: process.env.COGNITO_CLIENT_ID
+        });
+        return createApiResponse(401, { 
+          error: "Token verification failed",
+          details: error.message 
+        }, event);
       }
     }
 
@@ -65,6 +86,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       // Get user preferences
       try {
+        console.log('Getting preferences for user:', userId);
         const command = new GetCommand({
           TableName: process.env.USER_PREFERENCES_TABLE,
           Key: { userId: userId }
@@ -72,25 +94,30 @@ exports.handler = async (event) => {
 
         const result = await docClient.send(command);
         
-        const preferences = result.Item || {
-          userId: userId,
-          genres: [],
-          keywords: [],
-          minRating: 0,
-          maxRating: 10,
-          releaseYearStart: 1900,
-          releaseYearEnd: new Date().getFullYear()
-        };
-
-        return createApiResponse(200, { preferences }, event);
+        if (result.Item) {
+          console.log('Preferences found for user:', userId);
+          return createApiResponse(200, { preferences: result.Item }, event);
+        } else {
+          console.log('No preferences found for user:', userId);
+          return createApiResponse(404, { error: "No preferences found" }, event);
+        }
       } catch (error) {
         console.error("Error getting preferences:", error);
-        return createApiResponse(500, { error: "Internal server error" }, event);
+        return createApiResponse(500, { error: "Internal server error", details: error.message }, event);
       }
     } else if (event.httpMethod === 'POST') {
       // Update user preferences
       try {
+        console.log('Updating preferences for user:', userId);
         const preferences = JSON.parse(event.body || '{}');
+        
+        // Log the preferences being saved (without sensitive data)
+        console.log('Preferences to save:', {
+          userId: userId,
+          questionnaireCompleted: preferences.questionnaireCompleted,
+          favoriteGenres: preferences.favoriteGenres?.length || 0,
+          hasData: Object.keys(preferences).length > 0
+        });
         
         const command = new PutCommand({
           TableName: process.env.USER_PREFERENCES_TABLE,
@@ -103,10 +130,15 @@ exports.handler = async (event) => {
 
         await docClient.send(command);
         
-        return createApiResponse(200, { message: "Preferences updated successfully" }, event);
+        console.log('Preferences saved successfully for user:', userId);
+        return createApiResponse(200, { 
+          message: "Preferences updated successfully",
+          userId: userId,
+          timestamp: new Date().toISOString()
+        }, event);
       } catch (error) {
         console.error("Error updating preferences:", error);
-        return createApiResponse(500, { error: "Internal server error" }, event);
+        return createApiResponse(500, { error: "Internal server error", details: error.message }, event);
       }
     } else {
       return createApiResponse(405, { error: "Method not allowed" }, event);

@@ -706,7 +706,7 @@ const OnboardingQuestionnaire = ({
   };
 
   const savePreferencesToDB = async (isPartial = false, prefsToUpdate = null, triggerUpdateCallback = false) => {
-    if (!currentUser || !currentUser?.signInUserSession?.accessToken?.jwtToken) {
+    if (!currentUser) {
       setAuthError(true);
       setError('Please log in to save preferences.');
       return;
@@ -727,55 +727,44 @@ const OnboardingQuestionnaire = ({
 
     setIsSubmitting(true);
     try {
-      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-        throw new Error('No valid access token available');
-      }
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
+      // Import the preference service
+      const { savePreferences } = await import('../services/preferenceService');
       
-      // Use axios to save preferences (consistent with other components)
-      const API_GATEWAY_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
+      // Use the robust preference service
+      const result = await savePreferences(prefsToSave, currentUser, isPartial);
       
-      const response = await axios.post(
-        `${API_GATEWAY_URL}/user/preferences`,
-        prefsToSave,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
+      if (!result.success) {
+        // Handle partial success (local save succeeded, cloud failed)
+        if (result.localSave?.success) {
+          console.warn('Preferences saved locally but cloud save failed:', result.cloudSave?.error);
+          setError('Preferences saved locally. Cloud sync may be delayed.');
+        } else {
+          throw new Error(result.error || 'Failed to save preferences');
         }
-      );
-      
-      console.log('Preferences saved successfully:', response.data);
-
-      // Save to localStorage for offline/cache use
-      try {
-        const userIdForStorage = currentUser.attributes.sub;
-        console.log('[Questionnaire] Saving to localStorage with userId:', userIdForStorage);
-        console.log('[Questionnaire] Saving preferences:', prefsToSave);
-        localStorage.setItem(`userPrefs_${userIdForStorage}`, JSON.stringify(prefsToSave));
-        localStorage.setItem(`questionnaire_completed_${userIdForStorage}`, prefsToSave.questionnaireCompleted.toString());
-        console.log('[Questionnaire] Successfully saved to localStorage');
-      } catch (storageError) {
-        console.warn('Could not save preferences to localStorage:', storageError);
       }
+      
+      console.log('Preferences saved successfully:', result);
 
       // Mark as saved
       setSaveProgress(2);
+
+      // Show warning if only local save succeeded
+      if (result.source === 'local' && result.warning) {
+        console.warn('Cloud save failed, using local storage:', result.warning);
+      }
 
       // Trigger the callback to recalculate recommendations if requested
       if (triggerUpdateCallback && onPreferencesUpdated) {
         setTimeout(() => {
           console.log('[Questionnaire] Triggering onPreferencesUpdated callback');
-          onPreferencesUpdated(prefsToSave);
+          onPreferencesUpdated(result.preferences);
         }, 100);
       }
 
       // If this is the final step and save, call onComplete
       if (!isPartial && step === totalSteps && onComplete) {
         if (onPreferencesUpdated && !triggerUpdateCallback) {
-          onPreferencesUpdated(prefsToSave);
+          onPreferencesUpdated(result.preferences);
         }
         
         // Small delay to ensure localStorage and callbacks have time to complete
@@ -790,11 +779,17 @@ const OnboardingQuestionnaire = ({
       setSaveProgress(0);
       
       // Provide more specific error messages
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      if (error.message.includes('Network') || error.message.includes('fetch')) {
         setError('Network error. Please check your connection and try again.');
-      } else if (error.message.includes('Authentication')) {
+      } else if (error.message.includes('Authentication') || error.message.includes('Unauthorized')) {
         setAuthError(true);
-        setError(error.message);
+        setError('Authentication failed. Please try logging in again.');
+      } else if (error.message.includes('Token expired')) {
+        setAuthError(true);
+        setError('Your session has expired. Please log in again.');
+      } else if (error.message.includes('No user ID')) {
+        setAuthError(true);
+        setError('User session invalid. Please log in again.');
       } else {
         setError(error.message || 'Failed to save preferences. Please try again.');
       }

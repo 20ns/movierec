@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ENV_CONFIG from '../config/environment';
 import { validateUserPreferences, getUserGuidance } from '../utils/userDataValidator';
+import { loadPreferences, hasCompletedQuestionnaire as checkQuestionnaire } from '../services/preferenceService';
+import { validateAuthState } from '../services/authService';
 
 // Helper for logging
 const logHook = (message, data) => {
@@ -52,17 +54,15 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     setJustRefreshedPrefs(false); // Reset flag
 
     try {
-      // Safely extract access token with proper error handling
-      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
-        throw new Error('No valid access token available');
+      // Validate authentication state first
+      const authState = await validateAuthState(currentUser);
+      if (!authState.valid) {
+        throw new Error(`Authentication validation failed: ${authState.error}`);
       }
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
-      const response = await fetch(ENV_CONFIG.getApiUrl('/user/preferences'), {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        credentials: 'include',
-        mode: 'cors',
-      });
 
+      // Use the robust preference service
+      const result = await loadPreferences(currentUser, forceRefresh);
+      
       // Abort if a newer fetch cycle has started
       if (currentRefreshCycle !== refreshCycleRef.current) {
         logHook('Aborting outdated preferences fetch response handling', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
@@ -70,23 +70,38 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       }
 
       let fetchedData = null;
-      if (!response.ok) {
-        if (response.status === 404) {
-          logHook('Preferences fetch returned 404 (No preferences saved yet)');
+      if (result.success) {
+        fetchedData = result.data;
+        if (fetchedData) {
+          logHook('Preferences loaded successfully:', {
+            source: result.source,
+            hasData: !!fetchedData,
+            questionnaireCompleted: fetchedData.questionnaireCompleted
+          });
+          
+          const apiCompleted = fetchedData?.questionnaireCompleted || false;
+          setUserPreferences(fetchedData);
+          setHasCompletedQuestionnaire(apiCompleted);
+          
+          // Show warning if using local data
+          if (result.source === 'local' && result.warning) {
+            logHook('Warning: Using local data -', result.warning);
+          }
+        } else {
+          logHook('No preferences found, user needs to complete questionnaire');
           setUserPreferences(null);
           setHasCompletedQuestionnaire(false);
-          try { localStorage.removeItem(`questionnaire_completed_${currentUserId}`); } catch (e) {}
-        } else {
-          throw new Error(`Preferences API Error: Status ${response.status}`);
         }
       } else {
-        fetchedData = await response.json();
-        logHook('Preferences fetched successfully:', fetchedData);
-        const apiCompleted = fetchedData?.questionnaireCompleted || false;
-        setUserPreferences(fetchedData);
-        setHasCompletedQuestionnaire(apiCompleted);
-        try { localStorage.setItem(`questionnaire_completed_${currentUserId}`, apiCompleted ? 'true' : 'false'); } catch (e) { logError('Error writing to localStorage:', e); }
+        if (result.code === 'NO_DATA_FOUND') {
+          logHook('No preferences found anywhere, user needs to complete questionnaire');
+          setUserPreferences(null);
+          setHasCompletedQuestionnaire(false);
+        } else {
+          throw new Error(result.error || 'Failed to load preferences');
+        }
       }
+      
       setJustRefreshedPrefs(true);
       
       // Update validation and guidance after successful fetch
