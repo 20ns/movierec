@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 lambda-layers/*/node_modules/
+# Exception: JWT layer dependencies needed for deployment
+!lambda-layers/jwt/nodejs/node_modules/
 
 # Build artifacts
 dist/

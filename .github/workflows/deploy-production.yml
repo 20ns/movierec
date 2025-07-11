@@ -132,10 +132,31 @@ jobs:
     - name: Ensure JWT layer dependencies
       run: |
         echo "📦 Ensuring JWT layer dependencies are installed..."
-        cd lambda-layers/jwt/nodejs
-        if [ ! -d "node_modules" ] || [ ! -d "node_modules/aws-jwt-verify" ]; then
-          echo "Installing missing JWT layer dependencies..."
+        
+        # Create JWT layer structure if it doesn't exist
+        JWT_DIR="lambda-layers/jwt/nodejs"
+        if [ ! -d "$JWT_DIR" ]; then
+          echo "🏗️ Creating JWT layer structure..."
+          mkdir -p "$JWT_DIR"
+          cat > "$JWT_DIR/package.json" << 'EOF'
+        {
+          "name": "jwt-layer",
+          "version": "1.0.0",
+          "description": "JWT verification layer for Lambda functions",
+          "dependencies": {
+            "aws-jwt-verify": "^4.0.1"
+          }
+        }
+        EOF
+        fi
+        
+        # Install dependencies if missing
+        if [ ! -d "$JWT_DIR/node_modules" ] || [ ! -d "$JWT_DIR/node_modules/aws-jwt-verify" ]; then
+          echo "🔧 Installing JWT layer dependencies..."
+          cd "$JWT_DIR"
           npm install
+          cd -
+          echo "✅ JWT layer dependencies installed"
         else
           echo "✅ JWT layer dependencies already present"
         fi
