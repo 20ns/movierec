@@ -99,8 +99,8 @@ function validateLambdaCORS() {
     const lambdaFunctions = [
         'UserPreferencesFunction',
         'FavouritesFunction',
-        'WatchlistFunction',
-        'SigninFunction',
+        'watchlist',
+        'signin',
         'SignupHandler'
     ];
     
