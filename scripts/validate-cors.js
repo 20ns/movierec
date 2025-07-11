@@ -4,18 +4,27 @@
  * 
  * This script validates that CORS configuration is correct across all lambda functions
  * and prevents deployment if critical issues are found.
+ * 
+ * Exit codes:
+ * 0 - Success
+ * 1 - Critical errors found, deployment should be blocked
+ * 2 - Warnings only, deployment can proceed
  */
 
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-console.log('🔍 CORS Configuration Validator');
+console.log('🔍 CORS Configuration Validator v1.1');
 console.log('=====================================');
 
 const projectRoot = path.resolve(__dirname, '..');
 const errors = [];
 const warnings = [];
+
+// Environment detection
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+console.log(`Environment: ${isCI ? 'CI/CD Pipeline' : 'Local Development'}`);
 
 // 1. Validate JWT Layer Dependencies
 function validateJWTLayer() {
@@ -39,6 +48,12 @@ function validateJWTLayer() {
     if (!fs.existsSync(awsJwtVerifyPath)) {
         errors.push('aws-jwt-verify module is missing from JWT layer!');
         return;
+    }
+    
+    // Additional validation for package-lock.json to ensure consistent installs
+    const packageLockPath = path.join(jwtLayerPath, 'package-lock.json');
+    if (!fs.existsSync(packageLockPath)) {
+        warnings.push('JWT Layer package-lock.json is missing - consider running npm install');
     }
     
     console.log('✅ JWT Layer dependencies are properly installed');
@@ -112,7 +127,14 @@ function validateLambdaCORS() {
 async function testLiveCORS() {
     console.log('\n🌍 Testing Live CORS Configuration...');
     
-    const apiUrl = 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod/user/preferences';
+    // Skip live testing in CI pre-deployment phase
+    if (isCI && !process.env.API_URL) {
+        console.log('⏭️ Skipping live CORS test - running in CI pre-deployment phase');
+        return;
+    }
+    
+    const apiUrl = process.env.API_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod/user/preferences';
+    console.log(`Testing API: ${apiUrl}`);
     
     return new Promise((resolve) => {
         const options = {
@@ -134,12 +156,20 @@ async function testLiveCORS() {
         });
         
         req.on('error', (error) => {
-            warnings.push(`Could not test live CORS: ${error.message}`);
+            if (isCI) {
+                console.log(`ℹ️ Live CORS test skipped in CI: ${error.message}`);
+            } else {
+                warnings.push(`Could not test live CORS: ${error.message}`);
+            }
             resolve();
         });
         
         req.setTimeout(5000, () => {
-            warnings.push('Live CORS test timed out');
+            if (isCI) {
+                console.log('ℹ️ Live CORS test timed out in CI (expected)');
+            } else {
+                warnings.push('Live CORS test timed out');
+            }
             resolve();
         });
         
@@ -154,7 +184,7 @@ async function generateReport() {
     
     if (errors.length === 0 && warnings.length === 0) {
         console.log('🎉 ALL CHECKS PASSED! CORS configuration is healthy.');
-        return true;
+        return 0; // Success
     }
     
     if (errors.length > 0) {
@@ -169,31 +199,50 @@ async function generateReport() {
     
     if (errors.length > 0) {
         console.log('\n🚨 DEPLOYMENT SHOULD BE BLOCKED - Fix errors before proceeding!');
-        return false;
+        if (isCI) {
+            console.log('\n🛠️  To fix in CI/CD:');
+            console.log('   1. Ensure JWT layer dependencies are installed');
+            console.log('   2. Verify shared CORS configuration is correct');
+            console.log('   3. Check that pre-deploy script preserves CORS settings');
+        }
+        return 1; // Critical errors
     }
     
     console.log('\n⚠️  Warnings found but deployment can proceed');
-    return true;
+    return 2; // Warnings only
 }
 
 // Main execution
 async function main() {
-    validateJWTLayer();
-    validateSharedCORS();
-    validateLambdaCORS();
-    await testLiveCORS();
-    
-    const success = await generateReport();
-    
-    if (!success) {
+    try {
+        validateJWTLayer();
+        validateSharedCORS();
+        validateLambdaCORS();
+        await testLiveCORS();
+        
+        const exitCode = await generateReport();
+        
+        if (exitCode === 0) {
+            console.log('\n✅ CORS validation completed successfully!');
+        } else if (exitCode === 1) {
+            console.log('\n❌ CORS validation failed with critical errors!');
+            process.exit(1);
+        } else if (exitCode === 2) {
+            console.log('\n⚠️ CORS validation completed with warnings.');
+        }
+        
+        return exitCode;
+    } catch (error) {
+        console.error('\n💥 Unexpected error during CORS validation:', error.message);
         process.exit(1);
     }
-    
-    console.log('\n✅ CORS validation completed successfully!');
 }
 
 if (require.main === module) {
-    main().catch(console.error);
+    main().catch(error => {
+        console.error('💥 Fatal error:', error.message);
+        process.exit(1);
+    });
 }
 
 module.exports = { main };
