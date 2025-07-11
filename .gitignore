@@ -119,3 +119,4 @@ tables-only.yml
 
 # AWS Generated files
 infrastructure/cdk.out/*
+.github/chatmodes/
