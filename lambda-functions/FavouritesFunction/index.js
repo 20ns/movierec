@@ -31,26 +31,65 @@ exports.handler = async (event) => {
   }
 
   try {
+    // Extract and verify JWT token with robust error handling
     const authHeader = event.headers.Authorization || event.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return createApiResponse(401, { error: "Unauthorized" }, event);
+    if (!authHeader) {
+      console.error('No authorization header provided');
+      return createApiResponse(401, { error: "Authorization header required" }, event);
+    }
+    
+    if (!authHeader.startsWith('Bearer ')) {
+      console.error('Invalid authorization header format:', authHeader.substring(0, 20));
+      return createApiResponse(401, { error: "Authorization header must start with 'Bearer '" }, event);
     }
 
     const token = authHeader.substring(7);
+    console.log('Token received - length:', token.length, 'starts with:', token.substring(0, 20) + '...');
+    
+    // Validate token format before processing
+    if (!token || token.trim() === '') {
+      console.error('Empty token after Bearer prefix');
+      return createApiResponse(401, { error: "Token is empty" }, event);
+    }
+    
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('Invalid token format: expected 3 parts, got', tokenParts.length, 'token:', token.substring(0, 50));
+      return createApiResponse(401, { 
+        error: "Invalid JWT token format",
+        details: `Expected 3 parts separated by dots, got ${tokenParts.length} parts`
+      }, event);
+    }
+    
     let payload;
     
     if (process.env.IS_OFFLINE === 'true') {
       payload = { sub: 'offline-user-id', email: 'offline@example.com' };
     } else {
       if (!verifier) {
-        console.error("JWT verifier not available");
-        return createApiResponse(500, { error: "JWT verifier configuration error" }, event);
+        console.error("JWT verifier not available - check environment variables");
+        return createApiResponse(500, { error: "Authentication service not configured" }, event);
       }
+      
       try {
         payload = await verifier.verify(token);
+        console.log('Token verified successfully for user:', payload.sub);
       } catch (error) {
-        console.error("Token verification failed:", error);
-        return createApiResponse(401, { error: "Unauthorized" }, event);
+        console.error("Token verification failed:", {
+          errorMessage: error.message,
+          errorName: error.name,
+          tokenLength: token.length,
+          tokenStart: token.substring(0, 20),
+          tokenParts: tokenParts.length,
+          userPoolId: process.env.USER_POOL_ID,
+          clientId: process.env.COGNITO_CLIENT_ID
+        });
+        
+        // Return proper 401 error instead of letting it crash
+        return createApiResponse(401, { 
+          error: "Authentication failed",
+          details: "Invalid or expired token"
+        }, event);
       }
     }
 

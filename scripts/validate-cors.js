@@ -152,7 +152,12 @@ async function testLiveCORS() {
             } else {
                 warnings.push(`Live CORS test failed - expected 'http://localhost:3000', got '${corsOrigin}'`);
             }
-            resolve();
+            
+            // Consume the response to properly close the connection
+            res.on('data', () => {});
+            res.on('end', () => {
+                resolve();
+            });
         });
         
         req.on('error', (error) => {
@@ -161,6 +166,7 @@ async function testLiveCORS() {
             } else {
                 warnings.push(`Could not test live CORS: ${error.message}`);
             }
+            req.destroy(); // Properly close the request
             resolve();
         });
         
@@ -170,6 +176,7 @@ async function testLiveCORS() {
             } else {
                 warnings.push('Live CORS test timed out');
             }
+            req.destroy(); // Properly close the request
             resolve();
         });
         
