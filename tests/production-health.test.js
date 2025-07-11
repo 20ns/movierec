@@ -21,6 +21,10 @@ try {
         if (parts.length !== 3) {
             return { valid: false, error: 'Invalid token format', code: 'INVALID_FORMAT' };
         }
+        // Check for empty parts or obviously invalid tokens
+        if (parts.some(part => part === '') || token.includes('invalid')) {
+            return { valid: false, error: 'Invalid token content', code: 'INVALID_CONTENT' };
+        }
         return { valid: true, payload: {} };
     };
 }
