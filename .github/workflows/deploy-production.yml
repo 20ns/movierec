@@ -61,6 +61,13 @@ jobs:
         npm audit --audit-level=moderate
       continue-on-error: true
         
+    - name: Validate CORS configuration
+      id: cors-validation
+      run: |
+        echo "🌐 Running CORS configuration validation..."
+        node scripts/validate-cors.js
+        echo "✅ CORS validation passed"
+        
     - name: Validate deployment
       id: validation
       run: |
@@ -121,6 +128,23 @@ jobs:
       
     - name: Prepare Lambda functions with shared code
       run: cd infrastructure && npm run pre-deploy
+      
+    - name: Ensure JWT layer dependencies
+      run: |
+        echo "📦 Ensuring JWT layer dependencies are installed..."
+        cd lambda-layers/jwt/nodejs
+        if [ ! -d "node_modules" ] || [ ! -d "node_modules/aws-jwt-verify" ]; then
+          echo "Installing missing JWT layer dependencies..."
+          npm install
+        else
+          echo "✅ JWT layer dependencies already present"
+        fi
+      
+    - name: Validate CORS after preparation
+      run: |
+        echo "🔍 Validating CORS configuration after Lambda preparation..."
+        node scripts/validate-cors.js
+        echo "✅ CORS validation passed after preparation"
       
     - name: Preview infrastructure changes
       run: |
@@ -254,6 +278,14 @@ jobs:
           echo "✅ CORS configured correctly"
         else
           echo "⚠️ CORS check failed"
+        fi
+        
+        # Comprehensive CORS validation
+        echo "Running comprehensive CORS validation..."
+        if node scripts/validate-cors.js; then
+          echo "✅ Comprehensive CORS validation passed"
+        else
+          echo "⚠️ Comprehensive CORS validation failed"
         fi
         
         # Overall health determination
