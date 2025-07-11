@@ -36,6 +36,8 @@
     "deploy:infrastructure": "cd infrastructure && npx cdk deploy",
     "deploy:diff": "cd infrastructure && npx cdk diff",
     "deploy:destroy": "cd infrastructure && npx cdk destroy",
+    "deploy:safety-check": "node scripts/deployment-safety-check.js",
+    "deploy:safe": "npm run deploy:safety-check && cd infrastructure && npx cdk deploy",
     "start:offline": "serverless offline start --stage dev --host 0.0.0.0"
   },
   "keywords": [

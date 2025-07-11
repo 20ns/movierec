@@ -68,6 +68,15 @@ jobs:
         node scripts/validate-cors.js
         echo "✅ CORS validation passed"
         
+    - name: Run Critical Production Tests
+      id: production-tests
+      run: |
+        echo "🧪 Running critical production health tests..."
+        cd tests
+        npm ci
+        npm run test:critical
+        echo "✅ Production health tests passed"
+        
     - name: Validate deployment
       id: validation
       run: |
@@ -347,6 +356,13 @@ jobs:
         else
           echo "⚠️ API test skipped - health endpoint not available"
         fi
+      continue-on-error: true
+      
+    - name: Verify No 502 Errors Post-Deployment
+      run: |
+        echo "🔍 Verifying deployment fixed 502 errors..."
+        cd tests
+        npm run test:production || echo "⚠️ Production tests failed - check deployment"
       continue-on-error: true
 
   deployment-result:

@@ -82,8 +82,16 @@ fi
 # Run linting (non-blocking)
 run_lint_check
 
-# Run tests (optional, can be commented out if too slow)
-echo "🧪 Running quick tests..."
-timeout 60s npm run test || echo "⚠️ Tests failed or timed out (not blocking commit)"
+# Run critical tests to prevent production issues  
+echo "🧪 Running critical production health tests..."
+if ! timeout 60s sh -c "cd tests && npm test production-health.test.js"; then
+    echo "❌ Production health tests failed - this could cause 502 errors!"
+    echo "💡 Run: cd tests && npm test production-health.test.js"
+    exit 1
+fi
+
+# Run other tests (non-blocking)
+echo "🧪 Running other quick tests..."
+timeout 60s npm run test || echo "⚠️ General tests failed or timed out (not blocking commit)"
 
 echo "🎉 Pre-commit checks completed!"
