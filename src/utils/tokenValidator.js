@@ -1,8 +1,10 @@
 // JWT Token Validation Utility
 // Provides comprehensive token validation and debugging capabilities
 
+import timeSync from '../services/timeSync';
+
 /**
- * Validates a JWT token structure and expiration
+ * Validates a JWT token structure and expiration using synchronized server time
  * @param {string} token - JWT token to validate
  * @returns {Object} - Validation result with valid flag, error message, and payload
  */
@@ -32,8 +34,11 @@ export const validateToken = (token) => {
     // Decode payload
     const payload = JSON.parse(atob(parts[1]));
     
+    // Use synchronized server time for validation
+    const now = timeSync.getServerTime();
+    const syncStatus = timeSync.getSyncStatus();
+    
     // Check expiration
-    const now = Math.floor(Date.now() / 1000);
     if (payload.exp && payload.exp < now) {
       const expiredMinutes = Math.floor((now - payload.exp) / 60);
       return { 
@@ -44,29 +49,26 @@ export const validateToken = (token) => {
       };
     }
 
-    // Check if token is issued too far in the future
-    // Add debug logging to understand the time difference
+    // Check if token is issued too far in the future (using server time)
     if (payload.iat) {
       const timeDiff = payload.iat - now;
       const minutesDiff = Math.floor(timeDiff / 60);
       
-      // Log the time difference for debugging
-      console.log(`[TokenValidator] Token time check - Now: ${now}, IAT: ${payload.iat}, Diff: ${timeDiff}s (${minutesDiff} minutes)`);
+      // Log validation details with sync status (development only)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[TokenValidator] Token validation - Server time: ${now}, IAT: ${payload.iat}, Diff: ${timeDiff}s (${minutesDiff} minutes)`);
+      }
       
-      // Increased tolerance to 90 minutes to handle severe clock synchronization issues
-      // This is a temporary fix - the real issue is system clock synchronization
-      if (timeDiff > 5400) { // 90 minutes tolerance
-        console.error(`[TokenValidator] SEVERE CLOCK SKEW: Token issued ${minutesDiff} minutes in the future! Please sync your system clock.`);
+      // Much stricter tolerance now that we use server time (5 minutes)
+      if (timeDiff > 300) { // 5 minutes tolerance
         return { 
           valid: false, 
-          error: `Token issued ${minutesDiff} minutes in the future - system clock sync required`, 
+          error: `Token issued ${minutesDiff} minutes in the future`, 
           code: 'FUTURE_TOKEN',
           payload 
         };
-      } else if (timeDiff > 1800) { // 30+ minutes is concerning
-        console.error(`[TokenValidator] MAJOR CLOCK SKEW: Token issued ${minutesDiff} minutes in the future. Consider syncing system clock.`);
-      } else if (timeDiff > 300) { // Log warning if more than 5 minutes but less than 30
-        console.warn(`[TokenValidator] Clock skew detected: token issued ${minutesDiff} minutes in the future (within tolerance)`);
+      } else if (timeDiff > 60) { // Log warning if more than 1 minute
+        console.warn(`[TokenValidator] Minor time difference: token issued ${minutesDiff} minutes in the future (within tolerance)`);
       }
     }
 
@@ -113,7 +115,7 @@ export const checkTokenExpiration = (token, minutesThreshold = 5) => {
     return { expiringSoon: false, expired: true, ...validation };
   }
 
-  const now = Math.floor(Date.now() / 1000);
+  const now = timeSync.getServerTime();
   const thresholdTime = now + (minutesThreshold * 60);
   
   const expiringSoon = validation.payload.exp < thresholdTime;

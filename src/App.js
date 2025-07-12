@@ -29,6 +29,7 @@ import BlogPostPage from './pages/BlogPostPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import UserDashboard from './pages/UserDashboard';
+import timeSync from './services/timeSync';
 
 // Helper for logging
 const logApp = (message, data) => {
@@ -75,6 +76,14 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   // const { showToast } = useToast(); // Removed useToast hook
+
+  // Initialize time synchronization
+  useEffect(() => {
+    timeSync.startPeriodicSync();
+    return () => {
+      // Cleanup if needed (timeSync handles its own cleanup)
+    };
+  }, []);
 
   // --- Component State ---
   const [selectedGenre, setSelectedGenre] = useState(null);
@@ -875,6 +884,7 @@ useEffect(() => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      
     </>
   );
 }
