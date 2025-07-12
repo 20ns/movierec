@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { fetchCachedMedia } from '../services/mediaCache'; // Assuming mediaCache service exists
 import ENV_CONFIG from '../config/environment';
+import { ensureValidToken } from '../services/authService';
 
 // --- Constants ---
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -459,7 +460,8 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
       let fetchSuccessful = false;
 
       try {
-        const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+        // Use the proper auth service to get a valid token
+        const token = await ensureValidToken(currentUser);
         const prefs = userPreferences || {};
 
         // Fetch favorites and watchlist concurrently
@@ -745,34 +747,44 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
       return; // Don't fetch if not ready
     }
 
-    const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
-    if (!token) {
-      logMessage('Token not ready yet, skipping initial fetch');
-      safeSetState({ isLoading: false, isThinking: false }); // Ensure loading is off if token disappears
-      return;
-    }
+    const checkTokenAndFetch = async () => {
+      try {
+        const token = await ensureValidToken(currentUser);
+        if (!token) {
+          logMessage('Token not ready yet, skipping initial fetch');
+          safeSetState({ isLoading: false, isThinking: false }); // Ensure loading is off if token disappears
+          return;
+        }
+      } catch (error) {
+        logMessage('Token validation failed, skipping initial fetch', error);
+        safeSetState({ isLoading: false, isThinking: false, hasError: true, errorMessage: 'Authentication error' });
+        return;
+      }
 
-    // First check cache once
-    const cached = getRecommendationsFromCache(userId, contentTypeFilter);
-    safeSetState({ cacheChecked: true });
-    if (cached) {
-      logMessage('Using cached recommendations on initial load');
-      safeSetState({
-        recommendations: cached.data,
-        dataSource: cached.dataSource,
-        recommendationReason: cached.reason || '',
-        isLoading: false,
-        isThinking: false,
-      });
-      dataLoadAttemptedRef.current = true;
-      return;
-    }
-    // No cache or empty – now fetch
-    if (!dataLoadAttemptedRef.current) {
-      logMessage('Cache miss or invalid, initiating fetch');
-      safeSetState({ isLoading: true, isThinking: true });
-      fetchRecommendations(false);
-    }
+      // First check cache once
+      const cached = getRecommendationsFromCache(userId, contentTypeFilter);
+      safeSetState({ cacheChecked: true });
+      if (cached) {
+        logMessage('Using cached recommendations on initial load');
+        safeSetState({
+          recommendations: cached.data,
+          dataSource: cached.dataSource,
+          recommendationReason: cached.reason || '',
+          isLoading: false,
+          isThinking: false,
+        });
+        dataLoadAttemptedRef.current = true;
+        return;
+      }
+      // No cache or empty – now fetch
+      if (!dataLoadAttemptedRef.current) {
+        logMessage('Cache miss or invalid, initiating fetch');
+        safeSetState({ isLoading: true, isThinking: true });
+        fetchRecommendations(false);
+      }
+    };
+
+    checkTokenAndFetch();
 
     // Cleanup timeout on unmount or before next effect run
     return () => {

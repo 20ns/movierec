@@ -33,17 +33,23 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
     // Validate current token
     const validation = validateToken(currentToken);
     
-    if (!forceRefresh && validation.valid) {
-      // Check if token is expiring soon
-      const now = Math.floor(Date.now() / 1000);
-      const thresholdTime = now + (TOKEN_REFRESH_THRESHOLD_MINUTES * 60);
-      
-      if (validation.payload.exp > thresholdTime) {
-        console.log(`[${context}] Current token is valid and not expiring soon`);
+    if (!forceRefresh && (validation.valid || validation.code === 'FUTURE_TOKEN')) {
+      // Accept token if valid OR if it's just a future token issue (clock sync)
+      if (validation.valid) {
+        // Check if token is expiring soon
+        const now = Math.floor(Date.now() / 1000);
+        const thresholdTime = now + (TOKEN_REFRESH_THRESHOLD_MINUTES * 60);
+        
+        if (validation.payload.exp > thresholdTime) {
+          console.log(`[${context}] Current token is valid and not expiring soon`);
+          return currentToken;
+        }
+        
+        console.log(`[${context}] Token expiring soon, refreshing...`);
+      } else if (validation.code === 'FUTURE_TOKEN') {
+        console.warn(`[${context}] Current token has future timestamp, but proceeding due to clock sync issues`);
         return currentToken;
       }
-      
-      console.log(`[${context}] Token expiring soon, refreshing...`);
     } else if (!validation.valid) {
       console.log(`[${context}] Current token is invalid:`, validation.error);
     }
@@ -56,6 +62,13 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
     // Validate the new token
     const newValidation = validateToken(newToken);
     if (!newValidation.valid) {
+      // If it's a future token error, log details and potentially allow it
+      if (newValidation.code === 'FUTURE_TOKEN') {
+        console.warn(`[${context}] Token future validation failed, but proceeding due to clock sync issues:`, newValidation.error);
+        // For now, accept the token despite future timestamp to avoid blocking users
+        console.log(`[${context}] Token accepted despite future timestamp`);
+        return newToken;
+      }
       throw new Error(`Refreshed token is invalid: ${newValidation.error}`);
     }
 
@@ -77,6 +90,13 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
 
       const validation = validateToken(token);
       if (!validation.valid) {
+        // If it's a future token error, log details and potentially allow it
+        if (validation.code === 'FUTURE_TOKEN') {
+          console.warn(`[${context}] Fresh session token future validation failed, but proceeding due to clock sync issues:`, validation.error);
+          // For now, accept the token despite future timestamp to avoid blocking users
+          console.log(`[${context}] Fresh session token accepted despite future timestamp`);
+          return token;
+        }
         throw new Error(`Fresh session token is invalid: ${validation.error}`);
       }
 
