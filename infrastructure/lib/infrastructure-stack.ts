@@ -71,6 +71,21 @@ export class InfrastructureStack extends cdk.Stack {
     );
 
     // ============================================
+    // NEW DYNAMODB TABLES
+    // ============================================
+    
+    // Create new Embedding Cache Table for semantic similarity
+    const embeddingCacheTable = new dynamodb.Table(this, 'EmbeddingCacheTable', {
+      tableName: 'MovieRecEmbeddingCache',
+      partitionKey: { name: 'contentId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'contentType', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: 'expiresAt',
+      pointInTimeRecovery: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain data on stack deletion
+    });
+
+    // ============================================
     // IAM ROLES & POLICIES
     // ============================================
     
@@ -106,6 +121,7 @@ export class InfrastructureStack extends cdk.Stack {
                 `${movieRecCacheTable.tableArn}/index/*`,
                 favouritesTable.tableArn,
                 watchlistTable.tableArn,
+                embeddingCacheTable.tableArn,
               ],
             }),
           ],
@@ -153,11 +169,14 @@ export class InfrastructureStack extends cdk.Stack {
       RECOMMENDATIONS_CACHE_TABLE: movieRecCacheTable.tableName,
       USER_FAVORITES_TABLE: favouritesTable.tableName,
       USER_WATCHLIST_TABLE: watchlistTable.tableName,
+      EMBEDDING_CACHE_TABLE: embeddingCacheTable.tableName,
       USER_POOL_ID: existingUserPool.userPoolId,
       COGNITO_CLIENT_ID: existingUserPoolClient.userPoolClientId,
       REACT_APP_TMDB_API_KEY: process.env.REACT_APP_TMDB_API_KEY || '',
       REGION: this.region,
       ALLOWED_CORS_ORIGINS: this.node.tryGetContext('allowed_cors_origins') || 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000',
+      USE_SEMANTIC_API: process.env.USE_SEMANTIC_API || 'false',
+      HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY || '',
     };
 
     // Sign-in Lambda Function
@@ -487,6 +506,11 @@ export class InfrastructureStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'WatchlistTableName', {
       value: watchlistTable.tableName,
       description: 'Watchlist DynamoDB Table Name',
+    });
+
+    new cdk.CfnOutput(this, 'EmbeddingCacheTableName', {
+      value: embeddingCacheTable.tableName,
+      description: 'Embedding Cache DynamoDB Table Name',
     });
 
     // Lambda Function ARNs
