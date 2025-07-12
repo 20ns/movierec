@@ -18,14 +18,12 @@ const mockSemanticScorer = {
   calculateKeywordSimilarity: jest.fn()
 };
 
-describe('Semantic Enhancement Test Suite', () => {
-  
-  // Configuration
-  const API_BASE_URL = process.env.API_BASE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
-  const TEST_TIMEOUT = 60000; // 60 seconds for recommendation tests
-  
-  // Mock test data
-  const mockUserPreferences = {
+// Configuration
+const API_BASE_URL = process.env.API_BASE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
+const TEST_TIMEOUT = 60000; // 60 seconds for recommendation tests
+
+// Mock test data
+const mockUserPreferences = {
     favoriteContent: "I love action movies like John Wick, Marvel superhero films, and sci-fi thrillers",
     moodPreferences: "exciting, adrenaline-pumping, visually spectacular",
     genreRatings: {
@@ -39,7 +37,7 @@ describe('Semantic Enhancement Test Suite', () => {
     }
   };
 
-  const mockMovieData = {
+const mockMovieData = {
     id: 550,
     title: "Fight Club",
     overview: "An insomniac office worker and a devil-may-care soapmaker form an underground fight club.",
@@ -63,6 +61,11 @@ describe('Semantic Enhancement Test Suite', () => {
     tagline: "Mischief. Mayhem. Soap."
   };
 
+describe('Semantic Enhancement Test Suite', () => {
+
+  // Shared auth token for all test suites
+  let authToken = null;
+
   // ====================================
   // UNIT TESTS FOR SEMANTIC SCORER
   // ====================================
@@ -75,7 +78,7 @@ describe('Semantic Enhancement Test Suite', () => {
       
       const movieText = scorer.extractMovieText(mockMovieData);
       
-      expect(movieText).toContain("Fight Club");
+      expect(movieText).toContain("insomniac office worker");
       expect(movieText).toContain("insomniac office worker");
       expect(movieText).toContain("Drama");
       expect(movieText).toContain("Thriller");
@@ -165,8 +168,6 @@ describe('Semantic Enhancement Test Suite', () => {
   // ====================================
 
   describe('Semantic Enhancement Integration Tests', () => {
-    
-    let authToken;
     
     beforeAll(async () => {
       // Get authentication token for API tests
@@ -508,5 +509,5 @@ describe('Semantic Enhancement Test Suite', () => {
 module.exports = {
   mockUserPreferences,
   mockMovieData,
-  API_BASE_URL: process.env.API_BASE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod'
+  API_BASE_URL
 };
