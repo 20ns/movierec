@@ -20,7 +20,10 @@
     "test:aws:lambda": "node aws/lambda-tests.js",
     "test:dynamodb": "node aws/dynamodb-tests.js",
     "test:parallel": "node aws/aws-test-runner.js --parallel",
-    "test:sequential": "node aws/aws-test-runner.js --sequential"
+    "test:sequential": "node aws/aws-test-runner.js --sequential",
+    "test:semantic": "jest --config=jest.config.js semantic-enhancement.test.js",
+    "test:semantic:verbose": "jest --config=jest.config.js semantic-enhancement.test.js --verbose",
+    "test:full": "npm run test:critical && npm run test:semantic"
   },
   "keywords": [
     "testing",
