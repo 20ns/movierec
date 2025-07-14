@@ -329,10 +329,8 @@ export class InfrastructureStack extends cdk.Stack {
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: [
           'Content-Type',
-          'X-Amz-Date',
           'Authorization',
           'X-Api-Key',
-          'X-Amz-Security-Token',
           'Accept',
           'Origin',
           'X-Requested-With'
@@ -415,7 +413,7 @@ export class InfrastructureStack extends cdk.Stack {
       : "'http://localhost:3000'";
     
     const corsResponseHeaders = {
-      'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept,Origin,X-Requested-With'",
+      'Access-Control-Allow-Headers': "'Content-Type,Authorization,X-Api-Key,Accept,Origin,X-Requested-With'",
       'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
       'Access-Control-Allow-Credentials': "'true'",
       'Access-Control-Max-Age': "'86400'",
