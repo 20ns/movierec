@@ -13,7 +13,7 @@ const allowedOrigins = process.env.ALLOWED_CORS_ORIGINS
 
 function getCorsHeaders(requestOrigin) {
     const headers = {
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Accept,Origin,X-Requested-With',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Api-Key,Accept,Origin,X-Requested-With',
         'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Max-Age': '86400',

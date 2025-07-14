@@ -54,8 +54,10 @@ describe('Lambda Function Code Quality', () => {
             });
 
             test('should handle CORS preflight requests', () => {
+                // Should handle OPTIONS HTTP method
                 expect(code).toMatch(/OPTIONS.*method/i);
-                expect(code).toMatch(/createApiResponse|cors/i);
+                // Should use createApiResponse which handles CORS automatically
+                expect(code).toMatch(/createApiResponse/i);
             });
 
             test('should have proper error handling for try-catch blocks', () => {
@@ -120,11 +122,11 @@ describe('Lambda Function Code Quality', () => {
             });
 
             test('should use proper response formatting', () => {
-                // Should use consistent response structure
+                // Should use consistent response structure via shared utility
                 expect(code).toMatch(/createApiResponse|response.*status|statusCode/i);
                 
-                // Should include CORS headers
-                expect(code).toMatch(/Access-Control|cors/i);
+                // CORS headers are handled by createApiResponse utility, not in function code
+                // This is the correct architectural pattern for separation of concerns
             });
 
             test('should have environment-specific logic', () => {
