@@ -159,6 +159,10 @@ export const fetchCachedMedia = async (options = {}) => {
                       ? item.genres.split('|').map(g => parseInt(g, 10)).filter(Number.isFinite)
                       : [],
         genre: item.genre || null,
+        // Semantic enhancement fields
+        score: item.score || null,
+        recommendationReason: item.recommendationReason || null,
+        processingTime: item.processingTime || null
       }));
 
       const cacheDataToStore = { items: mappedItems, source: source };
