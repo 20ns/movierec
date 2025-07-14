@@ -3,6 +3,7 @@ const { DynamoDBDocumentClient, GetCommand, PutCommand, BatchGetCommand, QueryCo
 const axios = require('axios');
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
 const { createApiResponse } = require("./shared/response");
+const SemanticSimilarityScorer = require("./semanticScorer");
 
 let verifier;
 try {
@@ -105,6 +106,7 @@ async function cachedTmdbRequest(url) {
 class PersonalizedRecommendationEngine {
   constructor(tmdbApiKey) {
     this.tmdbApiKey = tmdbApiKey;
+    this.semanticScorer = new SemanticSimilarityScorer();
     this.genreMap = {
       28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
       99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
@@ -402,14 +404,14 @@ class PersonalizedRecommendationEngine {
     }
   }
 
-  // Advanced scoring algorithm
-  calculateContentScore(candidate, preferences, userData) {
+  // Advanced scoring algorithm with semantic enhancement
+  async calculateContentScore(candidate, preferences, userData) {
     let totalScore = 0;
     const scoreBreakdown = {};
 
-    // 1. Genre Match Score (40% weight)
+    // 1. Genre Match Score (35% weight - reduced from 40%)
     const genreScore = this.calculateGenreScore(candidate, preferences);
-    totalScore += genreScore * 0.4;
+    totalScore += genreScore * 0.35;
     scoreBreakdown.genre = genreScore;
 
     // 2. Deal-breaker Check (VETO power)
@@ -420,27 +422,59 @@ class PersonalizedRecommendationEngine {
     totalScore += dealBreakerPenalty;
     scoreBreakdown.dealBreaker = dealBreakerPenalty;
 
-    // 3. Favorite Similarity Score (25% weight)
+    // 3. Semantic Similarity Score (20% weight - NEW)
+    const semanticScore = await this.calculateSemanticScore(candidate, preferences);
+    totalScore += semanticScore * 0.20;
+    scoreBreakdown.semantic = semanticScore;
+
+    // 4. Favorite Similarity Score (20% weight - reduced from 25%)
     const similarityScore = this.calculateFavoriteSimilarity(candidate, preferences, userData);
-    totalScore += similarityScore * 0.25;
+    totalScore += similarityScore * 0.20;
     scoreBreakdown.similarity = similarityScore;
 
-    // 4. Context Match Score (15% weight)
+    // 5. Context Match Score (10% weight - reduced from 15%)
     const contextScore = this.calculateContextScore(candidate, preferences);
-    totalScore += contextScore * 0.15;
+    totalScore += contextScore * 0.10;
     scoreBreakdown.context = contextScore;
 
-    // 5. Discovery Preference Score (10% weight)
+    // 6. Discovery Preference Score (10% weight - unchanged)
     const discoveryScore = this.calculateDiscoveryScore(candidate, preferences);
     totalScore += discoveryScore * 0.10;
     scoreBreakdown.discovery = discoveryScore;
 
-    // 6. Quality Score (10% weight)
+    // 7. Quality Score (5% weight - reduced from 10%)
     const qualityScore = this.calculateQualityScore(candidate);
-    totalScore += qualityScore * 0.10;
+    totalScore += qualityScore * 0.05;
     scoreBreakdown.quality = qualityScore;
 
     return { score: totalScore, breakdown: scoreBreakdown };
+  }
+
+  // NEW: Calculate semantic similarity score
+  async calculateSemanticScore(candidate, preferences) {
+    try {
+      // Extract text representations
+      const movieText = this.semanticScorer.extractMovieText(candidate);
+      const userText = this.semanticScorer.extractUserPreferenceText(preferences);
+
+      // Skip if no meaningful text available
+      if (!movieText || movieText.length < 10 || !userText || userText.length < 10) {
+        console.log('Insufficient text for semantic analysis, returning neutral score');
+        return 50; // Neutral score
+      }
+
+      // Calculate semantic similarity
+      const similarity = await this.semanticScorer.calculateSimilarity(userText, movieText);
+      
+      // Convert similarity (0-1) to score (0-100) and add slight boost for semantic matches
+      const score = Math.max(0, Math.min(100, similarity * 100));
+      
+      console.log(`Semantic score for ${candidate.title || candidate.name}: ${score.toFixed(1)}`);
+      return score;
+    } catch (error) {
+      console.warn('Semantic scoring failed, using neutral score:', error.message);
+      return 50; // Neutral fallback score
+    }
   }
 
   calculateGenreScore(candidate, preferences) {
@@ -648,15 +682,15 @@ class PersonalizedRecommendationEngine {
       // Step 4: Score all candidates
       const step4Start = Date.now();
       console.log(`Step 4: Scoring ${enrichedCandidates.length} candidates...`);
-      const scoredCandidates = enrichedCandidates.map(candidate => {
-        const scoring = this.calculateContentScore(candidate, preferences, userData);
+      const scoredCandidates = await Promise.all(enrichedCandidates.map(async candidate => {
+        const scoring = await this.calculateContentScore(candidate, preferences, userData);
         return {
           ...candidate,
           score: scoring.score,
           scoreBreakdown: scoring.breakdown,
           recommendationReason: this.generateRecommendationReason(candidate, scoring.breakdown, preferences)
         };
-      });
+      }));
       stepTimes.step4 = Date.now() - step4Start;
 
       // Step 5: Filter and sort
@@ -740,6 +774,13 @@ class PersonalizedRecommendationEngine {
       if (genreNames?.length) {
         reasons.push(`You rated ${genreNames.join(' and ')} highly`);
       }
+    }
+
+    // NEW: Add semantic reasoning
+    if (scoreBreakdown.semantic > 70) {
+      reasons.push('Matches your content preferences perfectly');
+    } else if (scoreBreakdown.semantic > 60) {
+      reasons.push('Aligns well with your interests');
     }
 
     if (scoreBreakdown.similarity > 70) {
