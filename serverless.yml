@@ -49,7 +49,7 @@ provider:
     USER_FAVORITES_TABLE: Favourites
     USER_WATCHLIST_TABLE: Watchlist
     EMBEDDING_CACHE_TABLE: MovieRecEmbeddingCache
-    TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment
+    REACT_APP_TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment
     ALLOWED_CORS_ORIGINS: ${env:ALLOWED_CORS_ORIGINS}
     USE_SEMANTIC_API: ${env:USE_SEMANTIC_API, 'false'}
     HUGGINGFACE_API_KEY: ${env:HUGGINGFACE_API_KEY, ''}

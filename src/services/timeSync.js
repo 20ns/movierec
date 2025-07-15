@@ -96,35 +96,20 @@ class TimeSync {
   }
 
   /**
-   * Fetch server time from fallback public API
+   * Fetch server time from client system (fallback)
    */
   async fetchFallbackTime() {
     try {
-      const startTime = Date.now();
+      // Use client system time as ultimate fallback
+      // This is less accurate but avoids CSP violations
+      const clientTime = Math.floor(Date.now() / 1000);
       
-      // Try World Time API
-      const response = await fetch('https://worldtimeapi.org/api/timezone/UTC', {
-        method: 'GET',
-        cache: 'no-cache'
-      });
-
-      const endTime = Date.now();
-      const roundTripTime = endTime - startTime;
-
-      if (response.ok) {
-        const data = await response.json();
-        const serverTime = data.unixtime;
-        const clientTime = Math.floor((startTime + (roundTripTime / 2)) / 1000);
-        
-        return {
-          serverTime,
-          clientTime,
-          roundTripTime,
-          source: 'worldtime'
-        };
-      }
-      
-      throw new Error('Fallback time API failed');
+      return {
+        serverTime: clientTime, // Use client time as server time approximation
+        clientTime: clientTime,
+        roundTripTime: 0,
+        source: 'client'
+      };
     } catch (error) {
       console.warn('[TimeSync] Fallback time fetch failed:', error.message);
       throw error;
@@ -162,10 +147,11 @@ class TimeSync {
           console.log(`[TimeSync] AWS time sync successful (RTT: ${timeData.roundTripTime}ms)`);
         }
       } catch (awsError) {
-        // Fall back to public time API
+        // Fall back to client system time (avoids CSP violations)
+        console.warn('[TimeSync] AWS time sync failed, using client time as fallback:', awsError.message);
         timeData = await this.fetchFallbackTime();
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[TimeSync] Fallback time sync successful (RTT: ${timeData.roundTripTime}ms)`);
+          console.log(`[TimeSync] Client time fallback successful`);
         }
       }
 

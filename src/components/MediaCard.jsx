@@ -761,7 +761,7 @@ const MediaCard = ({
                 </span>
                 {recommendationScore && (
                   <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">
-                    {recommendationScore}% match
+                    {Math.round(recommendationScore)}% match
                   </span>
                 )}
               </div>
@@ -880,7 +880,6 @@ const MediaCard = ({
         onClick={handleCardClick}
       >
         <div className="relative overflow-hidden h-[140px] sm:h-[160px] md:h-[200px] flex-shrink-0">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
           {posterUrl ? (
             <motion.img
               src={posterUrl}
@@ -909,13 +908,6 @@ const MediaCard = ({
             </div>
           </motion.div>
           
-          {displayScore !== null && (
-            <div className={`absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-semibold text-white shadow-md ${
-              displayScore >= 70 ? 'bg-green-600/90' : displayScore >= 50 ? 'bg-yellow-600/90' : 'bg-red-600/90'
-            }`}>
-              {displayScore}% Match
-            </div>
-          )}
           
           <span className="absolute top-2 left-2 z-10 bg-black/60 text-white px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-medium backdrop-blur-sm shadow">
             {determinedMediaType === 'movie' ? 'Movie' : 'TV'}
