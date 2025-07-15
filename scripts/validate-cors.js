@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 /**
- * CORS Validation & Protection Script
+ * CORS Validation & Protection Script v2.0
  * 
- * This script validates that CORS configuration is correct across all lambda functions
- * and prevents deployment if critical issues are found.
+ * This script validates that CORS configuration is correct using the Lambda Layer architecture.
+ * It checks that all Lambda functions properly import from the centralized response handler
+ * in the AWS SDK Lambda layer and prevents deployment if critical issues are found.
+ * 
+ * Architecture validated:
+ * - AWS SDK Lambda layer with shared CORS implementation
+ * - Individual Lambda functions importing from /opt/nodejs/shared/response
+ * - Proper CORS origin configuration for localhost and production
  * 
  * Exit codes:
  * 0 - Success
@@ -15,8 +21,8 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-console.log('🔍 CORS Configuration Validator v1.1');
-console.log('=====================================');
+console.log('🔍 CORS Configuration Validator v2.0 (Lambda Layer Architecture)');
+console.log('================================================================');
 
 const projectRoot = path.resolve(__dirname, '..');
 const errors = [];
@@ -26,7 +32,43 @@ const warnings = [];
 const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 console.log(`Environment: ${isCI ? 'CI/CD Pipeline' : 'Local Development'}`);
 
-// 1. Validate JWT Layer Dependencies
+// 1. Validate AWS SDK Layer Dependencies and Structure
+function validateAWSSDKLayer() {
+    console.log('\n📦 Checking AWS SDK Layer Dependencies...');
+    
+    const awsSdkLayerPath = path.join(projectRoot, 'lambda-layers', 'aws-sdk-layer', 'nodejs');
+    const packageJsonPath = path.join(awsSdkLayerPath, 'package.json');
+    const nodeModulesPath = path.join(awsSdkLayerPath, 'node_modules');
+    const sharedPath = path.join(awsSdkLayerPath, 'shared');
+    
+    if (!fs.existsSync(packageJsonPath)) {
+        errors.push('AWS SDK Layer package.json is missing!');
+        return;
+    }
+    
+    if (!fs.existsSync(nodeModulesPath)) {
+        errors.push('AWS SDK Layer node_modules is missing! Run: cd lambda-layers/aws-sdk-layer/nodejs && npm install');
+        return;
+    }
+    
+    if (!fs.existsSync(sharedPath)) {
+        errors.push('AWS SDK Layer shared directory is missing!');
+        return;
+    }
+    
+    // Check for required dependencies
+    const requiredDeps = ['aws-jwt-verify', '@aws-sdk/client-dynamodb', '@aws-sdk/lib-dynamodb'];
+    for (const dep of requiredDeps) {
+        const depPath = path.join(nodeModulesPath, dep);
+        if (!fs.existsSync(depPath)) {
+            errors.push(`Required dependency '${dep}' is missing from AWS SDK layer!`);
+        }
+    }
+    
+    console.log('✅ AWS SDK Layer dependencies are properly installed');
+}
+
+// 2. Validate JWT Layer Dependencies (Legacy - keeping for backward compatibility)
 function validateJWTLayer() {
     console.log('\n📦 Checking JWT Layer Dependencies...');
     
@@ -59,18 +101,19 @@ function validateJWTLayer() {
     console.log('✅ JWT Layer dependencies are properly installed');
 }
 
-// 2. Validate CORS Configuration in Shared Response
+// 3. Validate CORS Configuration in Lambda Layer
 function validateSharedCORS() {
-    console.log('\n🌐 Checking Shared CORS Configuration...');
+    console.log('\n🌐 Checking Lambda Layer CORS Configuration...');
     
-    const sharedResponsePath = path.join(projectRoot, 'lambda-functions', 'shared', 'response.js');
+    // NEW: Check Lambda layer implementation
+    const lambdaLayerResponsePath = path.join(projectRoot, 'lambda-layers', 'aws-sdk-layer', 'nodejs', 'shared', 'response.js');
     
-    if (!fs.existsSync(sharedResponsePath)) {
-        errors.push('Shared response.js file is missing!');
+    if (!fs.existsSync(lambdaLayerResponsePath)) {
+        errors.push('Lambda layer shared response.js file is missing!');
         return;
     }
     
-    const content = fs.readFileSync(sharedResponsePath, 'utf8');
+    const content = fs.readFileSync(lambdaLayerResponsePath, 'utf8');
     
     // Check for required origins
     const requiredOrigins = [
@@ -80,7 +123,7 @@ function validateSharedCORS() {
     
     for (const origin of requiredOrigins) {
         if (!content.includes(origin)) {
-            errors.push(`Required origin '${origin}' not found in shared response.js`);
+            errors.push(`Required origin '${origin}' not found in lambda layer response.js`);
         }
     }
     
@@ -89,10 +132,15 @@ function validateSharedCORS() {
         warnings.push('Localhost fallback logic may be missing');
     }
     
-    console.log('✅ Shared CORS configuration validated');
+    // Check for proper exports
+    if (!content.includes('createApiResponse')) {
+        errors.push('createApiResponse function not found in lambda layer response.js');
+    }
+    
+    console.log('✅ Lambda layer CORS configuration validated');
 }
 
-// 3. Validate Individual Lambda Function CORS
+// 4. Validate Individual Lambda Function CORS Imports
 function validateLambdaCORS() {
     console.log('\n🔧 Checking Individual Lambda Functions...');
     
@@ -101,29 +149,44 @@ function validateLambdaCORS() {
         'FavouritesFunction',
         'watchlist',
         'signin',
-        'SignupHandler'
+        'SignupHandler',
+        'RefreshTokenLambda',
+        'MediaCache',
+        'MovieRecPersonalizedApiHandler',
+        'UserStatsFunction',
+        'health'
     ];
     
     for (const func of lambdaFunctions) {
-        const funcResponsePath = path.join(projectRoot, 'lambda-functions', func, 'shared', 'response.js');
+        const funcIndexPath = path.join(projectRoot, 'lambda-functions', func, 'index.js');
         
-        if (!fs.existsSync(funcResponsePath)) {
-            warnings.push(`${func} is missing shared/response.js`);
+        if (!fs.existsSync(funcIndexPath)) {
+            warnings.push(`${func}/index.js not found`);
             continue;
         }
         
-        const content = fs.readFileSync(funcResponsePath, 'utf8');
+        const content = fs.readFileSync(funcIndexPath, 'utf8');
         
-        // Quick validation that it has the proper CORS logic
-        if (!content.includes('Access-Control-Allow-Origin')) {
-            errors.push(`${func}/shared/response.js is missing CORS headers`);
+        // Check for correct Lambda layer import
+        if (!content.includes('/opt/nodejs/shared/response')) {
+            errors.push(`${func} is not importing from Lambda layer (/opt/nodejs/shared/response)`);
+        }
+        
+        // Check for createApiResponse usage
+        if (!content.includes('createApiResponse')) {
+            errors.push(`${func} is not using createApiResponse function`);
+        }
+        
+        // Check that it's NOT using local shared imports (old pattern)
+        if (content.includes('./shared/response')) {
+            errors.push(`${func} is still using old local shared/response import - should use Lambda layer`);
         }
     }
     
-    console.log('✅ Individual lambda function CORS validated');
+    console.log('✅ Individual lambda function CORS imports validated');
 }
 
-// 4. Test Live CORS (if possible)
+// 5. Test Live CORS (if possible)
 async function testLiveCORS() {
     console.log('\n🌍 Testing Live CORS Configuration...');
     
@@ -184,7 +247,7 @@ async function testLiveCORS() {
     });
 }
 
-// 5. Generate Report
+// 6. Generate Report
 async function generateReport() {
     console.log('\n📊 CORS Validation Report');
     console.log('==========================');
@@ -208,9 +271,10 @@ async function generateReport() {
         console.log('\n🚨 DEPLOYMENT SHOULD BE BLOCKED - Fix errors before proceeding!');
         if (isCI) {
             console.log('\n🛠️  To fix in CI/CD:');
-            console.log('   1. Ensure JWT layer dependencies are installed');
-            console.log('   2. Verify shared CORS configuration is correct');
-            console.log('   3. Check that pre-deploy script preserves CORS settings');
+            console.log('   1. Ensure AWS SDK Lambda layer dependencies are installed');
+            console.log('   2. Verify Lambda layer shared CORS configuration is correct');
+            console.log('   3. Check that all Lambda functions import from /opt/nodejs/shared/response');
+            console.log('   4. Run: cd lambda-layers/aws-sdk-layer/nodejs && npm install');
         }
         return 1; // Critical errors
     }
@@ -222,6 +286,7 @@ async function generateReport() {
 // Main execution
 async function main() {
     try {
+        validateAWSSDKLayer();
         validateJWTLayer();
         validateSharedCORS();
         validateLambdaCORS();
