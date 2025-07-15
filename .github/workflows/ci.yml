@@ -29,6 +29,24 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
+    - name: Install Lambda layer dependencies
+      run: |
+        # Install AWS SDK layer dependencies
+        if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
+          echo "Installing AWS SDK layer dependencies..."
+          cd lambda-layers/aws-sdk-layer/nodejs
+          npm ci
+          cd ../../..
+        fi
+        
+        # Install JWT layer dependencies
+        if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
+          echo "Installing JWT layer dependencies..."
+          cd lambda-layers/jwt/nodejs
+          npm ci
+          cd ../../..
+        fi
+      
     - name: Lint code
       run: npm run lint
       
@@ -62,6 +80,24 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
+      
+    - name: Install Lambda layer dependencies
+      run: |
+        # Install AWS SDK layer dependencies
+        if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
+          echo "Installing AWS SDK layer dependencies..."
+          cd lambda-layers/aws-sdk-layer/nodejs
+          npm ci
+          cd ../../..
+        fi
+        
+        # Install JWT layer dependencies
+        if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
+          echo "Installing JWT layer dependencies..."
+          cd lambda-layers/jwt/nodejs
+          npm ci
+          cd ../../..
+        fi
       
     - name: Build application
       run: npm run build
@@ -133,6 +169,24 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         
+    - name: Install Lambda layer dependencies
+      run: |
+        # Install AWS SDK layer dependencies
+        if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
+          echo "Installing AWS SDK layer dependencies..."
+          cd lambda-layers/aws-sdk-layer/nodejs
+          npm ci
+          cd ../../..
+        fi
+        
+        # Install JWT layer dependencies
+        if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
+          echo "Installing JWT layer dependencies..."
+          cd lambda-layers/jwt/nodejs
+          npm ci
+          cd ../../..
+        fi
+      
     - name: Install test dependencies
       run: cd tests && npm ci
       
