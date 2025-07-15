@@ -5,7 +5,7 @@ const {
   } = require('@aws-sdk/client-cognito-identity-provider');
   const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
   const crypto = require('crypto');
-  const { createApiResponse } = require("./shared/response");
+  const { createApiResponse } = require("/opt/nodejs/shared/response");
   
   const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });

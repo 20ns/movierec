@@ -2,7 +2,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, PutCommand, BatchGetCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const axios = require('axios');
 const { CognitoJwtVerifier } = require("aws-jwt-verify");
-const { createApiResponse } = require("./shared/response");
+const { createApiResponse } = require("/opt/nodejs/shared/response");
 const SemanticSimilarityScorer = require("./semanticScorer");
 
 let verifier;

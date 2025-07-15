@@ -1,7 +1,7 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
-const { createApiResponse } = require("./shared/response");
+const { createApiResponse } = require("/opt/nodejs/shared/response");
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);

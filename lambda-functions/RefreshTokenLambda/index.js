@@ -1,5 +1,5 @@
 const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
-const { createApiResponse } = require("./shared/response");
+const { createApiResponse } = require("/opt/nodejs/shared/response");
 
 // Initialize clients
 const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });

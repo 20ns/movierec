@@ -1,5 +1,5 @@
 const { DynamoDBClient, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
-const { createApiResponse } = require("./shared/response");
+const { createApiResponse } = require("/opt/nodejs/shared/response");
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });
 
