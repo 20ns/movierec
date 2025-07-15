@@ -31,15 +31,15 @@ jobs:
       
     - name: Install Lambda layer dependencies
       run: |
-        # Install AWS SDK layer dependencies
+        # Install AWS SDK layer dependencies (use npm install - package-lock.json is gitignored)
         if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
           echo "Installing AWS SDK layer dependencies..."
           cd lambda-layers/aws-sdk-layer/nodejs
-          npm ci
+          npm install
           cd ../../..
         fi
         
-        # Install JWT layer dependencies
+        # Install JWT layer dependencies (use npm ci - package-lock.json is tracked)
         if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
           echo "Installing JWT layer dependencies..."
           cd lambda-layers/jwt/nodejs
@@ -83,15 +83,15 @@ jobs:
       
     - name: Install Lambda layer dependencies
       run: |
-        # Install AWS SDK layer dependencies
+        # Install AWS SDK layer dependencies (use npm install - package-lock.json is gitignored)
         if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
           echo "Installing AWS SDK layer dependencies..."
           cd lambda-layers/aws-sdk-layer/nodejs
-          npm ci
+          npm install
           cd ../../..
         fi
         
-        # Install JWT layer dependencies
+        # Install JWT layer dependencies (use npm ci - package-lock.json is tracked)
         if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
           echo "Installing JWT layer dependencies..."
           cd lambda-layers/jwt/nodejs
@@ -171,15 +171,15 @@ jobs:
         
     - name: Install Lambda layer dependencies
       run: |
-        # Install AWS SDK layer dependencies
+        # Install AWS SDK layer dependencies (use npm install - package-lock.json is gitignored)
         if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
           echo "Installing AWS SDK layer dependencies..."
           cd lambda-layers/aws-sdk-layer/nodejs
-          npm ci
+          npm install
           cd ../../..
         fi
         
-        # Install JWT layer dependencies
+        # Install JWT layer dependencies (use npm ci - package-lock.json is tracked)
         if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
           echo "Installing JWT layer dependencies..."
           cd lambda-layers/jwt/nodejs
