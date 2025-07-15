@@ -71,7 +71,7 @@ const tmdbCache = new Map();
 const CACHE_TTL = 300000; // 5 minutes cache
 
 function getCacheKey(url) {
-    return url.replace(process.env.TMDB_API_KEY, 'API_KEY');
+    return url.replace(process.env.REACT_APP_TMDB_API_KEY, 'API_KEY');
 }
 
 async function cachedTmdbRequest(url) {
@@ -806,9 +806,9 @@ class PersonalizedRecommendationEngine {
 
 // Updated main recommendation function
 async function getRecommendations(mediaType, excludeIds, limit, userPreferences, userId) {
-  const TMDB_API_KEY = process.env.TMDB_API_KEY;
+  const TMDB_API_KEY = process.env.REACT_APP_TMDB_API_KEY;
   if (!TMDB_API_KEY) {
-    console.error('TMDB_API_KEY environment variable not set');
+    console.error('REACT_APP_TMDB_API_KEY environment variable not set');
     return [];
   }
 
@@ -837,7 +837,7 @@ exports.handler = async (event) => {
   }
 
   // Validate required environment variables
-  if (!process.env.USER_PREFERENCES_TABLE || !process.env.TMDB_API_KEY) {
+  if (!process.env.USER_PREFERENCES_TABLE || !process.env.REACT_APP_TMDB_API_KEY) {
     console.error("Required environment variables not set");
     return createApiResponse(500, { error: "Server configuration error" }, event);
   }
