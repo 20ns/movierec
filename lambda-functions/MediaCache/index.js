@@ -10,7 +10,7 @@ const dynamoDB = DynamoDBDocumentClient.from(client);
 exports.handler = async (event) => {
   console.log('Event received:', JSON.stringify(event, null, 2));
 
-  // Handle OPTIONS request for CORS preflight
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
     return createApiResponse(204, null, event);
   }

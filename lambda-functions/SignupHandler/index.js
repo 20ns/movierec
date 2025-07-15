@@ -119,13 +119,20 @@ const {
     }
     
     // Otherwise, assume the event is from API Gateway.
+    // Handle CORS preflight OPTIONS method
     if (event.httpMethod === 'OPTIONS') {
       return createApiResponse(204, null, event);
     }
   
     if (event.httpMethod === 'POST') {
       try {
-        const body = JSON.parse(event.body);
+        let body;
+        try {
+          body = JSON.parse(event.body);
+        } catch (parseError) {
+          console.error("JSON parse error:", parseError);
+          return createApiResponse(400, { error: "Invalid JSON in request body" }, event);
+        }
         let response;
   
         // If a verification code is provided, handle confirmation.

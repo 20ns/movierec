@@ -176,7 +176,7 @@ async function awardXP(userId, xpAmount, reason = 'General activity') {
 exports.handler = async (event) => {
   console.log('UserStats Request:', JSON.stringify(event, null, 2));
 
-  // Handle preflight requests
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
     return createApiResponse(204, null, event);
   }
@@ -189,6 +189,22 @@ exports.handler = async (event) => {
     }
 
     const token = authHeader.substring(7);
+    
+    // Validate token format before processing
+    if (!token || token.trim() === '') {
+      console.error('Empty token after Bearer prefix');
+      return createApiResponse(401, { error: "Token is empty" }, event);
+    }
+    
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('Invalid token format: expected 3 parts, got', tokenParts.length, 'token:', token.substring(0, 50));
+      return createApiResponse(401, { 
+        error: "Invalid JWT token format",
+        details: `Expected 3 parts separated by dots, got ${tokenParts.length} parts`
+      }, event);
+    }
+    
     let payload;
     
     if (process.env.IS_OFFLINE === 'true') {
@@ -201,9 +217,10 @@ exports.handler = async (event) => {
       }
       try {
         payload = await verifier.verify(token);
-      } catch (error) {
+      } catch (error) { // JWT token verification error
+        console.error("Token verification error:", error);
         console.error("Token verification failed:", error);
-        return createApiResponse(401, { error: "Invalid or expired token" }, event);
+        return createApiResponse(401, { error: "Authentication failed", details: "Invalid or expired token" }, event);
       }
     }
 
@@ -223,7 +240,13 @@ exports.handler = async (event) => {
         break;
 
       case 'POST':
-        const body = JSON.parse(event.body || '{}');
+        let body;
+        try {
+          body = JSON.parse(event.body || '{}');
+        } catch (parseError) {
+          console.error("JSON parse error:", parseError);
+          return createApiResponse(400, { error: "Invalid JSON in request body" }, event);
+        }
         
         if (pathParameters.action === 'award-xp') {
           const { xpAmount, reason } = body;

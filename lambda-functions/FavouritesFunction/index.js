@@ -21,6 +21,7 @@ try {
 exports.handler = async (event) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
 
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
     return createApiResponse(204, null, event);
   }
@@ -74,7 +75,8 @@ exports.handler = async (event) => {
       try {
         payload = await verifier.verify(token);
         console.log('Token verified successfully for user:', payload.sub);
-      } catch (error) {
+      } catch (error) { // JWT token verification error
+        console.error("Token verification error:", error);
         console.error("Token verification failed:", {
           errorMessage: error.message,
           errorName: error.name,
@@ -113,7 +115,13 @@ exports.handler = async (event) => {
 
       case 'POST':
         try {
-          const requestBody = JSON.parse(event.body || '{}');
+          let requestBody;
+          try {
+            requestBody = JSON.parse(event.body || '{}');
+          } catch (parseError) {
+            console.error("JSON parse error:", parseError);
+            return createApiResponse(400, { error: "Invalid JSON in request body" }, event);
+          }
           const { mediaId, movieId, title, poster_path, release_date, vote_average } = requestBody;
           const id = mediaId || movieId;
           

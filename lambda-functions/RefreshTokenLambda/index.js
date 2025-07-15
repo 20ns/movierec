@@ -7,7 +7,7 @@ const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AW
 exports.handler = async (event) => {
   console.log('Refresh Token request received:', JSON.stringify(event, null, 2));
 
-  // Handle CORS preflight
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
     return createApiResponse(204, null, event);
   }

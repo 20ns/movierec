@@ -7,7 +7,7 @@ const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AW
 exports.handler = async (event) => {
   console.log('Event received:', JSON.stringify(event, null, 2));
 
-  // Handle CORS preflight
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
     return createApiResponse(204, null, event);
   }
@@ -15,7 +15,13 @@ exports.handler = async (event) => {
   // Handle POST request for signin
   if (event.httpMethod === 'POST') {
     try {
-      const body = JSON.parse(event.body || '{}');
+      let body;
+      try {
+        body = JSON.parse(event.body || '{}');
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError);
+        return createApiResponse(400, { error: "Invalid JSON in request body" }, event);
+      }
       const { email, password } = body;
 
       if (!email || !password) {

@@ -831,8 +831,15 @@ async function getRecommendations(mediaType, excludeIds, limit, userPreferences,
 exports.handler = async (event) => {
   console.log('Event received:', JSON.stringify(event, null, 2));
 
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
     return createApiResponse(204, null, event);
+  }
+
+  // Validate required environment variables
+  if (!process.env.USER_PREFERENCES_TABLE || !process.env.REACT_APP_TMDB_API_KEY) {
+    console.error("Required environment variables not set");
+    return createApiResponse(500, { error: "Server configuration error" }, event);
   }
 
   try {
@@ -842,6 +849,22 @@ exports.handler = async (event) => {
     }
 
     const token = authHeader.substring(7);
+    
+    // Validate token format before processing
+    if (!token || token.trim() === '') {
+      console.error('Empty token after Bearer prefix');
+      return createApiResponse(401, { error: "Token is empty" }, event);
+    }
+    
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('Invalid token format: expected 3 parts, got', tokenParts.length, 'token:', token.substring(0, 50));
+      return createApiResponse(401, { 
+        error: "Invalid JWT token format",
+        details: `Expected 3 parts separated by dots, got ${tokenParts.length} parts`
+      }, event);
+    }
+    
     let payload;
     
     if (process.env.IS_OFFLINE === 'true') {
@@ -853,9 +876,10 @@ exports.handler = async (event) => {
       }
       try {
         payload = await verifier.verify(token);
-      } catch (error) {
+      } catch (error) { // JWT token verification error
+        console.error("Token verification error:", error);
         console.error("Token verification failed:", error);
-        return createApiResponse(401, { error: "Unauthorized" }, event);
+        return createApiResponse(401, { error: "Authentication failed", details: "Invalid or expired token" }, event);
       }
     }
 
@@ -879,8 +903,9 @@ exports.handler = async (event) => {
             } else {
               userPreferences = queryPrefs;
             }
-          } catch (error) {
-            console.warn('Failed to parse preferences from query parameters:', error);
+          } catch (parseError) {
+            console.error("JSON parse error:", parseError);
+            return createApiResponse(400, { error: "Invalid JSON in preferences parameter" }, event);
           }
         }
         
@@ -910,8 +935,8 @@ exports.handler = async (event) => {
         if (event.body) {
           try {
             requestBody = JSON.parse(event.body);
-          } catch (error) {
-            console.error('Failed to parse request body:', error);
+          } catch (parseError) {
+            console.error("JSON parse error:", parseError);
             return createApiResponse(400, { error: "Invalid JSON in request body" }, event);
           }
         }

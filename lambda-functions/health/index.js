@@ -5,9 +5,9 @@ const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-
 
 // Health check endpoint for monitoring deployment success
 exports.handler = async (event) => {
-  // Handle preflight CORS requests
+  // Handle CORS preflight OPTIONS method
   if (event.httpMethod === 'OPTIONS') {
-    return createApiResponse(200, null, event);
+    return createApiResponse(204, null, event);
   }
 
   try {
@@ -35,12 +35,22 @@ exports.handler = async (event) => {
       }
     }
 
-    // Check environment variables
+    // Check environment variables with proper validation
     const requiredEnvVars = ['AWS_REGION', 'TMDB_API_KEY'];
     healthChecks.environment = {
       status: requiredEnvVars.every(envVar => process.env[envVar]) ? 'healthy' : 'unhealthy',
       missing: requiredEnvVars.filter(envVar => !process.env[envVar])
     };
+    
+    // Handle missing environment variables with 400 error
+    if (healthChecks.environment.missing.length > 0) {
+      return createApiResponse(400, {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: 'Missing required environment variables',
+        missing: healthChecks.environment.missing
+      }, event);
+    }
 
     // Lambda function health
     healthChecks.lambda = {
@@ -77,7 +87,7 @@ exports.handler = async (event) => {
   } catch (error) {
     console.error('Health check failed:', error);
 
-    return createApiResponse(503, {
+    return createApiResponse(500, {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       error: error.message
