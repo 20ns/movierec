@@ -1,6 +1,8 @@
 // Time Synchronization Service
 // Provides accurate server time for token validation regardless of client clock settings
 
+import ENV_CONFIG from '../config/environment';
+
 class TimeSync {
   constructor() {
     this.offset = 0; // Server time - client time in seconds
@@ -62,10 +64,10 @@ class TimeSync {
   async fetchAWSServerTime() {
     try {
       const startTime = Date.now();
-      const apiUrl = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
+      const apiUrl = ENV_CONFIG.getApiUrl('/recommendations');
       
       // Use HEAD request to minimize data transfer
-      const response = await fetch(`${apiUrl}/recommendations`, {
+      const response = await fetch(apiUrl, {
         method: 'HEAD',
         cache: 'no-cache'
       });

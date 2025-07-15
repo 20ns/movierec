@@ -1,4 +1,5 @@
 import axios from 'axios';
+import ENV_CONFIG from '../config/environment';
 
 // Use environment variable for API Gateway URL to support both local and production
 const API_GATEWAY_URL = process.env.REACT_APP_API_GATEWAY_INVOKE_URL || 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod';
@@ -89,7 +90,7 @@ export const fetchCachedMedia = async (options = {}) => {
         return { items: [], source: 'error' };
     }
 
-    const apiUrl = `${API_GATEWAY_URL}/recommendations`;
+    const apiUrl = ENV_CONFIG.getApiUrl('/recommendations');
     // Debug logging (commented out for production)
     // console.log('[MediaCache] Making API request with token:', {
     //   hasToken: !!token,
