@@ -80,6 +80,24 @@ jobs:
     - name: Install CDK dependencies
       run: cd infrastructure && npm ci
       
+    - name: Install Lambda layer dependencies
+      run: |
+        # Install AWS SDK layer dependencies (use npm install - package-lock.json is gitignored)
+        if [ -f "lambda-layers/aws-sdk-layer/nodejs/package.json" ]; then
+          echo "Installing AWS SDK layer dependencies..."
+          cd lambda-layers/aws-sdk-layer/nodejs
+          npm install
+          cd ../../..
+        fi
+        
+        # Install JWT layer dependencies (use npm ci - package-lock.json is tracked)
+        if [ -f "lambda-layers/jwt/nodejs/package.json" ]; then
+          echo "Installing JWT layer dependencies..."
+          cd lambda-layers/jwt/nodejs
+          npm ci
+          cd ../../..
+        fi
+      
     - name: Prepare Lambda functions with shared code
       run: cd infrastructure && npm run pre-deploy
       
