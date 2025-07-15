@@ -162,7 +162,7 @@ describe('JWT Layer Dependencies', () => {
 });
 
 describe('Shared Response Module', () => {
-    const sharedResponsePath = path.join(__dirname, '../lambda-functions/shared/response.js');
+    const sharedResponsePath = path.join(__dirname, '../lambda-layers/aws-sdk-layer/nodejs/shared/response.js');
 
     test('Shared response module should exist', () => {
         expect(fs.existsSync(sharedResponsePath)).toBe(true);
