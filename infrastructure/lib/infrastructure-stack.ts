@@ -163,6 +163,17 @@ export class InfrastructureStack extends cdk.Stack {
     // LAMBDA FUNCTIONS
     // ============================================
     
+    // Validate critical environment variables
+    const tmdbApiKey = process.env.REACT_APP_TMDB_API_KEY;
+    if (!tmdbApiKey || tmdbApiKey.trim() === '') {
+      console.error('CRITICAL: REACT_APP_TMDB_API_KEY environment variable is missing or empty!');
+      console.error('This will cause Lambda functions to fail with 500 errors.');
+      console.error('Please ensure the .env file contains a valid TMDB API key.');
+      throw new Error('Missing required environment variable: REACT_APP_TMDB_API_KEY');
+    }
+
+    console.log('✅ TMDB API Key validated successfully');
+
     // Shared environment variables for all Lambda functions
     const sharedEnvironment = {
       USER_PREFERENCES_TABLE: userPreferencesTable.tableName,
@@ -172,9 +183,9 @@ export class InfrastructureStack extends cdk.Stack {
       EMBEDDING_CACHE_TABLE: embeddingCacheTable.tableName,
       USER_POOL_ID: existingUserPool.userPoolId,
       COGNITO_CLIENT_ID: existingUserPoolClient.userPoolClientId,
-      REACT_APP_TMDB_API_KEY: process.env.REACT_APP_TMDB_API_KEY || '',
+      REACT_APP_TMDB_API_KEY: tmdbApiKey,
       REGION: this.region,
-      ALLOWED_CORS_ORIGINS: this.node.tryGetContext('allowed_cors_origins') || 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000',
+      ALLOWED_CORS_ORIGINS: this.node.tryGetContext('allowed_cors_origins') || process.env.ALLOWED_CORS_ORIGINS || 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000',
       USE_SEMANTIC_API: process.env.USE_SEMANTIC_API || 'false',
       HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY || '',
     };

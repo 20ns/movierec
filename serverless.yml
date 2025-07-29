@@ -49,8 +49,8 @@ provider:
     USER_FAVORITES_TABLE: Favourites
     USER_WATCHLIST_TABLE: Watchlist
     EMBEDDING_CACHE_TABLE: MovieRecEmbeddingCache
-    REACT_APP_TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # Ensure TMDB_API_KEY is set in your environment
-    ALLOWED_CORS_ORIGINS: ${env:ALLOWED_CORS_ORIGINS}
+    REACT_APP_TMDB_API_KEY: ${env:REACT_APP_TMDB_API_KEY} # CRITICAL: Must be set in .env file
+    ALLOWED_CORS_ORIGINS: ${env:ALLOWED_CORS_ORIGINS, 'https://www.movierec.net,https://movierec.net,http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000'}
     USE_SEMANTIC_API: ${env:USE_SEMANTIC_API, 'false'}
     HUGGINGFACE_API_KEY: ${env:HUGGINGFACE_API_KEY, ''}
   iamRoleStatements:
@@ -180,9 +180,39 @@ functions:
       - http:
           path: recommendations
           method: get
+          cors:
+            origin: 
+              - 'https://www.movierec.net'
+              - 'https://movierec.net'
+              - 'http://localhost:3000'
+              - 'http://localhost:8080'
+              - 'http://127.0.0.1:3000'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Api-Key
+              - Accept
+              - Origin
+              - X-Requested-With
+            allowCredentials: true
       - http:
           path: recommendations
           method: post
+          cors:
+            origin: 
+              - 'https://www.movierec.net'
+              - 'https://movierec.net'
+              - 'http://localhost:3000'
+              - 'http://localhost:8080'
+              - 'http://127.0.0.1:3000'
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Api-Key
+              - Accept
+              - Origin
+              - X-Requested-With
+            allowCredentials: true
 
   mediaCache:
     handler: lambda-functions/MediaCache/index.handler
