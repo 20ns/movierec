@@ -122,3 +122,6 @@ tables-only.yml
 # AWS Generated files
 infrastructure/cdk.out/*
 .github/chatmodes/
+
+# Internal development plans
+RECOMMENDATION_IMPROVEMENT_PLAN.md

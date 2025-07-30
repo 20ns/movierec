@@ -160,6 +160,293 @@ class PersonalizedRecommendationEngine {
       .filter(title => title.length > 0);
   }
 
+  // PHASE 1 ENHANCEMENT: Analyze user's favorites to extract content DNA patterns
+  async analyzeFavoritesContentDNA(favorites) {
+    if (!favorites || favorites.length === 0) {
+      return {
+        preferredActors: [],
+        preferredDirectors: [],
+        genreDistribution: {},
+        decadePreferences: {},
+        ratingPatterns: { average: 0, count: 0 },
+        contentThemes: []
+      };
+    }
+
+    const patterns = {
+      preferredActors: [],
+      preferredDirectors: [],
+      genreDistribution: {},
+      decadePreferences: {},
+      ratingPatterns: { average: 0, count: 0 },
+      contentThemes: []
+    };
+
+    // Enrich favorites with detailed metadata if not already done
+    const enrichedFavorites = await this.enrichFavoritesMetadata(favorites);
+    
+    // Extract actor patterns
+    const actorFrequency = {};
+    enrichedFavorites.forEach(fav => {
+      if (fav.cast && Array.isArray(fav.cast)) {
+        fav.cast.slice(0, 5).forEach(actor => {
+          if (actor.name) {
+            const weight = this.calculateTemporalWeight(fav.addedAt);
+            actorFrequency[actor.name] = (actorFrequency[actor.name] || 0) + weight;
+          }
+        });
+      }
+    });
+
+    patterns.preferredActors = Object.entries(actorFrequency)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10)
+      .map(([name, frequency]) => ({ name, frequency: Math.round(frequency * 100) / 100 }));
+
+    // Extract director patterns
+    const directorFrequency = {};
+    enrichedFavorites.forEach(fav => {
+      if (fav.crew && Array.isArray(fav.crew)) {
+        const directors = fav.crew.filter(person => person.job === 'Director');
+        directors.forEach(director => {
+          if (director.name) {
+            const weight = this.calculateTemporalWeight(fav.addedAt);
+            directorFrequency[director.name] = (directorFrequency[director.name] || 0) + weight;
+          }
+        });
+      }
+    });
+
+    patterns.preferredDirectors = Object.entries(directorFrequency)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10)
+      .map(([name, frequency]) => ({ name, frequency: Math.round(frequency * 100) / 100 }));
+
+    // Analyze genre distribution with temporal weighting
+    enrichedFavorites.forEach(fav => {
+      if (fav.genres && Array.isArray(fav.genres)) {
+        const weight = this.calculateTemporalWeight(fav.addedAt);
+        fav.genres.forEach(genre => {
+          patterns.genreDistribution[genre.id] = (patterns.genreDistribution[genre.id] || 0) + weight;
+        });
+      }
+    });
+
+    // Analyze decade preferences
+    enrichedFavorites.forEach(fav => {
+      const year = this.extractYear(fav.releaseDate || fav.release_date || fav.first_air_date);
+      if (year) {
+        const decade = Math.floor(year / 10) * 10;
+        const weight = this.calculateTemporalWeight(fav.addedAt);
+        patterns.decadePreferences[decade] = (patterns.decadePreferences[decade] || 0) + weight;
+      }
+    });
+
+    // Calculate rating patterns
+    const validRatings = enrichedFavorites
+      .map(fav => fav.voteAverage || fav.vote_average)
+      .filter(rating => rating && rating > 0);
+
+    if (validRatings.length > 0) {
+      patterns.ratingPatterns = {
+        average: validRatings.reduce((sum, rating) => sum + rating, 0) / validRatings.length,
+        count: validRatings.length,
+        minimum: Math.min(...validRatings),
+        maximum: Math.max(...validRatings)
+      };
+    }
+
+    console.log(`Analyzed ${enrichedFavorites.length} favorites: ${patterns.preferredActors.length} actors, ${patterns.preferredDirectors.length} directors`);
+    return patterns;
+  }
+
+  // PHASE 1 ENHANCEMENT: Calculate temporal weight for preferences (recent = more important)
+  calculateTemporalWeight(addedAt, maxDays = 180) {
+    if (!addedAt) return 0.5; // Default weight for unknown dates
+    
+    const daysSince = (Date.now() - new Date(addedAt).getTime()) / (1000 * 60 * 60 * 24);
+    
+    // Exponential decay: recent favorites weighted higher
+    // Weight decreases to ~37% after maxDays/3, ~13% after maxDays*2/3
+    return Math.exp(-daysSince / (maxDays / 3));
+  }
+
+  // PHASE 1 ENHANCEMENT: Calculate watchlist influence on recommendations
+  calculateWatchlistInfluence(candidate, watchlist) {
+    if (!watchlist || watchlist.length === 0) return 0;
+
+    let influenceScore = 0;
+    
+    watchlist.forEach(watchItem => {
+      const similarity = this.calculateContentSimilarity(candidate, watchItem);
+      if (similarity > 0.6) {
+        // Strong positive signal for similar content
+        const recency = this.calculateTemporalWeight(watchItem.addedAt);
+        influenceScore += similarity * 20 * recency;
+      }
+    });
+    
+    return Math.min(influenceScore, 50); // Cap at 50 points
+  }
+
+  // PHASE 1 ENHANCEMENT: Enhanced content similarity calculation
+  calculateContentSimilarity(content1, content2) {
+    let similarity = 0;
+    
+    // Genre similarity (40% weight)
+    if (content1.genres && content2.genres) {
+      const genreOverlap = this.calculateGenreOverlap(content1.genres, content2.genres);
+      similarity += genreOverlap * 0.4;
+    }
+    
+    // Cast similarity (30% weight)
+    if (content1.cast && content2.cast) {
+      const castOverlap = this.calculateCastOverlap(content1.cast, content2.cast);
+      similarity += castOverlap * 0.3;
+    }
+    
+    // Director similarity (30% weight)
+    if (this.shareDirector(content1, content2)) {
+      similarity += 0.3;
+    }
+    
+    return Math.min(similarity, 1.0);
+  }
+
+  // Helper method to calculate genre overlap
+  calculateGenreOverlap(genres1, genres2) {
+    if (!genres1 || !genres2 || genres1.length === 0 || genres2.length === 0) return 0;
+    
+    const ids1 = new Set(genres1.map(g => g.id || g));
+    const ids2 = new Set(genres2.map(g => g.id || g));
+    
+    const intersection = new Set([...ids1].filter(x => ids2.has(x)));
+    const union = new Set([...ids1, ...ids2]);
+    
+    return intersection.size / union.size;
+  }
+
+  // Helper method to calculate cast overlap
+  calculateCastOverlap(cast1, cast2) {
+    if (!cast1 || !cast2 || cast1.length === 0 || cast2.length === 0) return 0;
+    
+    const names1 = new Set(cast1.slice(0, 10).map(actor => actor.name).filter(name => name));
+    const names2 = new Set(cast2.slice(0, 10).map(actor => actor.name).filter(name => name));
+    
+    const intersection = new Set([...names1].filter(x => names2.has(x)));
+    const maxSize = Math.max(names1.size, names2.size);
+    
+    return maxSize > 0 ? intersection.size / maxSize : 0;
+  }
+
+  // Helper method to check if content shares directors
+  shareDirector(content1, content2) {
+    if (!content1.crew || !content2.crew) return false;
+    
+    const directors1 = content1.crew.filter(person => person.job === 'Director').map(d => d.name);
+    const directors2 = content2.crew.filter(person => person.job === 'Director').map(d => d.name);
+    
+    return directors1.some(director => directors2.includes(director));
+  }
+
+  // Helper method to extract year from date string
+  extractYear(dateString) {
+    if (!dateString) return null;
+    const year = parseInt(dateString.substring(0, 4));
+    return isNaN(year) ? null : year;
+  }
+
+  // Helper method to enrich favorites with metadata if needed
+  async enrichFavoritesMetadata(favorites) {
+    const enriched = [];
+    
+    for (const favorite of favorites) {
+      // If favorite already has detailed metadata, use it
+      if (favorite.cast && favorite.crew && favorite.genres) {
+        enriched.push(favorite);
+        continue;
+      }
+      
+      // Otherwise, fetch metadata from TMDB
+      try {
+        const mediaType = favorite.mediaType || (favorite.title ? 'movie' : 'tv');
+        const response = await cachedTmdbRequest(
+          `https://api.themoviedb.org/3/${mediaType}/${favorite.mediaId}?api_key=${this.tmdbApiKey}&append_to_response=credits`
+        );
+        
+        if (response?.data) {
+          enriched.push({
+            ...favorite,
+            genres: response.data.genres || [],
+            cast: response.data.credits?.cast || [],
+            crew: response.data.credits?.crew || [],
+            vote_average: response.data.vote_average || favorite.voteAverage,
+            release_date: response.data.release_date || response.data.first_air_date || favorite.releaseDate
+          });
+        } else {
+          enriched.push(favorite);
+        }
+      } catch (error) {
+        console.warn(`Failed to enrich favorite ${favorite.mediaId}:`, error);
+        enriched.push(favorite);
+      }
+    }
+    
+    return enriched;
+  }
+
+  // PHASE 1 ENHANCEMENT: Build enhanced user profile for semantic analysis
+  buildEnhancedUserProfile(preferences, favorites, watchlist) {
+    const components = [];
+    
+    // Original preferences
+    if (preferences.favoriteContent) {
+      components.push(`Favorite content: ${preferences.favoriteContent}`);
+    }
+    
+    if (preferences.moodPreferences) {
+      components.push(`Mood preferences: ${preferences.moodPreferences}`);
+    }
+    
+    // Enhanced with favorites data
+    if (favorites && favorites.length > 0) {
+      const recentFavorites = favorites
+        .sort((a, b) => new Date(b.addedAt || 0) - new Date(a.addedAt || 0))
+        .slice(0, 8)
+        .map(fav => fav.title || fav.name)
+        .filter(title => title);
+      
+      if (recentFavorites.length > 0) {
+        components.push(`Recently loved: ${recentFavorites.join(', ')}`);
+      }
+    }
+    
+    // Add watchlist interests
+    if (watchlist && watchlist.length > 0) {
+      const recentWatchlist = watchlist
+        .sort((a, b) => new Date(b.addedAt || 0) - new Date(a.addedAt || 0))
+        .slice(0, 5)
+        .map(item => item.title || item.name)
+        .filter(title => title);
+      
+      if (recentWatchlist.length > 0) {
+        components.push(`Want to watch: ${recentWatchlist.join(', ')}`);
+      }
+    }
+    
+    // Add favorite people from preferences
+    if (preferences.favoritePeople) {
+      if (preferences.favoritePeople.actors && preferences.favoritePeople.actors.length > 0) {
+        components.push(`Favorite actors: ${preferences.favoritePeople.actors.join(', ')}`);
+      }
+      if (preferences.favoritePeople.directors && preferences.favoritePeople.directors.length > 0) {
+        components.push(`Favorite directors: ${preferences.favoritePeople.directors.join(', ')}`);
+      }
+    }
+    
+    return components.filter(comp => comp && comp.length > 0).join('. ');
+  }
+
   // Discover content candidates from multiple sources
   async discoverCandidates(mediaType, preferences, favorites, excludeIds) {
     const candidates = new Map(); // Use Map to avoid duplicates
@@ -422,13 +709,13 @@ class PersonalizedRecommendationEngine {
     totalScore += dealBreakerPenalty;
     scoreBreakdown.dealBreaker = dealBreakerPenalty;
 
-    // 3. Semantic Similarity Score (20% weight - NEW)
-    const semanticScore = await this.calculateSemanticScore(candidate, preferences);
+    // 3. Semantic Similarity Score (20% weight - ENHANCED)
+    const semanticScore = await this.calculateSemanticScore(candidate, preferences, userData);
     totalScore += semanticScore * 0.20;
     scoreBreakdown.semantic = semanticScore;
 
-    // 4. Favorite Similarity Score (20% weight - reduced from 25%)
-    const similarityScore = this.calculateFavoriteSimilarity(candidate, preferences, userData);
+    // 4. Favorite Similarity Score (20% weight - ENHANCED)
+    const similarityScore = await this.calculateFavoriteSimilarity(candidate, preferences, userData);
     totalScore += similarityScore * 0.20;
     scoreBreakdown.similarity = similarityScore;
 
@@ -450,12 +737,20 @@ class PersonalizedRecommendationEngine {
     return { score: totalScore, breakdown: scoreBreakdown };
   }
 
-  // NEW: Calculate semantic similarity score
-  async calculateSemanticScore(candidate, preferences) {
+  // PHASE 1 ENHANCED: Calculate semantic similarity score with enhanced user profile
+  async calculateSemanticScore(candidate, preferences, userData) {
     try {
-      // Extract text representations
+      // Extract movie text representation
       const movieText = this.semanticScorer.extractMovieText(candidate);
-      const userText = this.semanticScorer.extractUserPreferenceText(preferences);
+      
+      // Build enhanced user profile using favorites and watchlist
+      const { favorites, watchlist } = userData || {};
+      const enhancedUserText = this.buildEnhancedUserProfile(preferences, favorites, watchlist);
+      
+      // Fallback to original method if enhanced profile is too short
+      const userText = enhancedUserText.length > 20 ? 
+        enhancedUserText : 
+        this.semanticScorer.extractUserPreferenceText(preferences);
 
       // Skip if no meaningful text available
       if (!movieText || movieText.length < 10 || !userText || userText.length < 10) {
@@ -466,13 +761,13 @@ class PersonalizedRecommendationEngine {
       // Calculate semantic similarity
       const similarity = await this.semanticScorer.calculateSimilarity(userText, movieText);
       
-      // Convert similarity (0-1) to score (0-100) and add slight boost for semantic matches
+      // Convert similarity (0-1) to score (0-100) with enhanced weighting
       const score = Math.max(0, Math.min(100, similarity * 100));
       
-      console.log(`Semantic score for ${candidate.title || candidate.name}: ${score.toFixed(1)}`);
+      console.log(`Enhanced semantic score for ${candidate.title || candidate.name}: ${score.toFixed(1)}`);
       return score;
     } catch (error) {
-      console.warn('Semantic scoring failed, using neutral score:', error.message);
+      console.warn('Enhanced semantic scoring failed, using neutral score:', error.message);
       return 50; // Neutral fallback score
     }
   }
@@ -540,26 +835,96 @@ class PersonalizedRecommendationEngine {
     return candidate.genres?.some(g => slowGenres.includes(g.id)) && candidate.runtime > 150;
   }
 
-  calculateFavoriteSimilarity(candidate, preferences, userData) {
-    // This is a simplified similarity calculation
-    // In a real system, you'd use more sophisticated similarity algorithms
-    let score = 50;
+  // PHASE 1 ENHANCED: Advanced favorite similarity using content DNA and watchlist
+  async calculateFavoriteSimilarity(candidate, preferences, userData) {
+    let score = 50; // Base score
 
-    // Check if cast overlaps with user's favorite people
+    const { favorites, watchlist } = userData;
+
+    // 1. Enhanced cast similarity using favorites content DNA
+    if (favorites && favorites.length > 0) {
+      try {
+        const contentDNA = await this.analyzeFavoritesContentDNA(favorites);
+        
+        // Check actor matches with temporal weighting
+        if (contentDNA.preferredActors.length > 0 && candidate.cast) {
+          const candidateActors = new Set(candidate.cast.map(actor => actor.name));
+          
+          for (const preferredActor of contentDNA.preferredActors) {
+            if (candidateActors.has(preferredActor.name)) {
+              // Higher score for more frequently liked actors
+              const actorBonus = Math.min(preferredActor.frequency * 15, 25);
+              score += actorBonus;
+              break; // Avoid double-counting
+            }
+          }
+        }
+        
+        // Check director matches with temporal weighting
+        if (contentDNA.preferredDirectors.length > 0 && candidate.crew) {
+          const candidateDirectors = new Set(
+            candidate.crew.filter(person => person.job === 'Director').map(d => d.name)
+          );
+          
+          for (const preferredDirector of contentDNA.preferredDirectors) {
+            if (candidateDirectors.has(preferredDirector.name)) {
+              // Higher score for more frequently liked directors
+              const directorBonus = Math.min(preferredDirector.frequency * 20, 35);
+              score += directorBonus;
+              break; // Avoid double-counting
+            }
+          }
+        }
+        
+        // Enhanced genre similarity using favorites distribution
+        if (Object.keys(contentDNA.genreDistribution).length > 0 && candidate.genres) {
+          let genreAlignment = 0;
+          let totalWeight = 0;
+          
+          candidate.genres.forEach(genre => {
+            const userPreference = contentDNA.genreDistribution[genre.id] || 0;
+            genreAlignment += userPreference * 10; // Scale to meaningful range
+            totalWeight += userPreference;
+          });
+          
+          if (totalWeight > 0) {
+            score += Math.min(genreAlignment / candidate.genres.length, 20);
+          }
+        }
+        
+        // Direct content similarity to favorites
+        let maxSimilarity = 0;
+        for (const favorite of favorites.slice(0, 10)) { // Limit for performance
+          const similarity = this.calculateContentSimilarity(candidate, favorite);
+          if (similarity > maxSimilarity) {
+            maxSimilarity = similarity;
+          }
+        }
+        score += maxSimilarity * 25; // Up to 25 points for content similarity
+        
+      } catch (error) {
+        console.warn('Error analyzing favorites DNA:', error);
+      }
+    }
+
+    // 2. Original preference-based matching (fallback)
     if (preferences.favoritePeople?.actors && candidate.cast) {
       const actorMatch = candidate.cast.some(actor => 
         preferences.favoritePeople.actors.includes(actor.name)
       );
-      if (actorMatch) score += 30;
+      if (actorMatch) score += 20; // Reduced since we have enhanced version above
     }
 
-    // Check director overlap
     if (preferences.favoritePeople?.directors && candidate.crew) {
       const directorMatch = candidate.crew.some(crew => 
         crew.job === 'Director' && preferences.favoritePeople.directors.includes(crew.name)
       );
-      if (directorMatch) score += 40;
+      if (directorMatch) score += 25; // Reduced since we have enhanced version above
     }
+
+    // 3. Add watchlist influence
+    const watchlistInfluence = this.calculateWatchlistInfluence(candidate, watchlist);
+    score += watchlistInfluence;
 
     return Math.min(score, 100);
   }
