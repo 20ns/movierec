@@ -11,25 +11,31 @@ This directory contains comprehensive documentation for the MovieRec platform - 
 ### Frontend Documentation
 - **[03-frontend-architecture.md](03-frontend-architecture.md)** - React app structure and component organization
 - **[04-components-guide.md](04-components-guide.md)** - Detailed component documentation with props and usage
-- **[05-hooks-and-state.md](05-hooks-and-state.md)** - Custom hooks and state management patterns
 
 ### Backend Documentation
 - **[06-lambda-functions.md](06-lambda-functions.md)** - AWS Lambda functions and their responsibilities
 - **[07-api-endpoints.md](07-api-endpoints.md)** - REST API endpoints with request/response schemas
-- **[08-database-schema.md](08-database-schema.md)** - DynamoDB table structures and data models
 
 ### Infrastructure & Deployment
 - **[09-infrastructure.md](09-infrastructure.md)** - AWS CDK infrastructure as code
 - **[10-deployment-guide.md](10-deployment-guide.md)** - Deployment procedures and environment setup
+- **[deployment/DEPLOYMENT_GUIDE.md](deployment/DEPLOYMENT_GUIDE.md)** - Semantic enhancement deployment guide
 
-### Development & Testing
+### Development & Testing  
 - **[11-development-setup.md](11-development-setup.md)** - Local development environment setup
 - **[12-testing-guide.md](12-testing-guide.md)** - Testing strategies and test execution
 - **[13-troubleshooting.md](13-troubleshooting.md)** - Common issues and solutions
+- **[15-ci-cd-setup.md](15-ci-cd-setup.md)** - CI/CD pipeline configuration
 
-### Additional Resources
-- **[14-security-considerations.md](14-security-considerations.md)** - Security practices and configurations
-- **[15-performance-optimization.md](15-performance-optimization.md)** - Performance tuning and monitoring
+### Technical Documentation
+- **[technical/CORS-IMPLEMENTATION.md](technical/CORS-IMPLEMENTATION.md)** - CORS configuration and troubleshooting
+- **[technical/PRODUCTION-SAFETY.md](technical/PRODUCTION-SAFETY.md)** - Production safety system and monitoring
+
+### Planning & Future Work
+- **[RECOMMENDATION_IMPROVEMENT_PLAN.md](RECOMMENDATION_IMPROVEMENT_PLAN.md)** - Future enhancement roadmap
+
+### Archived Documents
+- **[archived/](archived/)** - Completed deployment reports and historical documentation
 
 ## Quick Reference
 

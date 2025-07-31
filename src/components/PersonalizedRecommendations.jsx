@@ -22,6 +22,14 @@ import {
   shouldShowEmpty,
   RECOMMENDATION_STATES
 } from '../utils/recommendationStateManager';
+import {
+  preComputeUserDataState,
+  createTransitionState,
+  isValidTransition,
+  hasSignificantDataChange,
+  UI_STATES,
+  USER_DATA_STATES
+} from '../utils/userDataPreComputer';
 
 const DEBUG_LOGGING = true;
 
@@ -44,14 +52,21 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   const userId = isAuthenticated ? currentUser?.attributes?.sub : null;
   const navigate = useNavigate();
 
-  // --- State Management ---
+  // --- Enhanced State Management ---
   const [recState, setRecState] = useState(() => createInitialState());
   const [contentTypeFilter, setContentTypeFilter] = useState('both');
   const [refreshCounter, setRefreshCounter] = useState(0);
+  
+  // UI State Management for flicker prevention
+  const [uiState, setUiState] = useState(UI_STATES.INITIALIZING);
+  const [preComputedData, setPreComputedData] = useState(null);
+  const [lastPreferencesRef, setLastPreferencesRef] = useState(null);
 
   // --- Refs ---
   const isMounted = useRef(true);
   const fetchInProgress = useRef(false);
+  const initialComputationDone = useRef(false);
+  const transitionState = useRef(null);
 
   // Extract current state for easier access
   const {
@@ -75,7 +90,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     };
   }, []);
 
-  // --- Safe state update helper ---
+  // --- Safe state update helpers ---
   const safeSetState = useCallback((updates) => {
     if (isMounted.current) {
       if (typeof updates === 'function') {
@@ -86,15 +101,68 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, []);
 
+  const safeSetUiState = useCallback((newState, reason = '') => {
+    if (isMounted.current && isValidTransition(uiState, newState)) {
+      transitionState.current = createTransitionState(uiState, newState, reason);
+      setUiState(newState);
+      logMessage(`UI State transition: ${uiState} -> ${newState}`, { reason });
+    } else if (isMounted.current) {
+      logMessage(`Invalid UI transition attempted: ${uiState} -> ${newState}`, { reason });
+    }
+  }, [uiState]);
+
+  // --- Pre-computation effect - runs first to determine correct initial UI state ---
+  useEffect(() => {
+    if (initialComputationDone.current) return;
+    
+    logMessage('Running initial pre-computation', {
+      isAuthenticated,
+      userId,
+      propUserPreferences: !!propUserPreferences,
+      propHasCompletedQuestionnaire,
+      initialAppLoadComplete
+    });
+
+    const computed = preComputeUserDataState(
+      propUserPreferences,
+      propHasCompletedQuestionnaire,
+      isAuthenticated,
+      initialAppLoadComplete,
+      userId
+    );
+
+    setPreComputedData(computed);
+    setLastPreferencesRef(computed.effectivePreferences);
+    
+    // Set initial UI state based on pre-computation
+    safeSetUiState(computed.initialUIState, computed.reasoning);
+    
+    // Update recommendation state with user validation info
+    if (computed.userValidation) {
+      safeSetState({
+        userValidation: computed.userValidation,
+        userGuidance: getUserGuidance(computed.userValidation)
+      });
+    }
+
+    initialComputationDone.current = true;
+    
+    logMessage('Pre-computation complete', {
+      userDataState: computed.userDataState,
+      initialUIState: computed.initialUIState,
+      shouldFetchRecommendations: computed.shouldFetchRecommendations,
+      reasoning: computed.reasoning
+    });
+    
+  }, [isAuthenticated, userId, propUserPreferences, propHasCompletedQuestionnaire, initialAppLoadComplete, safeSetUiState, safeSetState]);
+
   // --- Core recommendation fetching function ---
   const fetchRecommendations = useCallback(async (forceRefresh = false) => {
     logMessage('fetchRecommendations called', {
       forceRefresh,
       fetchInProgress: fetchInProgress.current,
-      isAuthenticated,
-      userId,
-      propUserPreferences: !!propUserPreferences,
-      propHasCompletedQuestionnaire
+      uiState,
+      preComputedData: !!preComputedData
     });
 
     if (fetchInProgress.current) {
@@ -102,60 +170,25 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       return;
     }
 
-    if (!isAuthenticated || !userId) {
-      logMessage('Not authenticated, cannot fetch recommendations');
+    if (!preComputedData?.shouldFetchRecommendations && !forceRefresh) {
+      logMessage('Pre-computation indicates not to fetch recommendations');
       return;
     }
 
     fetchInProgress.current = true;
+    
+    // Set loading state
+    safeSetUiState(UI_STATES.SHOW_LOADING, 'Starting recommendation fetch');
+    safeSetState({ state: RECOMMENDATION_STATES.LOADING });
 
-    // Get user preferences from props or localStorage (moved outside try block)
-    let userPreferences = propUserPreferences || {};
+    // Get effective user preferences
+    let userPreferences = preComputedData?.effectivePreferences || propUserPreferences || {};
 
     try {
-      // Set loading state
-      logMessage('Setting loading state');
-      safeSetState({ state: RECOMMENDATION_STATES.LOADING });
-      
-      // Check localStorage as fallback
-      if (!userPreferences || Object.keys(userPreferences).length === 0) {
-        try {
-          const localPrefs = localStorage.getItem(`userPrefs_${userId}`);
-          if (localPrefs) {
-            const parsedPrefs = JSON.parse(localPrefs);
-            
-            // Flatten nested preferences if needed
-            if (parsedPrefs.preferences && typeof parsedPrefs.preferences === 'object') {
-              userPreferences = { ...parsedPrefs, ...parsedPrefs.preferences };
-              delete userPreferences.preferences;
-            } else {
-              userPreferences = parsedPrefs;
-            }
-          }
-        } catch (e) {
-          console.warn('Error reading localStorage preferences:', e);
-        }
-      }
-
       logMessage('Using preferences for API call', { 
         hasPreferences: Object.keys(userPreferences).length > 0,
-        source: propUserPreferences ? 'props' : 'localStorage'
+        source: preComputedData ? 'precomputed' : 'fallback'
       });
-
-      // Validate if we should attempt recommendations
-      if (!shouldAttemptRecommendations(userPreferences || {})) {
-        logMessage('Insufficient data for recommendations');
-        const validation = validateUserPreferences(userPreferences);
-        const guidance = getUserGuidance(validation);
-        
-        safeSetState({
-          state: RECOMMENDATION_STATES.EMPTY_INSUFFICIENT_DATA,
-          userValidation: validation,
-          userGuidance: guidance,
-          errorMessage: guidance.message
-        });
-        return;
-      }
 
       // Make API call
       const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
@@ -198,39 +231,58 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         canRotate: newState.canRotate,
         errorMessage: newState.errorMessage
       });
+      
       safeSetState(newState);
+      
+      // Update UI state based on API response
+      if (newState.state === RECOMMENDATION_STATES.SUCCESS && newState.recommendations.length > 0) {
+        safeSetUiState(UI_STATES.SHOW_RECOMMENDATIONS, 'Recommendations loaded successfully');
+      } else if (newState.state === RECOMMENDATION_STATES.EMPTY_INSUFFICIENT_DATA) {
+        safeSetUiState(UI_STATES.SHOW_BANNER, 'Insufficient data for recommendations');
+      } else if (shouldShowError(newState)) {
+        safeSetUiState(UI_STATES.SHOW_ERROR, 'API error occurred');
+      }
 
     } catch (error) {
       logMessage('Error fetching recommendations:', error);
       console.error('Full error details:', error);
       const errorState = handleApiError(error, userPreferences || {}, recState);
       safeSetState(errorState);
+      safeSetUiState(UI_STATES.SHOW_ERROR, `API error: ${error.message}`);
     } finally {
       fetchInProgress.current = false;
     }
-  }, [isAuthenticated, userId, currentUser, propUserPreferences, contentTypeFilter, safeSetState]);
+  }, [isAuthenticated, userId, currentUser, preComputedData, contentTypeFilter, safeSetState, safeSetUiState]);
 
   // --- Handle rotation ---
   const handleRotate = useCallback(() => {
-    if (!canRotate) return;
+    if (!canRotate || uiState !== UI_STATES.SHOW_RECOMMENDATIONS) return;
     
     const newState = createRotationState(recState);
     safeSetState(newState);
     setRefreshCounter(prev => prev + 1);
-  }, [canRotate, recState, safeSetState]);
+    
+    logMessage('Rotated recommendations', {
+      newDisplayIndex: newState.displayIndex,
+      showingCount: newState.recommendations.length
+    });
+  }, [canRotate, recState, safeSetState, uiState]);
 
   // --- Handle refresh ---
   const handleRefresh = useCallback(() => {
+    // Always allow refresh - it might upgrade user from banner to recommendations
+    safeSetUiState(UI_STATES.SHOW_LOADING, 'User triggered refresh');
     fetchRecommendations(true);
     setRefreshCounter(prev => prev + 1);
-  }, [fetchRecommendations]);
+  }, [fetchRecommendations, safeSetUiState]);
 
   // --- Handle retry ---
   const handleRetry = useCallback(() => {
     if (shouldRetry(recState)) {
+      safeSetUiState(UI_STATES.SHOW_LOADING, 'Retrying after error');
       fetchRecommendations(false);
     }
-  }, [recState, fetchRecommendations]);
+  }, [recState, fetchRecommendations, safeSetUiState]);
 
   // --- Expose methods via ref ---
   useImperativeHandle(ref, () => ({
@@ -238,44 +290,60 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     rotate: () => handleRotate()
   }), [handleRefresh, handleRotate]);
 
-  // --- Initial load when component mounts and user is ready ---
+  // --- Auto-fetch recommendations when pre-computation determines we should ---
   useEffect(() => {
-    if (isAuthenticated && userId && initialAppLoadComplete && currentState === RECOMMENDATION_STATES.UNINITIALIZED && !fetchInProgress.current) {
-      logMessage('Initial load triggered');
+    if (
+      preComputedData?.shouldFetchRecommendations &&
+      uiState === UI_STATES.SHOW_LOADING &&
+      currentState === RECOMMENDATION_STATES.UNINITIALIZED &&
+      !fetchInProgress.current
+    ) {
+      logMessage('Auto-triggering recommendation fetch based on pre-computation');
       fetchRecommendations(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, initialAppLoadComplete, currentState]);
+  }, [preComputedData, uiState, currentState, fetchRecommendations]);
 
-  // --- Handle questionnaire completion ---
+  // --- Handle significant user preferences changes ---
   useEffect(() => {
-    if (isAuthenticated && userId && initialAppLoadComplete && propHasCompletedQuestionnaire && !fetchInProgress.current) {
-      logMessage('Questionnaire completed - fetching recommendations', {
-        propHasCompletedQuestionnaire,
-        currentState,
-        propUserPreferences: !!propUserPreferences
+    if (!initialComputationDone.current || !preComputedData) return;
+    
+    const currentEffectivePrefs = preComputedData.effectivePreferences;
+    
+    if (hasSignificantDataChange(lastPreferencesRef, currentEffectivePrefs)) {
+      logMessage('Significant user data change detected - re-computing state', {
+        previous: !!lastPreferencesRef,
+        current: !!currentEffectivePrefs
       });
       
-      // Force fetch recommendations when questionnaire is completed
-      fetchRecommendations(true); // Force refresh
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, initialAppLoadComplete, propHasCompletedQuestionnaire]);
-
-  // --- Handle user preferences changes ---
-  useEffect(() => {
-    if (isAuthenticated && userId && initialAppLoadComplete && propUserPreferences && propUserPreferences.questionnaireCompleted && !fetchInProgress.current) {
-      logMessage('User preferences loaded with completed questionnaire - fetching recommendations', {
+      // Re-run pre-computation with new data
+      const newComputed = preComputeUserDataState(
+        propUserPreferences,
         propHasCompletedQuestionnaire,
-        currentState,
-        propUserPreferences: !!propUserPreferences
-      });
+        isAuthenticated,
+        initialAppLoadComplete,
+        userId
+      );
       
-      // Force fetch recommendations when user preferences are loaded with completed questionnaire
-      fetchRecommendations(true); // Force refresh
+      setPreComputedData(newComputed);
+      setLastPreferencesRef(newComputed.effectivePreferences);
+      
+      // Update UI state based on new computation
+      if (newComputed.shouldFetchRecommendations && !fetchInProgress.current) {
+        safeSetUiState(UI_STATES.SHOW_LOADING, 'User data updated, fetching new recommendations');
+        fetchRecommendations(true); // Force refresh with new data
+      } else if (!newComputed.shouldFetchRecommendations) {
+        safeSetUiState(UI_STATES.SHOW_BANNER, 'User data updated but insufficient for recommendations');
+      }
+      
+      // Update validation states
+      if (newComputed.userValidation) {
+        safeSetState({
+          userValidation: newComputed.userValidation,
+          userGuidance: getUserGuidance(newComputed.userValidation)
+        });
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, initialAppLoadComplete, propUserPreferences]);
+  }, [propUserPreferences, propHasCompletedQuestionnaire, isAuthenticated, initialAppLoadComplete, userId, preComputedData, lastPreferencesRef, fetchRecommendations, safeSetState, safeSetUiState]);
 
   // --- Auto-retry on certain errors ---
   useEffect(() => {
@@ -398,7 +466,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   };
 
   // --- Main render logic ---
-  if (!isAuthenticated || !initialAppLoadComplete) {
+  if (!isAuthenticated || !initialAppLoadComplete || uiState === UI_STATES.INITIALIZING) {
     return null;
   }
 
@@ -407,13 +475,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       {renderStatusBar()}
 
       <AnimatePresence mode="wait">
-        {shouldShowLoading(recState) && (
+        {uiState === UI_STATES.SHOW_LOADING && (
           <motion.div
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2 }}
             className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {[...Array(3)].map((_, i) => (
@@ -433,7 +501,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           </motion.div>
         )}
 
-        {shouldShowRecommendations(recState) && (
+        {uiState === UI_STATES.SHOW_RECOMMENDATIONS && shouldShowRecommendations(recState) && (
           <motion.div
             key={`recommendations-${refreshCounter}`}
             initial={{ opacity: 0 }}
@@ -456,12 +524,13 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           </motion.div>
         )}
 
-        {(shouldShowEmpty(recState) || shouldShowError(recState)) && (
+        {(uiState === UI_STATES.SHOW_BANNER || uiState === UI_STATES.SHOW_ERROR) && (
           <motion.div
-            key="empty-or-error"
+            key="banner-or-error"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
             {renderUserGuidance()}
           </motion.div>
