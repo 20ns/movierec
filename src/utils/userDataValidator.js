@@ -47,8 +47,14 @@ export function validateUserPreferences(preferences) {
     confidence: 0 // 0-100
   };
 
-  // Handle null/undefined preferences
+  // Handle null/undefined preferences and edge cases
   if (!preferences || typeof preferences !== 'object') {
+    result.userGuidance = "Complete your taste profile to get personalized recommendations";
+    return result;
+  }
+  
+  // Edge case: Handle empty object
+  if (Object.keys(preferences).length === 0) {
     result.userGuidance = "Complete your taste profile to get personalized recommendations";
     return result;
   }
@@ -60,10 +66,28 @@ export function validateUserPreferences(preferences) {
     delete flatPrefs.preferences;
   }
 
-  // Check essential fields
+  // Check essential fields with more flexible validation
   VALIDATION_THRESHOLDS.ESSENTIAL_FIELDS.forEach(field => {
-    if (!flatPrefs[field] || (Array.isArray(flatPrefs[field]) && flatPrefs[field].length === 0)) {
-      result.missingEssential.push(field);
+    if (field === 'questionnaireCompleted') {
+      // More flexible questionnaire completion check
+      if (!flatPrefs.questionnaireCompleted && !flatPrefs.isCompleted) {
+        result.missingEssential.push(field);
+      }
+    } else if (field === 'contentType') {
+      // Allow multiple content type field names
+      if (!flatPrefs.contentType && !flatPrefs.preferredContentType) {
+        result.missingEssential.push(field);
+      }
+    } else if (field === 'genreRatings') {
+      // More flexible genre ratings check
+      if (!flatPrefs.genreRatings && !flatPrefs.favoriteGenres && !flatPrefs.genrePreferences) {
+        result.missingEssential.push(field);
+      }
+    } else {
+      // Standard check for other fields
+      if (!flatPrefs[field] || (Array.isArray(flatPrefs[field]) && flatPrefs[field].length === 0)) {
+        result.missingEssential.push(field);
+      }
     }
   });
 
@@ -74,23 +98,78 @@ export function validateUserPreferences(preferences) {
     }
   });
 
-  // Analyze genre ratings
-  if (flatPrefs.genreRatings && typeof flatPrefs.genreRatings === 'object') {
-    const ratings = Object.values(flatPrefs.genreRatings).filter(rating => 
-      typeof rating === 'number' && rating >= 1 && rating <= 10
-    );
-    result.genreRatingCount = ratings.length;
+  // Analyze genre ratings with flexible field names and robust error handling
+  let genreData = flatPrefs.genreRatings || flatPrefs.favoriteGenres || flatPrefs.genrePreferences;
+  
+  if (genreData && typeof genreData === 'object') {
+    // Handle different data structures with comprehensive error handling
+    let ratings = [];
+    
+    try {
+      if (Array.isArray(genreData)) {
+        // Array format (like favoriteGenres)
+        ratings = genreData.filter(item => {
+          // Handle various data types in arrays
+          if (typeof item === 'number') return item > 0;
+          if (typeof item === 'string') return !isNaN(parseInt(item));
+          if (typeof item === 'object' && item !== null) return true;
+          return false;
+        });
+      } else {
+        // Object format (like genreRatings with ratings)
+        const values = Object.values(genreData);
+        const keys = Object.keys(genreData);
+        
+        // Try to find valid numeric ratings first
+        ratings = values.filter(rating => 
+          typeof rating === 'number' && rating >= 1 && rating <= 10
+        );
+        
+        // If no valid ratings found, check if it's just genre IDs or boolean preferences
+        if (ratings.length === 0) {
+          // Check for numeric keys (genre IDs)
+          const numericKeys = keys.filter(key => !isNaN(key) && parseInt(key) > 0);
+          if (numericKeys.length > 0) {
+            ratings = numericKeys;
+          } else {
+            // Check for boolean values (liked/disliked genres)
+            const booleanValues = values.filter(val => typeof val === 'boolean');
+            if (booleanValues.length > 0) {
+              ratings = booleanValues;
+            }
+          }
+        }
+      }
+    } catch (genreError) {
+      console.warn('[userDataValidator] Error processing genre data:', genreError);
+      ratings = [];
+    }
+    
+    result.genreRatingCount = Math.max(0, ratings.length);
   }
 
-  // Check if questionnaire is marked as completed
-  const questionnaireCompleted = flatPrefs.questionnaireCompleted === true;
+  // Check if questionnaire is marked as completed with flexible check
+  const questionnaireCompleted = flatPrefs.questionnaireCompleted === true || flatPrefs.isCompleted === true;
   
-  // Check if user has basic profile (minimum viable data)
+  // Check if user has basic profile (minimum viable data) with flexible fields
+  const hasContentType = !!(flatPrefs.contentType || flatPrefs.preferredContentType);
+  
   result.hasBasicProfile = (
     questionnaireCompleted &&
-    flatPrefs.contentType &&
+    hasContentType &&
     result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS
   );
+
+  // Debug logging for validation issues (development only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[userDataValidator] Validation details:', {
+      questionnaireCompleted,
+      hasContentType,
+      genreRatingCount: result.genreRatingCount,
+      missingEssential: result.missingEssential,
+      canGenerateRecommendations: result.missingEssential.length === 0 && result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS
+    });
+  }
 
   // Determine completion level and confidence
   if (result.missingEssential.length === 0 && result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) {
@@ -171,7 +250,7 @@ export function getUserGuidance(validation) {
     };
     
     guidance.showProgress = true;
-    guidance.progressPercent = Math.max(20, (validation.genreRatingCount / VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) * 100);
+    guidance.progressPercent = Math.max(20, Math.min(100, (validation.genreRatingCount / VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) * 100));
   }
 
   return guidance;

@@ -41,21 +41,21 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
         const thresholdTime = now + (TOKEN_REFRESH_THRESHOLD_MINUTES * 60);
         
         if (validation.payload.exp > thresholdTime) {
-          console.log(`[${context}] Current token is valid and not expiring soon`);
+          // Current token is valid and not expiring soon
           return currentToken;
         }
         
-        console.log(`[${context}] Token expiring soon, refreshing...`);
+        // Token expiring soon, refreshing...
       } else if (validation.code === 'FUTURE_TOKEN') {
         console.warn(`[${context}] Current token has future timestamp, but proceeding due to clock sync issues`);
         return currentToken;
       }
     } else if (!validation.valid) {
-      console.log(`[${context}] Current token is invalid:`, validation.error);
+      // Current token is invalid
     }
 
     // Refresh the token
-    console.log(`[${context}] Attempting token refresh...`);
+    // Attempting token refresh...
     const session = await Auth.currentSession();
     const newToken = session.getAccessToken().getJwtToken();
     
@@ -66,13 +66,13 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
       if (newValidation.code === 'FUTURE_TOKEN') {
         console.warn(`[${context}] Token future validation failed, but proceeding due to clock sync issues:`, newValidation.error);
         // For now, accept the token despite future timestamp to avoid blocking users
-        console.log(`[${context}] Token accepted despite future timestamp`);
+        // Token accepted despite future timestamp
         return newToken;
       }
       throw new Error(`Refreshed token is invalid: ${newValidation.error}`);
     }
 
-    console.log(`[${context}] Token refreshed successfully`);
+    // Token refreshed successfully
     return newToken;
 
   } catch (error) {
@@ -80,7 +80,7 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
     
     // If all else fails, try to get a fresh session
     try {
-      console.log(`[${context}] Attempting to get fresh session...`);
+      // Attempting to get fresh session...
       const user = await Auth.currentAuthenticatedUser();
       const token = user.signInUserSession?.accessToken?.jwtToken;
       
@@ -94,7 +94,7 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
         if (validation.code === 'FUTURE_TOKEN') {
           console.warn(`[${context}] Fresh session token future validation failed, but proceeding due to clock sync issues:`, validation.error);
           // For now, accept the token despite future timestamp to avoid blocking users
-          console.log(`[${context}] Fresh session token accepted despite future timestamp`);
+          // Fresh session token accepted despite future timestamp
           return token;
         }
         throw new Error(`Fresh session token is invalid: ${validation.error}`);
@@ -170,7 +170,7 @@ export const makeAuthenticatedRequest = async (url, options = {}, currentUser, r
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[${context}] Attempt ${attempt}/${retries} for ${url}`);
+      // Attempt N/M for URL
       
       // Ensure we have a valid token
       const token = await ensureValidToken(currentUser);
@@ -189,16 +189,16 @@ export const makeAuthenticatedRequest = async (url, options = {}, currentUser, r
 
       // Success - return response
       if (response.ok) {
-        console.log(`[${context}] Request successful on attempt ${attempt}`);
+        // Request successful on attempt N
         return response;
       }
 
       // Handle authentication errors
       if (response.status === 401) {
-        console.log(`[${context}] Authentication error on attempt ${attempt}`);
+        // Authentication error on attempt N
         
         if (attempt < retries) {
-          console.log(`[${context}] Retrying with token refresh...`);
+          // Retrying with token refresh...
           // Force token refresh for next attempt
           await ensureValidToken(currentUser, true);
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_BASE * Math.pow(2, attempt - 1)));
@@ -210,7 +210,7 @@ export const makeAuthenticatedRequest = async (url, options = {}, currentUser, r
 
       // Handle other HTTP errors
       if (response.status >= 500 && attempt < retries) {
-        console.log(`[${context}] Server error ${response.status} on attempt ${attempt}, retrying...`);
+        // Server error on attempt N, retrying...
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_BASE * Math.pow(2, attempt - 1)));
         continue;
       }
@@ -243,7 +243,7 @@ export const saveUserPreferences = async (preferences, currentUser, apiUrl) => {
   const context = 'saveUserPreferences';
   
   try {
-    console.log(`[${context}] Saving preferences for user:`, currentUser?.attributes?.sub);
+    // Saving preferences for user
     
     // Validate authentication state
     const authState = await validateAuthState(currentUser);
@@ -268,7 +268,7 @@ export const saveUserPreferences = async (preferences, currentUser, apiUrl) => {
     );
 
     const result = await response.json();
-    console.log(`[${context}] Preferences saved successfully`);
+    // Preferences saved successfully
     
     return {
       success: true,
@@ -297,7 +297,7 @@ export const fetchUserPreferences = async (currentUser, apiUrl) => {
   const context = 'fetchUserPreferences';
   
   try {
-    console.log(`[${context}] Fetching preferences for user:`, currentUser?.attributes?.sub);
+    // Fetching preferences for user
     
     // Validate authentication state
     const authState = await validateAuthState(currentUser);
@@ -313,7 +313,7 @@ export const fetchUserPreferences = async (currentUser, apiUrl) => {
     );
 
     if (response.status === 404) {
-      console.log(`[${context}] No preferences found for user`);
+      // No preferences found for user
       return {
         success: true,
         data: null,
@@ -322,7 +322,7 @@ export const fetchUserPreferences = async (currentUser, apiUrl) => {
     }
 
     const result = await response.json();
-    console.log(`[${context}] Preferences fetched successfully`);
+    // Preferences fetched successfully
     
     return {
       success: true,

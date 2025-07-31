@@ -42,7 +42,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
         setHasCompletedQuestionnaire(false);
         setPreferencesLoading(false);
       }
-      return null; // Return null when skipped
+      return null;
     }
 
     // Increment and capture the current cycle
@@ -51,7 +51,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     logHook('Fetching user preferences...', { userId: currentUserId, cycle: currentRefreshCycle, forceRefresh });
     fetchingPreferencesRef.current = true;
     setPreferencesLoading(true);
-    setJustRefreshedPrefs(false); // Reset flag
+    setJustRefreshedPrefs(false);
 
     try {
       // Validate authentication state first
@@ -60,13 +60,13 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
         throw new Error(`Authentication validation failed: ${authState.error}`);
       }
 
-      // Use the robust preference service
+      // Use the improved preference service with better consistency checking
       const result = await loadPreferences(currentUser, forceRefresh);
       
       // Abort if a newer fetch cycle has started
       if (currentRefreshCycle !== refreshCycleRef.current) {
         logHook('Aborting outdated preferences fetch response handling', { cycle: currentRefreshCycle, current: refreshCycleRef.current });
-        return null; // Return null when aborted
+        return null;
       }
 
       let fetchedData = null;
@@ -77,47 +77,35 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
             source: result.source,
             hasData: !!fetchedData,
             questionnaireCompleted: fetchedData.questionnaireCompleted,
+            isConsistent: result.isConsistent,
             userId: currentUserId
           });
           
-          const apiCompleted = fetchedData?.questionnaireCompleted || false;
-          setUserPreferences(fetchedData);
-          setHasCompletedQuestionnaire(apiCompleted);
+          // The improved service already validates consistency, so trust its result
+          const isReallyCompleted = fetchedData.questionnaireCompleted === true && result.isConsistent;
           
-          // Show warning if using local data
+          setUserPreferences(fetchedData);
+          setHasCompletedQuestionnaire(isReallyCompleted);
+          
+          // Show warnings if using local data or data is inconsistent
           if (result.source === 'local' && result.warning) {
             logHook('Warning: Using local data -', result.warning);
           }
-          
-          // Update localStorage to ensure consistency
-          if (result.source === 'cloud') {
-            try {
-              localStorage.setItem(`questionnaire_completed_${currentUserId}`, apiCompleted ? 'true' : 'false');
-            } catch (e) { logError('Error updating localStorage:', e); }
+          if (!result.isConsistent) {
+            logHook('Warning: Data consistency issue detected - marking questionnaire as incomplete');
           }
+          
         } else {
           logHook('No preferences found, user needs to complete questionnaire');
           setUserPreferences(null);
           setHasCompletedQuestionnaire(false);
-          
-          // Clear any stale localStorage data
-          try {
-            localStorage.removeItem(`questionnaire_completed_${currentUserId}`);
-            localStorage.removeItem(`userPrefs_${currentUserId}`);
-          } catch (e) { logError('Error clearing localStorage:', e); }
         }
       } else {
-        if (result.code === 'NO_DATA_FOUND') {
-          logHook('No preferences found anywhere, user needs to complete questionnaire');
-          setUserPreferences(null);
-          setHasCompletedQuestionnaire(false);
-          
-          // Clear any stale localStorage data
-          try {
-            localStorage.removeItem(`questionnaire_completed_${currentUserId}`);
-            localStorage.removeItem(`userPrefs_${currentUserId}`);
-          } catch (e) { logError('Error clearing localStorage:', e); }
-        } else {
+        logHook('Load preferences failed:', { code: result.code, error: result.error });
+        setUserPreferences(null);
+        setHasCompletedQuestionnaire(false);
+        
+        if (result.code !== 'NO_DATA_FOUND') {
           throw new Error(result.error || 'Failed to load preferences');
         }
       }
@@ -127,10 +115,9 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       // Update validation and guidance after successful fetch
       updateValidationAndGuidance(fetchedData);
       
-      // Force a state update to ensure parent components are notified
-      if (fetchedData && fetchedData.questionnaireCompleted) {
-        logHook('Preferences loaded with completed questionnaire - triggering state update');
-        // Small delay to ensure all state is updated
+      // Simplified state update notification
+      if (fetchedData && fetchedData.questionnaireCompleted && result.isConsistent) {
+        logHook('Preferences loaded with validated completed questionnaire');
         setTimeout(() => {
           setJustRefreshedPrefs(true);
         }, 50);
@@ -144,8 +131,6 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
       setHasCompletedQuestionnaire(false);
       setValidationResult(null);
       setUserGuidance(null);
-      // Log error but don't break the app - user can still use the application
-      console.error('[useUserPreferences] Could not load preferences:', error);
       return null;
     } finally {
       // Only update loading state if this is the latest fetch cycle
@@ -192,49 +177,106 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     });
   }, []);
 
-  // Function to handle questionnaire completion with proper coordination
+  // Function to handle questionnaire completion with enhanced validation
   const handleQuestionnaireComplete = useCallback((updatedPreferences, completionData = {}) => {
     const userId = currentUser?.attributes?.sub;
     if (!userId) {
       logError('No user ID for questionnaire completion.');
-      return;
+      return false;
+    }
+
+    // Edge case: Handle null or undefined preferences
+    if (!updatedPreferences || typeof updatedPreferences !== 'object') {
+      logError('Questionnaire completion received with invalid preferences data');
+      return false;
     }
 
     logHook('Questionnaire completed, updating state', {
       hasPreferences: !!updatedPreferences,
       forceRefresh: completionData.forceRefresh,
-      source: completionData.source
+      source: completionData.source,
+      hasGenreRatings: updatedPreferences?.genreRatings ? Object.keys(updatedPreferences.genreRatings).length : 0,
+      preferencesKeys: Object.keys(updatedPreferences)
     });
     
-    // Update state immediately for UI responsiveness
-    setUserPreferences(updatedPreferences);
-    setHasCompletedQuestionnaire(true);
-    setJustRefreshedPrefs(true); // Mark as just refreshed for immediate UI updates
+    // Validate that the completed preferences actually have content (flexible validation)
+    const hasGenreRatings = updatedPreferences.genreRatings && 
+                           Object.keys(updatedPreferences.genreRatings).length > 0;
+    const hasFavoriteGenres = updatedPreferences.favoriteGenres && 
+                             Array.isArray(updatedPreferences.favoriteGenres) && 
+                             updatedPreferences.favoriteGenres.length > 0;
+    const hasGenrePreferences = updatedPreferences.genrePreferences && 
+                               Object.keys(updatedPreferences.genrePreferences).length > 0;
     
-    // Update validation without triggering dependency
-    if (updatedPreferences) {
-      const validation = validateUserPreferences(updatedPreferences);
+    const hasRealContent = hasGenreRatings || hasFavoriteGenres || hasGenrePreferences;
+    
+    if (!hasRealContent) {
+      logError('Questionnaire completion received but preferences lack genre data');
+      return false;
+    }
+    
+    // Ensure questionnaireCompleted flag is set correctly
+    const validatedPreferences = {
+      ...updatedPreferences,
+      questionnaireCompleted: true,
+      userId: userId,
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Update state immediately for UI responsiveness
+    setUserPreferences(validatedPreferences);
+    setHasCompletedQuestionnaire(true);
+    setJustRefreshedPrefs(true);
+    
+    // Update validation inline
+    if (validatedPreferences) {
+      const validation = validateUserPreferences(validatedPreferences);
       const guidance = getUserGuidance(validation);
       setValidationResult(validation);
       setUserGuidance(guidance);
+      
+      logHook('Validation after completion:', {
+        canGenerateRecs: validation.canGenerateRecommendations,
+        completionLevel: validation.completionLevel,
+        confidence: validation.confidence
+      });
     }
     
-    // Update localStorage with coordination
+    // Update localStorage immediately with error handling
     try {
       localStorage.setItem(`questionnaire_completed_${userId}`, 'true');
-      localStorage.setItem(`userPrefs_${userId}`, JSON.stringify(updatedPreferences));
+      localStorage.setItem(`userPrefs_${userId}`, JSON.stringify(validatedPreferences));
+      logHook('Updated localStorage after questionnaire completion');
     } catch (e) {
       logError('Error writing to localStorage:', e);
+      // Edge case: localStorage might be full or disabled
+      if (e.name === 'QuotaExceededError') {
+        // Try to clear some space and retry
+        try {
+          const keys = Object.keys(localStorage);
+          const oldUserKeys = keys.filter(key => 
+            (key.startsWith('userPrefs_') || key.startsWith('questionnaire_completed_')) && 
+            !key.includes(userId)
+          );
+          // Remove old user data
+          oldUserKeys.forEach(key => localStorage.removeItem(key));
+          // Retry
+          localStorage.setItem(`questionnaire_completed_${userId}`, 'true');
+          localStorage.setItem(`userPrefs_${userId}`, JSON.stringify(validatedPreferences));
+          logHook('Cleared old data and successfully saved to localStorage');
+        } catch (retryError) {
+          logError('Failed to save to localStorage even after cleanup:', retryError);
+          // Continue without localStorage - cloud save will handle persistence
+        }
+      }
     }
 
-    // Force refresh preferences from cloud to ensure consistency
-    if (completionData.forceRefresh || completionData.source === 'questionnaire_completion') {
-      logHook('Forcing preference refresh after questionnaire completion');
-      setTimeout(() => {
-        fetchUserPreferencesRef.current?.(true); // Force refresh to sync with API
-      }, 200); // Reduced delay for faster UI response
-    }
-
+    // Always force refresh from cloud to ensure data is properly saved
+    logHook('Forcing preference refresh after questionnaire completion to verify cloud sync');
+    setTimeout(() => {
+      fetchUserPreferencesRef.current?.(true); // Force refresh to sync with API
+    }, 500); // Slightly longer delay to ensure save operations complete
+    
     return true;
   }, [currentUser?.attributes?.sub]);
 

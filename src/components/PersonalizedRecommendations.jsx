@@ -26,9 +26,7 @@ import {
 const DEBUG_LOGGING = true;
 
 const logMessage = (message, data) => {
-  if (DEBUG_LOGGING) {
-    console.log(`[PersonalRecs] ${message}`, data || '');
-  }
+  // Debug logging disabled for cleaner console output
 };
 
 export const PersonalizedRecommendations = forwardRef((props, ref) => {
@@ -87,14 +85,15 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
   }, []);
 
   // --- Core recommendation fetching function ---
-  const fetchRecommendations = useCallback(async (forceRefresh = false) => {
+  const fetchRecommendations = useCallback(async (forceRefresh = false, overridePreferences = null) => {
     logMessage('fetchRecommendations called', {
       forceRefresh,
       fetchInProgress: fetchInProgress.current,
       isAuthenticated,
       userId,
       propUserPreferences: !!propUserPreferences,
-      propHasCompletedQuestionnaire
+      propHasCompletedQuestionnaire,
+      hasOverridePreferences: !!overridePreferences
     });
 
     if (fetchInProgress.current) {
@@ -109,8 +108,8 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
     fetchInProgress.current = true;
 
-    // Get user preferences from props or localStorage (moved outside try block)
-    let userPreferences = propUserPreferences || {};
+    // Get effective user preferences - use override if provided (for fresh questionnaire completion)
+    let userPreferences = overridePreferences || propUserPreferences || {};
 
     try {
       // Set loading state
@@ -232,11 +231,32 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, [recState, fetchRecommendations]);
 
+  // --- Enhanced refresh that can handle new preferences ---
+  const handleRefreshWithPreferences = useCallback((newPreferences = null) => {
+    logMessage('handleRefreshWithPreferences called', { 
+      hasNewPreferences: !!newPreferences,
+      currentState
+    });
+    
+    // Use the new preferences directly in the fetch call
+    fetchRecommendations(true, newPreferences); // Pass new preferences as override
+    setRefreshCounter(prev => prev + 1);
+  }, [fetchRecommendations, currentState]);
+
   // --- Expose methods via ref ---
   useImperativeHandle(ref, () => ({
     refresh: () => handleRefresh(),
+    refreshRecommendations: (newPreferences) => {
+      // Handle the legacy method call from App.js and MainLayout.js
+      logMessage('Legacy refreshRecommendations called with preferences:', !!newPreferences);
+      if (newPreferences) {
+        handleRefreshWithPreferences(newPreferences);
+      } else {
+        handleRefresh();
+      }
+    },
     rotate: () => handleRotate()
-  }), [handleRefresh, handleRotate]);
+  }), [handleRefresh, handleRefreshWithPreferences, handleRotate]);
 
   // --- Initial load when component mounts and user is ready ---
   useEffect(() => {

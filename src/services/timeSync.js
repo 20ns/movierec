@@ -31,9 +31,7 @@ class TimeSync {
         if (age < 60 * 60 * 1000) {
           this.offset = offset;
           this.lastSync = timestamp;
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[TimeSync] Loaded cached offset: ${offset}s (${Math.floor(offset/60)} minutes)`);
-          }
+          // Loaded cached offset
         } else {
           localStorage.removeItem('timeSync_offset');
         }
@@ -126,7 +124,7 @@ class TimeSync {
     }
 
     if (this.isSync) {
-      console.log('[TimeSync] Sync already in progress');
+      // Sync already in progress
       return this.offset;
     }
 
@@ -135,7 +133,7 @@ class TimeSync {
 
     try {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[TimeSync] Starting time synchronization (attempt ${this.syncAttempts})`);
+        // Starting time synchronization (attempt N)
       }
       
       let timeData = null;
@@ -144,14 +142,14 @@ class TimeSync {
       try {
         timeData = await this.fetchAWSServerTime();
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[TimeSync] AWS time sync successful (RTT: ${timeData.roundTripTime}ms)`);
+          // AWS time sync successful (RTT: Nms)
         }
       } catch (awsError) {
         // Fall back to client system time (avoids CSP violations)
         console.warn('[TimeSync] AWS time sync failed, using client time as fallback:', awsError.message);
         timeData = await this.fetchFallbackTime();
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[TimeSync] Client time fallback successful`);
+          // Client time fallback successful
         }
       }
 
@@ -167,10 +165,10 @@ class TimeSync {
         const offsetMinutes = Math.floor(this.offset / 60);
         
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[TimeSync] Time synchronized successfully:`);
-          console.log(`  - Source: ${timeData.source}`);
-          console.log(`  - Offset: ${this.offset}s (${offsetMinutes} minutes)`);
-          console.log(`  - Client time was ${this.offset > 0 ? 'behind' : 'ahead'} by ${Math.abs(offsetMinutes)} minutes`);
+          // Time synchronized successfully
+          // Source: X
+          // Offset: Ns (N minutes)
+          // Client time was behind/ahead by N minutes
         }
         
         // Always warn about significant clock skew (important for users)
@@ -241,7 +239,7 @@ class TimeSync {
     }, this.syncInterval);
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('[TimeSync] Periodic synchronization started (every 30 minutes)');
+      // Periodic synchronization started (every 30 minutes)
     }
   }
 

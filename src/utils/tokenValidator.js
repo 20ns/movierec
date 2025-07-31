@@ -56,7 +56,7 @@ export const validateToken = (token) => {
       
       // Log validation details with sync status (development only)
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[TokenValidator] Token validation - Server time: ${now}, IAT: ${payload.iat}, Diff: ${timeDiff}s (${minutesDiff} minutes)`);
+        // Token validation - Server time: X, IAT: Y, Diff: Zs (N minutes)
       }
       
       // Much stricter tolerance now that we use server time (5 minutes)
