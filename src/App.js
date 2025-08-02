@@ -496,12 +496,22 @@ useEffect(() => {
             onMediaClick={handleMediaClick} // Pass the handler down
           />
           
-          {/* Removed second ad unit */}
+          {/* Strategic Ad Placement: After substantial content is loaded */}
+          <AdUnit 
+            className="max-w-4xl my-8"
+            contentBefore="Discover more personalized recommendations below:"
+          />
           
           <CategoryBrowser onCategorySelect={setSelectedGenre} />
           {selectedGenre && <GenreResults genreId={selectedGenre} currentUser={currentUser} onMediaClick={handleMediaClick} />}
           
-          {/* Removed third ad unit */}
+          {/* Strategic Ad Placement: After genre results when user is engaged */}
+          {selectedGenre && (
+            <AdUnit 
+              className="max-w-4xl my-8"
+              contentAfter="Continue exploring more content categories above!"
+            />
+          )}
         </div>
       );
     }

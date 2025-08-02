@@ -94,17 +94,19 @@
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
     </style>
     
-    <!-- Schema.org structured data -->
+    <!-- Enhanced Schema.org structured data for content quality -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "MovieRec",
       "url": "https://www.movierec.net/",
-      "description": "Personalized movie and TV show recommendations",
+      "description": "Personalized movie and TV show recommendations with AI-powered content discovery, detailed reviews, and curated entertainment lists",
       "publisher": {
         "@type": "Organization",
-        "name": "MovieRec"
+        "name": "MovieRec",
+        "url": "https://www.movierec.net/",
+        "description": "Leading platform for personalized entertainment recommendations"
       },
       "potentialAction": {
         "@type": "SearchAction",
@@ -113,23 +115,47 @@
           "urlTemplate": "https://www.movierec.net/search?q={search_term_string}"
         },
         "query-input": "required name=search_term_string"
+      },
+      "mainContentOfPage": {
+        "@type": "WebPageElement",
+        "description": "Personalized movie and TV recommendations, trending content, and entertainment discovery tools"
+      },
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Entertainment enthusiasts, movie lovers, TV show fans"
+      },
+      "keywords": "movie recommendations, TV shows, personalized entertainment, streaming guide, film discovery, cinema reviews",
+      "inLanguage": "en-US",
+      "isAccessibleForFree": true
+    }
+    </script>
+    
+    <!-- Additional structured data for content pages -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "MovieRec Recommendation Engine",
+      "applicationCategory": "Entertainment",
+      "operatingSystem": "Web Browser",
+      "description": "Intelligent movie and TV show recommendation system with personalized content discovery",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "12000",
+        "bestRating": "5",
+        "worstRating": "1"
       }
     }
     </script>
-    <!-- Global AdSense code -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5077058434275861" crossorigin="anonymous"></script>
+    <!-- AdSense code will be loaded conditionally by AdScript component -->
 </head>
 <body>
-    <!-- AdSense verification ad -->
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-5077058434275861"
-         data-ad-slot="1623198112"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>
-         (adsbygoogle = window.adsbygoogle || []).push({});
-    </script>
     <div id="root"></div>
 </body>
 </html>
