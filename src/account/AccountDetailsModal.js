@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { deleteUser } from 'aws-amplify/auth';
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
+import { getCurrentAccessToken, getUserId } from '../utils/tokenUtils';
 
 const AccountDetailsModal = ({ isOpen, onClose, email, currentUser }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -17,10 +18,10 @@ const AccountDetailsModal = ({ isOpen, onClose, email, currentUser }) => {
     setSuccessMessage('');
     
     try {
-      if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+      const token = await getCurrentAccessToken();
+      if (!token) {
         throw new Error('No valid access token available');
       }
-      const token = currentUser.signInUserSession.accessToken.jwtToken;
       const response = await fetch(`${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}/user/preferences/reset`, {
         method: 'POST',
         headers: {

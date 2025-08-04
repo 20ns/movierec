@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import MediaCard from './MediaCard';
 import { ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import { fetchCachedMedia } from '../services/mediaCache';
+import { getUserId } from '../utils/tokenUtils';
+import { migrateUserPreferences, getUserEmailForMigration, needsMigration } from '../utils/userDataMigration';
 import { 
   validateUserPreferences, 
   getUserGuidance, 
@@ -26,7 +28,13 @@ import {
 const DEBUG_LOGGING = true;
 
 const logMessage = (message, data) => {
-  // Debug logging disabled for cleaner console output
+  if (DEBUG_LOGGING) {
+    if (data) {
+      console.log(`[PersonalizedRecommendations] ${message}`, data);
+    } else {
+      console.log(`[PersonalizedRecommendations] ${message}`);
+    }
+  }
 };
 
 export const PersonalizedRecommendations = forwardRef((props, ref) => {
@@ -39,7 +47,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     onMediaClick,
   } = props;
 
-  const userId = isAuthenticated ? currentUser?.attributes?.sub : null;
+  // Note: userId will be extracted async when needed since it requires session access in v6
   const navigate = useNavigate();
 
   // --- State Management ---
@@ -86,6 +94,23 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Core recommendation fetching function ---
   const fetchRecommendations = useCallback(async (forceRefresh = false, overridePreferences = null) => {
+    if (fetchInProgress.current) {
+      logMessage('Fetch already in progress, skipping');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      logMessage('Not authenticated, cannot fetch recommendations');
+      return;
+    }
+
+    // Get userId asynchronously for AWS Amplify v6 compatibility
+    const userId = await getUserId(currentUser);
+    if (!userId) {
+      logMessage('No user ID available, cannot fetch recommendations');
+      return;
+    }
+
     logMessage('fetchRecommendations called', {
       forceRefresh,
       fetchInProgress: fetchInProgress.current,
@@ -96,16 +121,6 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       hasOverridePreferences: !!overridePreferences
     });
 
-    if (fetchInProgress.current) {
-      logMessage('Fetch already in progress, skipping');
-      return;
-    }
-
-    if (!isAuthenticated || !userId) {
-      logMessage('Not authenticated, cannot fetch recommendations');
-      return;
-    }
-
     fetchInProgress.current = true;
 
     // Get effective user preferences - use override if provided (for fresh questionnaire completion)
@@ -115,6 +130,14 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       // Set loading state
       logMessage('Setting loading state');
       safeSetState({ state: RECOMMENDATION_STATES.LOADING });
+      
+      // Check if migration is needed before looking for preferences
+      if (needsMigration(userId)) {
+        logMessage('Migration needed, attempting to migrate user data');
+        const userEmail = await getUserEmailForMigration(currentUser);
+        const migrationResult = migrateUserPreferences(userId, userEmail);
+        logMessage('Migration result:', migrationResult);
+      }
       
       // Check localStorage as fallback
       if (!userPreferences || Object.keys(userPreferences).length === 0) {
@@ -133,6 +156,30 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           }
         } catch (e) {
           console.warn('Error reading localStorage preferences:', e);
+        }
+      }
+
+      // If still no preferences, try loading from cloud API
+      if (!userPreferences || Object.keys(userPreferences).length === 0) {
+        logMessage('No local preferences found, attempting to load from cloud API');
+        try {
+          const { loadPreferences } = await import('../services/preferenceService');
+          const cloudResult = await loadPreferences(currentUser, true); // Force cloud fetch
+          
+          if (cloudResult.success && cloudResult.data) {
+            logMessage('Successfully loaded preferences from cloud:', Object.keys(cloudResult.data));
+            userPreferences = cloudResult.data;
+            
+            // Cache to localStorage for future use
+            localStorage.setItem(`userPrefs_${userId}`, JSON.stringify(userPreferences));
+            if (userPreferences.questionnaireCompleted) {
+              localStorage.setItem(`questionnaire_completed_${userId}`, 'true');
+            }
+          } else {
+            logMessage('No cloud preferences found:', cloudResult);
+          }
+        } catch (cloudError) {
+          logMessage('Error loading from cloud:', cloudError);
         }
       }
 
@@ -156,8 +203,9 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
         return;
       }
 
-      // Make API call
-      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      // Make API call - get token using v6 compatible method
+      const { getCurrentAccessToken } = await import('../utils/tokenUtils');
+      const token = await getCurrentAccessToken();
       const excludeIds = []; // You can implement exclusion logic here if needed
 
       logMessage('Making API call with params:', {
@@ -207,7 +255,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     } finally {
       fetchInProgress.current = false;
     }
-  }, [isAuthenticated, userId, currentUser, propUserPreferences, contentTypeFilter, safeSetState]);
+  }, [isAuthenticated, currentUser, propUserPreferences, contentTypeFilter, safeSetState]);
 
   // --- Handle rotation ---
   const handleRotate = useCallback(() => {
@@ -260,16 +308,16 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
 
   // --- Initial load when component mounts and user is ready ---
   useEffect(() => {
-    if (isAuthenticated && userId && initialAppLoadComplete && currentState === RECOMMENDATION_STATES.UNINITIALIZED && !fetchInProgress.current) {
+    if (isAuthenticated && initialAppLoadComplete && currentState === RECOMMENDATION_STATES.UNINITIALIZED && !fetchInProgress.current) {
       logMessage('Initial load triggered');
       fetchRecommendations(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, initialAppLoadComplete, currentState]);
+  }, [isAuthenticated, initialAppLoadComplete, currentState]);
 
   // --- Handle questionnaire completion ---
   useEffect(() => {
-    if (isAuthenticated && userId && initialAppLoadComplete && propHasCompletedQuestionnaire && !fetchInProgress.current) {
+    if (isAuthenticated && initialAppLoadComplete && propHasCompletedQuestionnaire && !fetchInProgress.current) {
       logMessage('Questionnaire completed - fetching recommendations', {
         propHasCompletedQuestionnaire,
         currentState,
@@ -280,11 +328,11 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       fetchRecommendations(true); // Force refresh
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, initialAppLoadComplete, propHasCompletedQuestionnaire]);
+  }, [isAuthenticated, initialAppLoadComplete, propHasCompletedQuestionnaire]);
 
   // --- Handle user preferences changes ---
   useEffect(() => {
-    if (isAuthenticated && userId && initialAppLoadComplete && propUserPreferences && propUserPreferences.questionnaireCompleted && !fetchInProgress.current) {
+    if (isAuthenticated && initialAppLoadComplete && propUserPreferences && propUserPreferences.questionnaireCompleted && !fetchInProgress.current) {
       logMessage('User preferences loaded with completed questionnaire - fetching recommendations', {
         propHasCompletedQuestionnaire,
         currentState,
@@ -295,7 +343,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       fetchRecommendations(true); // Force refresh
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, userId, initialAppLoadComplete, propUserPreferences]);
+  }, [isAuthenticated, initialAppLoadComplete, propUserPreferences]);
 
   // --- Auto-retry on certain errors ---
   useEffect(() => {

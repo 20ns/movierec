@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { forgotPassword, confirmResetPassword, changePassword, deleteUser, getCurrentUser } from 'aws-amplify/auth';
+import { resetPassword, confirmResetPassword, updatePassword, deleteUser, getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUserInfo } from '../utils/tokenUtils';
 
 function AccountDetailsModal({ currentUser, onClose }) {
   const [activeTab, setActiveTab] = useState('profile');
@@ -80,7 +81,7 @@ function AccountDetailsModal({ currentUser, onClose }) {
     setIsLoading(true);
     
     try {
-      await forgotPassword({ username: resetEmail });
+      await resetPassword({ username: resetEmail });
       setResetSuccess('Verification code sent to your email.');
       setResetMode('confirm');
     } catch (error) {
@@ -144,10 +145,10 @@ function AccountDetailsModal({ currentUser, onClose }) {
       const user = await getCurrentUser();
       
       // Change password using Auth service
-      await changePassword({
+      await updatePassword({
         oldPassword: currentPassword,
         newPassword
-      );
+      });
       
       setResetSuccess('Password changed successfully!');
       

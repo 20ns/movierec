@@ -13,6 +13,7 @@ import UserProgress from '../components/UserProgress';
 import AchievementSystem from '../components/AchievementSystem';
 import DiscoveryChallenge from '../components/DiscoveryChallenge';
 import { getUserStats, updateUserStats, syncLocalStorageToBackend } from '../services/userStatsService';
+import { getCurrentAccessToken, isAuthenticatedWithValidSession, getUserId } from '../utils/tokenUtils';
 
 // Utility function to get a nice display name from user data
 const getDisplayName = (currentUser) => {
@@ -35,16 +36,20 @@ const UserDashboard = ({ currentUser, isAuthenticated }) => {
 
   // Load user data from backend
   useEffect(() => {
-    if (isAuthenticated && currentUser?.signInUserSession?.accessToken?.jwtToken) {
-      loadUserStats();
-    }
+    const checkAndLoadStats = async () => {
+      const hasValidSession = await isAuthenticatedWithValidSession();
+      if (isAuthenticated && hasValidSession) {
+        loadUserStats();
+      }
+    };
+    checkAndLoadStats();
   }, [isAuthenticated, currentUser]);
 
   const loadUserStats = async () => {
     try {
       setIsLoading(true);
-      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
-      const userId = currentUser?.attributes?.sub;
+      const token = await getCurrentAccessToken();
+      const userId = await getUserId(currentUser);
       
       if (!token || !userId) {
         console.error('Missing token or userId');
@@ -82,7 +87,7 @@ const UserDashboard = ({ currentUser, isAuthenticated }) => {
   // Handle achievement unlocked
   const handleAchievementUnlocked = async (achievement) => {
     try {
-      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      const token = await getCurrentAccessToken();
       if (!token) return;
 
       // Award XP via backend

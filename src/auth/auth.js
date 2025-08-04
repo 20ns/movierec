@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCurrentUser, signOut } from 'aws-amplify/auth';
+import { getCurrentUser, signOut, fetchAuthSession } from 'aws-amplify/auth';
 
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,18 +14,34 @@ const useAuth = () => {
   
   const checkAuthState = async () => {
     try {
+      // In AWS Amplify v6, getCurrentUser() returns a simple user object
       const user = await getCurrentUser();
       
-      // Verify that the user has a valid access token before setting authenticated
-      if (user?.signInUserSession?.accessToken?.jwtToken) {
-        setIsAuthenticated(true);
-        setCurrentUser(user);
+      if (user) {
+        // Verify we have a valid session
+        try {
+          const session = await fetchAuthSession();
+          if (session?.tokens?.accessToken) {
+            console.log('[Auth] Valid authenticated user found:', user.username || user.userId);
+            setIsAuthenticated(true);
+            setCurrentUser(user);
+          } else {
+            console.warn('[Auth] User exists but no valid session found');
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+          }
+        } catch (sessionError) {
+          console.warn('[Auth] Error fetching session:', sessionError);
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+        }
       } else {
-        console.warn('[Auth] User exists but no valid access token found');
+        console.log('[Auth] No user found');
         setIsAuthenticated(false);
         setCurrentUser(null);
       }
     } catch (error) {
+      console.log('[Auth] No authenticated user:', error.message);
       setIsAuthenticated(false);
       setCurrentUser(null);
     } finally {
@@ -34,23 +50,36 @@ const useAuth = () => {
   };
 
   
-  const handleSigninSuccess = useCallback((user, isNew = false) => {
+  const handleSigninSuccess = useCallback(async (user, isNew = false) => {
     console.log('[Auth] handleSigninSuccess called:', {
       userExists: !!user,
-      sessionExists: !!user?.signInUserSession,
-      accessTokenExists: !!user?.signInUserSession?.accessToken,
-      jwtTokenExists: !!user?.signInUserSession?.accessToken?.jwtToken,
+      username: user?.username || user?.userId,
       isNew
     });
     
-    // Verify user has valid access token before setting authenticated
-    if (user?.signInUserSession?.accessToken?.jwtToken) {
-      console.log('[Auth] handleSigninSuccess: Setting authenticated to true');
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-      setIsNewUser(isNew);
+    if (user) {
+      try {
+        // Verify we have a valid session in AWS Amplify v6
+        const session = await fetchAuthSession();
+        if (session?.tokens?.accessToken) {
+          console.log('[Auth] handleSigninSuccess: Setting authenticated to true');
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          setIsNewUser(isNew);
+        } else {
+          console.warn('[Auth] Sign-in success but no valid session found');
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          setIsNewUser(false);
+        }
+      } catch (sessionError) {
+        console.warn('[Auth] Error fetching session after sign-in:', sessionError);
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        setIsNewUser(false);
+      }
     } else {
-      console.warn('[Auth] Sign-in success but no valid access token found');
+      console.warn('[Auth] handleSigninSuccess called with no user');
       setIsAuthenticated(false);
       setCurrentUser(null);
       setIsNewUser(false);

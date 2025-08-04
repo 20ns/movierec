@@ -19,15 +19,23 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
   const context = 'ensureValidToken';
   
   try {
-    // Check if we have a user session
-    if (!currentUser?.signInUserSession) {
-      throw new Error('No user session available');
+    // In AWS Amplify v6, we need to get session directly
+    if (!currentUser) {
+      throw new Error('No user available');
     }
 
-    const currentToken = currentUser.signInUserSession.accessToken?.jwtToken;
+    // Get current session to check token
+    let session;
+    try {
+      session = await fetchAuthSession();
+    } catch (sessionError) {
+      throw new Error('Unable to fetch authentication session');
+    }
+
+    const currentToken = session?.tokens?.accessToken?.toString();
     
     if (!currentToken) {
-      throw new Error('No access token in user session');
+      throw new Error('No access token in session');
     }
 
     // Validate current token
@@ -54,10 +62,14 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
       // Current token is invalid
     }
 
-    // Refresh the token
+    // Refresh the token by getting a fresh session
     // Attempting token refresh...
-    const session = await fetchAuthSession();
-    const newToken = session.getAccessToken().getJwtToken();
+    const freshSession = await fetchAuthSession({ forceRefresh: true });
+    const newToken = freshSession?.tokens?.accessToken?.toString();
+    
+    if (!newToken) {
+      throw new Error('No token available after refresh');
+    }
     
     // Validate the new token
     const newValidation = validateToken(newToken);
@@ -78,11 +90,16 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
   } catch (error) {
     console.error(`[${context}] Token validation/refresh failed:`, error);
     
-    // If all else fails, try to get a fresh session
+    // If all else fails, try to get a completely fresh session
     try {
       // Attempting to get fresh session...
       const user = await getCurrentUser();
-      const token = user.signInUserSession?.accessToken?.jwtToken;
+      if (!user) {
+        throw new Error('No user available after fresh attempt');
+      }
+      
+      const freshSession = await fetchAuthSession({ forceRefresh: true });
+      const token = freshSession?.tokens?.accessToken?.toString();
       
       if (!token) {
         throw new Error('No token available after fresh session');

@@ -3,6 +3,8 @@
 
 import { saveUserPreferences, fetchUserPreferences, validateAuthState } from './authService';
 import ENV_CONFIG from '../config/environment';
+import { getUserId } from '../utils/tokenUtils';
+import { migrateUserPreferences, needsMigration } from '../utils/userDataMigration';
 
 // Constants
 const STORAGE_KEY_PREFIX = 'userPrefs_';
@@ -19,7 +21,7 @@ const SAVE_RETRY_DELAY = 1000;
  */
 export const savePreferences = async (preferences, currentUser, isPartial = false) => {
   const context = 'savePreferences';
-  const userId = currentUser?.attributes?.sub;
+  const userId = await getUserId(currentUser);
   
   if (!userId) {
     return {
@@ -110,7 +112,7 @@ export const savePreferences = async (preferences, currentUser, isPartial = fals
  */
 export const loadPreferences = async (currentUser, forceCloudFetch = false) => {
   const context = 'loadPreferences';
-  const userId = currentUser?.attributes?.sub;
+  const userId = await getUserId(currentUser);
   
   if (!userId) {
     return {
@@ -118,6 +120,13 @@ export const loadPreferences = async (currentUser, forceCloudFetch = false) => {
       error: 'No user ID available',
       code: 'NO_USER_ID'
     };
+  }
+  
+  // Check if migration is needed before loading preferences
+  if (needsMigration(userId)) {
+    console.log(`[${context}] Migration needed, attempting migration`);
+    const migrationResult = migrateUserPreferences(userId);
+    console.log(`[${context}] Migration result:`, migrationResult);
   }
 
   let cloudResult = null;
@@ -349,11 +358,18 @@ export const loadPreferences = async (currentUser, forceCloudFetch = false) => {
  */
 export const hasCompletedQuestionnaire = async (currentUser) => {
   const context = 'hasCompletedQuestionnaire';
-  const userId = currentUser?.attributes?.sub;
+  const userId = await getUserId(currentUser);
   
   if (!userId) {
     // No user ID provided
     return false;
+  }
+  
+  // Check if migration is needed before checking questionnaire status
+  if (needsMigration(userId)) {
+    console.log(`[${context}] Migration needed, attempting migration`);
+    const migrationResult = migrateUserPreferences(userId);
+    console.log(`[${context}] Migration result:`, migrationResult);
   }
 
   // Use the improved loadPreferences which validates data consistency
@@ -414,7 +430,7 @@ export const hasCompletedQuestionnaire = async (currentUser) => {
  */
 export const clearPreferences = async (currentUser) => {
   const context = 'clearPreferences';
-  const userId = currentUser?.attributes?.sub;
+  const userId = await getUserId(currentUser);
   
   if (!userId) {
     return {
@@ -448,7 +464,7 @@ export const clearPreferences = async (currentUser) => {
  */
 export const syncPreferences = async (currentUser) => {
   const context = 'syncPreferences';
-  const userId = currentUser?.attributes?.sub;
+  const userId = await getUserId(currentUser);
   
   if (!userId) {
     return {

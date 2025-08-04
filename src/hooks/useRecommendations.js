@@ -4,6 +4,7 @@ import axios from 'axios';
 import { fetchCachedMedia } from '../services/mediaCache'; // Assuming mediaCache service exists
 import ENV_CONFIG from '../config/environment';
 import { ensureValidToken } from '../services/authService';
+import { getCurrentAccessToken } from '../utils/tokenUtils';
 
 // --- Constants ---
 const CACHE_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -376,7 +377,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
   const fetchFromDynamoDBCache = useCallback(async (currentContentTypeFilter, excludeIds = new Set(), prefs = {}, favoriteIds = [], watchlistIds = []) => {
     logMessage('Attempting to fetch from DynamoDB cache', { currentContentTypeFilter });
     try {
-      const token = currentUser?.signInUserSession?.accessToken?.jwtToken;
+      const token = await getCurrentAccessToken();
       if (!token) {
         logMessage('No auth token available for DynamoDB cache fetch');
         return { success: false };

@@ -1,6 +1,7 @@
 // src/hooks/useFavorites.js
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ENV_CONFIG from '../config/environment';
+import { getCurrentAccessToken, isAuthenticatedWithValidSession } from '../utils/tokenUtils';
 
 // --- Cache Utilities ---
 const FAVORITES_CACHE_KEY = 'user_favorites_cache';
@@ -65,7 +66,9 @@ function useFavorites(currentUser, isAuthenticated) {
 
   // --- Fetching Logic ---
   const fetchFavorites = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken || isFetchingRef.current) {
+    // Check authentication using v6 compatible method
+    const hasValidSession = await isAuthenticatedWithValidSession();
+    if (!isAuthenticated || !hasValidSession || isFetchingRef.current) {
       return;
     }
 
@@ -97,11 +100,17 @@ function useFavorites(currentUser, isAuthenticated) {
     setError(null);
     isFetchingRef.current = true;
 
-    try {      const response = await fetch(
+    try {
+      const token = await getCurrentAccessToken();
+      if (!token) {
+        throw new Error('No access token available');
+      }
+      
+      const response = await fetch(
         ENV_CONFIG.getApiUrl('/user/favourites'),
         {
           headers: {
-            Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           credentials: 'include'
@@ -159,7 +168,8 @@ function useFavorites(currentUser, isAuthenticated) {
 
   // --- Remove Favorite Logic ---
   const removeFavorite = useCallback(async (mediaId) => {
-    if (!isAuthenticated || !currentUser?.signInUserSession?.accessToken?.jwtToken || !userId) {
+    const hasValidSession = await isAuthenticatedWithValidSession();
+    if (!isAuthenticated || !hasValidSession || !userId) {
       console.error('[useFavorites] Cannot remove favorite: User not authenticated or missing ID/token.');
       return;
     }
@@ -170,12 +180,18 @@ function useFavorites(currentUser, isAuthenticated) {
     setFavorites(updatedFavorites);
     cacheFavorites(userId, updatedFavorites); // Update cache optimistically
 
-    try {      const response = await fetch(
+    try {
+      const token = await getCurrentAccessToken();
+      if (!token) {
+        throw new Error('No access token available');
+      }
+      
+      const response = await fetch(
         ENV_CONFIG.getApiUrl('/user/favourites'),
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           credentials: 'include',

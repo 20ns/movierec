@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { signUp, signIn, confirmSignUp, forgotPassword, confirmResetPassword, resendSignUp } from 'aws-amplify/auth';
+import { signUp, signIn, confirmSignUp, resetPassword, confirmResetPassword, resendSignUpCode } from 'aws-amplify/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) {
@@ -100,7 +100,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setError('');
     setSuccess('');
     try {
-      await resendSignUp({ username: email });
+      await resendSignUpCode({ username: email });
       setSuccess('Verification code resent successfully.');
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
@@ -138,7 +138,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setError('');
     setSuccess('');
     try {
-      await forgotPassword({ username: email });
+      await resetPassword({ username: email });
       setSuccess('Verification code sent to your email.');
       setResetCodeSent(true);
     } catch (err) {

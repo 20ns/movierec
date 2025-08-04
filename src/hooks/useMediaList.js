@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { EventEmitter } from '../events';
+import { getCurrentAccessToken, getUserId as getTokenUserId } from '../utils/tokenUtils';
 
 const CACHE_EXPIRY_TIME = 15 * 60 * 1000; // 15 minutes
 
@@ -53,12 +54,13 @@ export default function useMediaList({
   };
 
   const fetchList = async (forceRefresh = false) => {
-    if (!currentUser?.signInUserSession?.accessToken?.jwtToken) {
+    const token = await getCurrentAccessToken();
+    if (!token) {
       setError('Authentication token missing');
       setIsLoading(false);
       return;
     }
-    const userId = currentUser.username || currentUser.attributes?.sub;
+    const userId = await getTokenUserId(currentUser);
     if (!userId) {
       setError('User identifier missing');
       setIsLoading(false);
@@ -81,7 +83,7 @@ export default function useMediaList({
         const res = await fetch(
           `${process.env.REACT_APP_API_GATEWAY_INVOKE_URL}${fetchEndpoint}`, {
             headers: {
-              Authorization: `Bearer ${currentUser?.signInUserSession?.accessToken?.jwtToken}`,
+              Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
             credentials: 'include'

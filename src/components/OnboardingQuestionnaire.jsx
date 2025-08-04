@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon, CheckIcon, StarIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import OnboardingProgressTracker from './OnboardingProgressTracker';
 
-import { API } from 'aws-amplify';
 import axios from 'axios';
 // Enhanced genre options with better organization
 const GENRE_OPTIONS = [

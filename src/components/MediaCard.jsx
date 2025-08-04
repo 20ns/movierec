@@ -30,17 +30,18 @@ let globalWatchlistFetched = false;
 let lastWatchlistFetchTime = 0;
 const WATCHLIST_FETCH_COOLDOWN = 30000; // 30 seconds cooldown
 
-// Simplified token extractor
-const extractToken = (user) => {
+// AWS Amplify v6 compatible token extractor
+const extractToken = async (user) => {
   if (!user) return null;
-  // Only return access tokens - backend Lambda functions expect access tokens, not ID tokens
-  if (user.signInUserSession?.accessToken?.jwtToken) {
-    return user.signInUserSession.accessToken.jwtToken;
+  
+  try {
+    // Import the token utility dynamically to avoid circular imports
+    const { getCurrentAccessToken } = await import('../utils/tokenUtils');
+    return await getCurrentAccessToken();
+  } catch (error) {
+    console.warn('[MediaCard] Failed to extract token:', error.message);
+    return null;
   }
-  // Fallback for direct token property (should also be access token)
-  if (user.token) return user.token;
-  // If no access token available, return null instead of falling back to ID token
-  return null;
 };
 
 const MediaCard = ({ 
@@ -164,7 +165,7 @@ const MediaCard = ({
         return;
       }
 
-      const token = extractToken(currentUser);
+      const token = await extractToken(currentUser);
       if (!token) {
         setIsFavorited(false);
         hasFetchedRef.current = true;
@@ -248,7 +249,7 @@ const MediaCard = ({
         return;
       }
 
-      const token = extractToken(currentUser);
+      const token = await extractToken(currentUser);
       if (!token) {
         setIsInWatchlist(false);
         hasWatchlistFetchedRef.current = true;
@@ -368,7 +369,7 @@ const MediaCard = ({
       return;
     }
 
-    const token = extractToken(currentUser);
+    const token = await extractToken(currentUser);
     if (!token) {
       return;
     }
@@ -467,7 +468,7 @@ const MediaCard = ({
       return;
     }
 
-    const token = extractToken(currentUser);
+    const token = await extractToken(currentUser);
     if (!token) {
       return;
     }
