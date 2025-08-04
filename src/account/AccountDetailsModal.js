@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Auth } from 'aws-amplify';
+import { deleteUser } from 'aws-amplify/auth';
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 

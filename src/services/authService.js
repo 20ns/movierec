@@ -1,7 +1,7 @@
 // Authentication Service
 // Provides robust authentication management with token validation and refresh
 
-import { Auth } from 'aws-amplify';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { validateToken, debugToken } from '../utils/tokenValidator';
 
 // Constants
@@ -56,7 +56,7 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
 
     // Refresh the token
     // Attempting token refresh...
-    const session = await Auth.currentSession();
+    const session = await fetchAuthSession();
     const newToken = session.getAccessToken().getJwtToken();
     
     // Validate the new token
@@ -81,7 +81,7 @@ export const ensureValidToken = async (currentUser, forceRefresh = false) => {
     // If all else fails, try to get a fresh session
     try {
       // Attempting to get fresh session...
-      const user = await Auth.currentAuthenticatedUser();
+      const user = await getCurrentUser();
       const token = user.signInUserSession?.accessToken?.jwtToken;
       
       if (!token) {

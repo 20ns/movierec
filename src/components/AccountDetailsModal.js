@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Auth } from 'aws-amplify';
+import { forgotPassword, confirmResetPassword, changePassword, deleteUser, getCurrentUser } from 'aws-amplify/auth';
 
 function AccountDetailsModal({ currentUser, onClose }) {
   const [activeTab, setActiveTab] = useState('profile');
@@ -80,7 +80,7 @@ function AccountDetailsModal({ currentUser, onClose }) {
     setIsLoading(true);
     
     try {
-      await Auth.forgotPassword(resetEmail);
+      await forgotPassword({ username: resetEmail });
       setResetSuccess('Verification code sent to your email.');
       setResetMode('confirm');
     } catch (error) {
@@ -105,7 +105,7 @@ function AccountDetailsModal({ currentUser, onClose }) {
     setIsLoading(true);
     
     try {
-      await Auth.forgotPasswordSubmit(resetEmail, resetCode, newPassword);
+      await confirmResetPassword({ username: resetEmail, confirmationCode: resetCode, newPassword });
       setResetSuccess('Password reset successful! You can now sign in with your new password.');
       
       // Clear form
@@ -141,12 +141,11 @@ function AccountDetailsModal({ currentUser, onClose }) {
     
     try {
       // Get current authenticated user
-      const user = await Auth.currentAuthenticatedUser();
+      const user = await getCurrentUser();
       
       // Change password using Auth service
-      await Auth.changePassword(
-        user,
-        currentPassword,
+      await changePassword({
+        oldPassword: currentPassword,
         newPassword
       );
       
@@ -192,10 +191,10 @@ function AccountDetailsModal({ currentUser, onClose }) {
     
     try {
       // Get current authenticated user (verifies user is logged in)
-      const user = await Auth.currentAuthenticatedUser();
+      const user = await getCurrentUser();
       
       // Attempt to delete the user account
-      await Auth.deleteUser();
+      await deleteUser();
       
       // Close modal and handle signout in parent component
       onClose();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Auth } from 'aws-amplify';
+import { signUp, signIn, confirmSignUp, forgotPassword, confirmResetPassword, resendSignUp } from 'aws-amplify/auth';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) {
@@ -42,10 +42,12 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setLoading(true);
     setError('');
     try {
-      await Auth.signUp({
+      await signUp({
         username: email,
         password,
-        attributes: { email },
+        options: {
+          userAttributes: { email }
+        }
       });
       setNeedsVerification(true);
       setSuccess('Account created successfully. Please check your email for the verification code.');
@@ -73,8 +75,8 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setLoading(true);
     setError('');
     try {
-      await Auth.confirmSignUp(email, verificationCode);
-      const user = await Auth.signIn(email, password);
+      await confirmSignUp({ username: email, confirmationCode: verificationCode });
+      const user = await signIn({ username: email, password });
       onSignupSuccess(user);
       navigate('/onboarding');
     } catch (err) {
@@ -98,7 +100,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setError('');
     setSuccess('');
     try {
-      await Auth.resendSignUp(email);
+      await resendSignUp({ username: email });
       setSuccess('Verification code resent successfully.');
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
@@ -119,7 +121,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setLoading(true);
     setError('');
     try {
-      const user = await Auth.signIn(email, password);
+      const user = await signIn({ username: email, password });
       onSigninSuccess(user);
       navigate('/');
     } catch (err) {
@@ -136,7 +138,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setError('');
     setSuccess('');
     try {
-      await Auth.forgotPassword(email);
+      await forgotPassword({ username: email });
       setSuccess('Verification code sent to your email.');
       setResetCodeSent(true);
     } catch (err) {
@@ -157,7 +159,7 @@ function AuthPage({ onSignupSuccess, onSigninSuccess, initialMode = 'signin' }) 
     setError('');
     setSuccess('');
     try {
-      await Auth.forgotPasswordSubmit(email, verificationCode, newPassword);
+      await confirmResetPassword({ username: email, confirmationCode: verificationCode, newPassword });
       setSuccess('Password has been reset successfully. You can now sign in with your new password.');
       setTimeout(() => {
         setIsForgotPassword(false);

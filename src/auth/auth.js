@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Auth } from 'aws-amplify';  // Import full Auth
+import { getCurrentUser, signOut } from 'aws-amplify/auth';
 
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,7 +14,7 @@ const useAuth = () => {
   
   const checkAuthState = async () => {
     try {
-      const user = await Auth.currentAuthenticatedUser();
+      const user = await getCurrentUser();
       
       // Verify that the user has a valid access token before setting authenticated
       if (user?.signInUserSession?.accessToken?.jwtToken) {
@@ -59,7 +59,7 @@ const useAuth = () => {
 
   const handleSignout = async () => {
     try {
-      await Auth.signOut();
+      await signOut();
       setIsAuthenticated(false);
       setCurrentUser(null);
     } catch (error) {
