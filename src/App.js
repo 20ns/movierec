@@ -16,7 +16,6 @@ import FavoritesSection from './components/FavoritesSection';
 import WatchlistSection from './components/WatchlistSection';
 import AccountDetailsModal from './components/AccountDetailsModal';
 import SearchBar from './components/SearchBar';
-import MoodQuickFilters from './components/MoodQuickFilters';
 import { MobileBottomNav, MobileDrawerMenu, MobileHeader } from './components/MobileNavigation';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -134,9 +133,6 @@ useEffect(() => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   // State for Performance Dashboard
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
-  // State for Mood Filters
-  const [selectedMoodFilter, setSelectedMoodFilter] = useState(null);
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState(null);
 
   // Use the centralized preferences hook
   const {
@@ -474,20 +470,10 @@ useEffect(() => {
                   propHasCompletedQuestionnaire={hasCompletedQuestionnaire}
                   initialAppLoadComplete={initialAppLoadComplete}
                   onMediaClick={handleMediaClick}
-                  moodFilter={selectedMoodFilter}
-                  timeFilter={selectedTimeFilter}
                 />
               </motion.div>
             )}
           </AnimatePresence>
-          
-          {/* Mood Quick Filters */}
-          <MoodQuickFilters
-            onMoodSelect={setSelectedMoodFilter}
-            onTimeSelect={setSelectedTimeFilter}
-            currentUser={currentUser}
-            isVisible={isAuthenticated && initialAppLoadComplete}
-          />
           
           <TrendingSection
             currentUser={currentUser}

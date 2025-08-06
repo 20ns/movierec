@@ -361,6 +361,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     }
   }, [recState.state, attemptCount, handleRetry]);
 
+
   // --- Render helpers ---
   const renderStatusBar = () => {
     const statusMessage = getStatusMessage(recState);
