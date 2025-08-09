@@ -25,7 +25,7 @@ import {
   RECOMMENDATION_STATES
 } from '../utils/recommendationStateManager';
 
-const DEBUG_LOGGING = true;
+const DEBUG_LOGGING = false;
 
 const logMessage = (message, data) => {
   if (DEBUG_LOGGING) {

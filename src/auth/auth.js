@@ -22,26 +22,21 @@ const useAuth = () => {
         try {
           const session = await fetchAuthSession();
           if (session?.tokens?.accessToken) {
-            console.log('[Auth] Valid authenticated user found:', user.username || user.userId);
             setIsAuthenticated(true);
             setCurrentUser(user);
           } else {
-            console.warn('[Auth] User exists but no valid session found');
             setIsAuthenticated(false);
             setCurrentUser(null);
           }
         } catch (sessionError) {
-          console.warn('[Auth] Error fetching session:', sessionError);
           setIsAuthenticated(false);
           setCurrentUser(null);
         }
       } else {
-        console.log('[Auth] No user found');
         setIsAuthenticated(false);
         setCurrentUser(null);
       }
     } catch (error) {
-      console.log('[Auth] No authenticated user:', error.message);
       setIsAuthenticated(false);
       setCurrentUser(null);
     } finally {
@@ -51,35 +46,26 @@ const useAuth = () => {
 
   
   const handleSigninSuccess = useCallback(async (user, isNew = false) => {
-    console.log('[Auth] handleSigninSuccess called:', {
-      userExists: !!user,
-      username: user?.username || user?.userId,
-      isNew
-    });
     
     if (user) {
       try {
         // Verify we have a valid session in AWS Amplify v6
         const session = await fetchAuthSession();
         if (session?.tokens?.accessToken) {
-          console.log('[Auth] handleSigninSuccess: Setting authenticated to true');
           setCurrentUser(user);
           setIsAuthenticated(true);
           setIsNewUser(isNew);
         } else {
-          console.warn('[Auth] Sign-in success but no valid session found');
           setIsAuthenticated(false);
           setCurrentUser(null);
           setIsNewUser(false);
         }
       } catch (sessionError) {
-        console.warn('[Auth] Error fetching session after sign-in:', sessionError);
         setIsAuthenticated(false);
         setCurrentUser(null);
         setIsNewUser(false);
       }
     } else {
-      console.warn('[Auth] handleSigninSuccess called with no user');
       setIsAuthenticated(false);
       setCurrentUser(null);
       setIsNewUser(false);

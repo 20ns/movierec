@@ -9,12 +9,9 @@
  */
 export const migrateUserPreferences = (newUserId, userEmail = null) => {
   try {
-    console.log('[UserDataMigration] Starting migration for user ID:', newUserId);
-    console.log('[UserDataMigration] User email:', userEmail);
     
     // List all localStorage keys to understand what's stored
     const allKeys = Object.keys(localStorage);
-    console.log('[UserDataMigration] All localStorage keys:', allKeys);
     
     // Look for existing preference keys with different patterns
     const preferenceKeys = allKeys.filter(key => 
@@ -38,7 +35,6 @@ export const migrateUserPreferences = (newUserId, userEmail = null) => {
       ))
     );
     
-    console.log('[UserDataMigration] Found preference-related keys:', preferenceKeys);
     
     let migratedPreferences = null;
     let migratedQuestionnaire = false;
@@ -49,7 +45,6 @@ export const migrateUserPreferences = (newUserId, userEmail = null) => {
       try {
         const data = localStorage.getItem(key);
         if (data) {
-          console.log(`[UserDataMigration] Checking key ${key}:`, data.substring(0, 100) + '...');
           
           // Try to parse the data
           let parsedData;
@@ -57,14 +52,12 @@ export const migrateUserPreferences = (newUserId, userEmail = null) => {
             parsedData = data === 'true';
             if (parsedData) {
               migratedQuestionnaire = true;
-              console.log(`[UserDataMigration] Found completed questionnaire in ${key}`);
             }
           } else {
             parsedData = JSON.parse(data);
             if (parsedData && typeof parsedData === 'object') {
               migratedPreferences = parsedData;
               sourceKey = key;
-              console.log(`[UserDataMigration] Found preferences in ${key}:`, Object.keys(parsedData));
               break; // Use the first valid preferences found
             }
           }
@@ -80,12 +73,10 @@ export const migrateUserPreferences = (newUserId, userEmail = null) => {
       const newQuestionnaireKey = `questionnaire_completed_${newUserId}`;
       
       if (migratedPreferences) {
-        console.log(`[UserDataMigration] Migrating preferences from ${sourceKey} to ${newPrefsKey}`);
         localStorage.setItem(newPrefsKey, JSON.stringify(migratedPreferences));
       }
       
       if (migratedQuestionnaire) {
-        console.log(`[UserDataMigration] Migrating questionnaire completion to ${newQuestionnaireKey}`);
         localStorage.setItem(newQuestionnaireKey, 'true');
       }
       
@@ -99,7 +90,6 @@ export const migrateUserPreferences = (newUserId, userEmail = null) => {
       };
     }
     
-    console.log('[UserDataMigration] No preferences found to migrate');
     return {
       success: false,
       reason: 'No preferences found',
@@ -160,7 +150,6 @@ export const needsMigration = (newUserId) => {
   const hasNewQuestionnaire = localStorage.getItem(newQuestionnaireKey);
   
   if (hasNewPrefs || hasNewQuestionnaire) {
-    console.log('[UserDataMigration] New format data already exists, no migration needed');
     return false;
   }
   
@@ -190,7 +179,6 @@ export const needsMigration = (newUserId) => {
     )
   );
   
-  console.log('[UserDataMigration] Migration needed:', hasOldData);
   return hasOldData;
 };
 

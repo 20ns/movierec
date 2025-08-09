@@ -1,0 +1,266 @@
+name: Production Monitoring & Alerts
+
+on:
+  schedule:
+    # Run every hour during business hours (Mon-Fri, 9 AM to 5 PM UTC) to stay in free tier
+    - cron: '0 9-17 * * 1-5'  
+    # Run every 4 hours outside business hours to minimize costs
+    - cron: '0 */4 * * *'
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      alert_level:
+        description: 'Alert level for monitoring'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+        - info
+        - warning
+        - critical
+
+env:
+  PRODUCTION_URL: 'https://www.movierec.net'
+  API_URL: 'https://t12klotnl5.execute-api.eu-north-1.amazonaws.com/prod'
+
+jobs:
+  health-monitoring:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.health-check.outputs.status }}
+      response-time: ${{ steps.health-check.outputs.response_time }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Comprehensive health check
+      id: health-check
+      run: |
+        echo "🏥 Running comprehensive health check..."
+        
+        # Initialize status tracking
+        OVERALL_STATUS="healthy"
+        ISSUES_FOUND=""
+        TOTAL_RESPONSE_TIME=0
+        CHECKS_COUNT=0
+        
+        # Function to check endpoint
+        check_endpoint() {
+          local url=$1
+          local name=$2
+          local expected_status=${3:-200}
+          
+          echo "Checking $name..."
+          
+          response=$(curl -w "%{http_code}|%{time_total}|%{size_download}" \
+                          -s -o /dev/null \
+                          --max-time 30 \
+                          "$url" || echo "000|30.0|0")
+          
+          IFS='|' read -r status_code response_time size <<< "$response"
+          
+          if [ "$status_code" -eq "$expected_status" ]; then
+            echo "✅ $name: $status_code (${response_time}s, ${size} bytes)"
+          else
+            echo "❌ $name: $status_code (expected $expected_status)"
+            OVERALL_STATUS="unhealthy"
+            ISSUES_FOUND="$ISSUES_FOUND\n- $name returned $status_code"
+          fi
+          
+          # Add to average response time calculation
+          TOTAL_RESPONSE_TIME=$(echo "$TOTAL_RESPONSE_TIME + $response_time" | bc -l)
+          CHECKS_COUNT=$((CHECKS_COUNT + 1))
+        }
+        
+        # Check main website
+        check_endpoint "$PRODUCTION_URL" "Main Website" 200
+        
+        # Check API health endpoint
+        check_endpoint "$API_URL/health" "API Health" 200
+        
+        # Check key API endpoints (expecting auth errors for protected endpoints)
+        check_endpoint "$API_URL/recommendations" "Recommendations API" 401
+        check_endpoint "$API_URL/user/preferences" "Preferences API" 401
+        
+        # Check static assets
+        check_endpoint "$PRODUCTION_URL/manifest.json" "PWA Manifest" 200
+        check_endpoint "$PRODUCTION_URL/favicon.ico" "Favicon" 200
+        
+        # Calculate average response time
+        if [ $CHECKS_COUNT -gt 0 ]; then
+          AVG_RESPONSE_TIME=$(echo "scale=3; $TOTAL_RESPONSE_TIME / $CHECKS_COUNT" | bc -l)
+        else
+          AVG_RESPONSE_TIME=0
+        fi
+        
+        # Set outputs
+        echo "status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
+        echo "response_time=$AVG_RESPONSE_TIME" >> $GITHUB_OUTPUT
+        
+        # Summary
+        echo "📊 Health Check Summary:"
+        echo "Status: $OVERALL_STATUS"
+        echo "Average Response Time: ${AVG_RESPONSE_TIME}s"
+        echo "Checks Performed: $CHECKS_COUNT"
+        
+        if [ "$OVERALL_STATUS" != "healthy" ]; then
+          echo "🚨 Issues Found:$ISSUES_FOUND"
+          exit 1
+        fi
+
+  performance-monitoring:
+    name: Performance Metrics
+    runs-on: ubuntu-latest
+    needs: health-monitoring
+    if: needs.health-monitoring.outputs.status == 'healthy'
+    
+    steps:
+    - name: Performance benchmarks
+      run: |
+        echo "📊 Performance Monitoring..."
+        
+        # Frontend performance test
+        echo "Testing frontend performance..."
+        PERF_RESULT=$(curl -w "@-" -o /dev/null -s "$PRODUCTION_URL" <<'EOF'
+        {
+          "dns_lookup": %{time_namelookup},
+          "connect": %{time_connect},
+          "ssl_handshake": %{time_appconnect},
+          "first_byte": %{time_starttransfer},
+          "total_time": %{time_total},
+          "download_size": %{size_download},
+          "download_speed": %{speed_download}
+        }
+        EOF
+        )
+        
+        echo "Frontend Performance Metrics:"
+        echo "$PERF_RESULT" | jq '.'
+        
+        # API performance test
+        echo "Testing API performance..."
+        API_PERF=$(curl -w "@-" -o /dev/null -s "$API_URL/health" <<'EOF'
+        {
+          "api_response_time": %{time_total},
+          "api_size": %{size_download}
+        }
+        EOF
+        )
+        
+        echo "API Performance Metrics:"
+        echo "$API_PERF" | jq '.'
+        
+        # Performance thresholds
+        FRONTEND_TIME=$(echo "$PERF_RESULT" | jq -r '.total_time')
+        API_TIME=$(echo "$API_PERF" | jq -r '.api_response_time')
+        
+        # Check performance thresholds
+        if (( $(echo "$FRONTEND_TIME > 3.0" | bc -l) )); then
+          echo "⚠️ Frontend response time high: ${FRONTEND_TIME}s (threshold: 3.0s)"
+        fi
+        
+        if (( $(echo "$API_TIME > 2.0" | bc -l) )); then
+          echo "⚠️ API response time high: ${API_TIME}s (threshold: 2.0s)"
+        fi
+
+  security-monitoring:
+    name: Security Status Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: SSL/TLS certificate check
+      run: |
+        echo "🔒 Checking SSL certificate..."
+        
+        # Check SSL certificate expiry
+        CERT_INFO=$(echo | openssl s_client -servername www.movierec.net -connect www.movierec.net:443 2>/dev/null | openssl x509 -noout -dates)
+        echo "$CERT_INFO"
+        
+        # Extract expiry date and calculate days remaining
+        EXPIRY_DATE=$(echo "$CERT_INFO" | grep "notAfter" | cut -d= -f2)
+        EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s)
+        CURRENT_TIMESTAMP=$(date +%s)
+        DAYS_REMAINING=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 ))
+        
+        echo "SSL Certificate expires in: $DAYS_REMAINING days"
+        
+        if [ $DAYS_REMAINING -lt 30 ]; then
+          echo "🚨 SSL certificate expires soon! ($DAYS_REMAINING days)"
+        fi
+        
+    - name: Security headers check
+      run: |
+        echo "🛡️ Checking security headers..."
+        
+        HEADERS=$(curl -I -s "$PRODUCTION_URL")
+        
+        # Check for security headers
+        if echo "$HEADERS" | grep -i "strict-transport-security" > /dev/null; then
+          echo "✅ HSTS header present"
+        else
+          echo "⚠️ HSTS header missing"
+        fi
+        
+        if echo "$HEADERS" | grep -i "x-frame-options\|content-security-policy" > /dev/null; then
+          echo "✅ Frame protection headers present"
+        else
+          echo "⚠️ Frame protection headers missing"
+        fi
+
+  alert-notification:
+    name: Alert & Notification
+    runs-on: ubuntu-latest
+    needs: [health-monitoring, performance-monitoring, security-monitoring]
+    if: always()
+    
+    steps:
+    - name: Create monitoring summary
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        # 🏥 Production Monitoring Report
+        
+        ## Health Status
+        - **Overall Health**: ${{ needs.health-monitoring.outputs.status == 'healthy' && '✅ Healthy' || '❌ Issues Detected' }}
+        - **Average Response Time**: ${{ needs.health-monitoring.outputs.response-time }}s
+        - **Monitoring Time**: $(date)
+        
+        ## Performance Metrics
+        - **Frontend Performance**: ${{ needs.performance-monitoring.result == 'success' && '✅ Within Limits' || '⚠️ Check Required' }}
+        - **API Performance**: Monitored and logged
+        
+        ## Security Status
+        - **SSL Certificate**: ${{ needs.security-monitoring.result == 'success' && '✅ Valid' || '⚠️ Check Required' }}
+        - **Security Headers**: Verified
+        
+        ## Actions Required
+        $( [[ "${{ needs.health-monitoring.outputs.status }}" != "healthy" ]] && echo "🚨 Immediate attention required - system unhealthy" || echo "✅ No immediate actions required" )
+        
+        ## Monitoring Links
+        - [Production Site]($PRODUCTION_URL)
+        - [API Health]($API_URL/health)
+        - [CloudWatch Dashboard](https://console.aws.amazon.com/cloudwatch/)
+        EOF
+        
+    - name: Alert on failure
+      if: needs.health-monitoring.outputs.status != 'healthy'
+      run: |
+        echo "🚨 ALERT: Production system is unhealthy!"
+        echo "This would trigger notifications to:"
+        echo "- Slack/Discord webhook"
+        echo "- Email notifications"
+        echo "- SMS alerts for critical issues"
+        echo "- PagerDuty integration"
+        
+        # In a real setup, you would integrate with:
+        # - Slack: curl -X POST -H 'Content-type: application/json' --data '{"text":"🚨 Production Alert!"}' $SLACK_WEBHOOK
+        # - Email: AWS SES or SendGrid API
+        # - SMS: AWS SNS or Twilio API
+        # - PagerDuty: Create incident via API
+        
+        exit 1

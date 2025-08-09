@@ -65,26 +65,21 @@ export const isAuthenticatedWithValidSession = async () => {
  */
 export const getUserId = async (currentUser) => {
   try {
-    console.log('[TokenUtils] Getting user ID, currentUser:', currentUser);
     
     // Try to get from v6 session first
     const userInfo = await getCurrentUserInfo();
-    console.log('[TokenUtils] User info from session:', userInfo);
     
     if (userInfo?.userId) {
-      console.log('[TokenUtils] Using userId from session:', userInfo.userId);
       return userInfo.userId;
     }
 
     // Fallback to v5 format if somehow still present
     if (currentUser?.attributes?.sub) {
-      console.log('[TokenUtils] Using v5 attributes.sub:', currentUser.attributes.sub);
       return currentUser.attributes.sub;
     }
 
     // Another v5 fallback
     if (currentUser?.username) {
-      console.log('[TokenUtils] Using username:', currentUser.username);
       return currentUser.username;
     }
 

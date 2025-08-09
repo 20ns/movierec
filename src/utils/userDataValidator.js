@@ -160,16 +160,6 @@ export function validateUserPreferences(preferences) {
     result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS
   );
 
-  // Debug logging for validation issues (development only)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[userDataValidator] Validation details:', {
-      questionnaireCompleted,
-      hasContentType,
-      genreRatingCount: result.genreRatingCount,
-      missingEssential: result.missingEssential,
-      canGenerateRecommendations: result.missingEssential.length === 0 && result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS
-    });
-  }
 
   // Determine completion level and confidence
   if (result.missingEssential.length === 0 && result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) {
