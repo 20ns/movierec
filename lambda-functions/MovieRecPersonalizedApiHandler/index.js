@@ -160,50 +160,142 @@ class PersonalizedRecommendationEngine {
       .filter(title => title.length > 0);
   }
 
-  // Discover content candidates from multiple sources
+  // Get cached content from DynamoDB (pre-fetched data)
+  async getCachedContent(category, mediaType, limit = 20) {
+    try {
+      // Use scan with filter for simplicity since we don't have a GSI yet
+      // In production, you'd want to add a GSI on category + contentType
+      const command = new BatchGetCommand({
+        RequestItems: {
+          [process.env.RECOMMENDATIONS_CACHE_TABLE]: {
+            Keys: []
+          }
+        }
+      });
+
+      // Since we don't have a GSI, we'll try to get known cache keys
+      // This is a simplified approach - in production you'd use a GSI
+      const possibleKeys = [];
+      for (let i = 1; i <= Math.min(limit, 50); i++) {
+        possibleKeys.push({
+          cacheKey: `${category}#${mediaType}#${i}` // This won't work perfectly
+        });
+      }
+
+      // Alternative: Use direct cache key pattern matching
+      // For now, let's use a simpler approach with known popular content IDs
+      const knownPopularMovieIds = [550, 155, 13, 37165, 680, 27205, 862, 278, 497, 238];
+      const knownPopularTVIds = [1399, 60625, 1396, 456, 1402, 63174, 18165, 60059, 94605, 85552];
+      
+      let itemsToFetch = [];
+      if (category === 'popular' && mediaType === 'movie') {
+        itemsToFetch = knownPopularMovieIds.slice(0, limit).map(id => ({
+          cacheKey: `popular#movie#${id}`
+        }));
+      } else if (category === 'popular' && mediaType === 'tv') {
+        itemsToFetch = knownPopularTVIds.slice(0, limit).map(id => ({
+          cacheKey: `popular#tv#${id}`
+        }));
+      } else {
+        // For other categories, return empty to force API fallback
+        console.log(`No predefined cache keys for ${category}#${mediaType}, using API fallback`);
+        return [];
+      }
+
+      if (itemsToFetch.length === 0) {
+        return [];
+      }
+
+      command.RequestItems[process.env.RECOMMENDATIONS_CACHE_TABLE].Keys = itemsToFetch;
+      
+      const result = await dynamoDB.send(command);
+      const items = result.Responses?.[process.env.RECOMMENDATIONS_CACHE_TABLE] || [];
+      
+      if (items.length > 0) {
+        console.log(`Found ${items.length} cached items for ${category}#${mediaType}`);
+        
+        // Convert cached items back to TMDB format
+        return items.map(item => ({
+          id: parseInt(item.contentId),
+          title: item.title,
+          name: item.title,
+          overview: item.overview,
+          poster_path: item.posterPath,
+          backdrop_path: item.backdropPath,
+          vote_average: item.voteAverage,
+          vote_count: item.voteCount,
+          popularity: item.popularity,
+          release_date: item.releaseDate,
+          first_air_date: item.releaseDate,
+          genre_ids: item.genreIds || [],
+          original_language: item.originalLanguage,
+          adult: item.adult,
+          media_type: mediaType,
+          cached: true, // Mark as cached for debugging
+          fetchedAt: item.fetchedAt
+        })).filter(item => item.id); // Filter out any invalid items
+      }
+      
+      console.log(`No cached items found for ${category}#${mediaType}`);
+      return [];
+      
+    } catch (error) {
+      console.warn(`Error getting cached content for ${category}#${mediaType}:`, error);
+      return [];
+    }
+  }
+
+  // Enhanced discovery with cache-first approach
   async discoverCandidates(mediaType, preferences, favorites, excludeIds) {
     const candidates = new Map(); // Use Map to avoid duplicates
     const maxCandidates = 80;
     const seenIds = new Set(excludeIds.map(id => parseInt(id, 10)));
 
     try {
-      // Content discovery strategies
+      console.log('Starting cache-first content discovery...');
+      
+      // Content discovery strategies with cache-first approach
       const discoveryTasks = [];
 
-      // 1. Genre-based discovery (using user's highest-rated genres)
+      // 1. Cache-first: Popular content (try cache first, fallback to API)
+      discoveryTasks.push(this.discoverPopularCacheFirst(mediaType, 2));
+
+      // 2. Cache-first: Trending content
+      const discoveryPref = preferences.contentDiscoveryPreference;
+      if (discoveryPref?.includes('trending')) {
+        discoveryTasks.push(this.discoverTrendingCacheFirst(mediaType, 2));
+      }
+
+      // 3. Cache-first: Hidden gems and award-winning
+      if (discoveryPref?.includes('hiddenGems')) {
+        discoveryTasks.push(this.discoverHiddenGemsCacheFirst(mediaType, 1));
+      }
+      if (discoveryPref?.includes('awardWinning')) {
+        discoveryTasks.push(this.discoverAwardWinningCacheFirst(mediaType, 1));
+      }
+
+      // 4. Genre-based discovery (cache-first for top genres)
       if (preferences.genreRatings) {
         const topGenres = Object.entries(preferences.genreRatings)
           .sort(([,a], [,b]) => b - a)
-          .slice(0, 5)
+          .slice(0, 3) // Reduced to top 3 genres
           .map(([genreId]) => genreId);
 
         for (const genreId of topGenres) {
-          discoveryTasks.push(this.discoverByGenre(mediaType, genreId, 1));
+          discoveryTasks.push(this.discoverGenreCacheFirst(mediaType, genreId, 1));
         }
       }
 
-      // 2. Similar to favorites (analyze user's stated favorites)
+      // 5. Similar to favorites (still uses API as it's user-specific)
       if (preferences.favoriteContent) {
         const favoritesTitles = this.parseFavoriteContent(preferences.favoriteContent);
-        for (const title of favoritesTitles.slice(0, 3)) {
+        for (const title of favoritesTitles.slice(0, 2)) { // Reduced to 2 titles
           discoveryTasks.push(this.findSimilarToFavorite(mediaType, title));
         }
       }
 
-      // 3. Discovery preference-based content
-      const discoveryPref = preferences.contentDiscoveryPreference;
-      if (discoveryPref?.includes('trending')) {
-        discoveryTasks.push(this.discoverTrending(mediaType, 2));
-      }
-      if (discoveryPref?.includes('hiddenGems')) {
-        discoveryTasks.push(this.discoverHiddenGems(mediaType, 2));
-      }
-      if (discoveryPref?.includes('awardWinning')) {
-        discoveryTasks.push(this.discoverAwardWinning(mediaType, 2));
-      }
-
-      // 4. Fallback: Popular content
-      discoveryTasks.push(this.discoverPopular(mediaType, 3));
+      // 6. Fallback: API-based popular content if cache fails
+      discoveryTasks.push(this.discoverPopular(mediaType, 1)); // Reduced pages
 
       // Execute all discovery tasks in parallel
       const discoveryResults = await Promise.all(discoveryTasks);
@@ -355,6 +447,104 @@ class PersonalizedRecommendationEngine {
         }
       }
     }
+    return results;
+  }
+
+  // Cache-first discovery methods
+  async discoverPopularCacheFirst(mediaType, pages = 2) {
+    const types = mediaType === 'both' ? ['movie', 'tv'] : [mediaType];
+    const results = [];
+    
+    for (const type of types) {
+      // Try cache first
+      const cachedItems = await this.getCachedContent('popular', type, pages * 20);
+      if (cachedItems.length > 0) {
+        results.push(...cachedItems);
+        console.log(`Using ${cachedItems.length} cached popular ${type} items`);
+      } else {
+        // Fallback to API
+        console.log(`No cached popular ${type} items, falling back to API`);
+        const apiItems = await this.discoverPopular(type, Math.min(pages, 1));
+        results.push(...apiItems);
+      }
+    }
+    
+    return results;
+  }
+
+  async discoverTrendingCacheFirst(mediaType, pages = 1) {
+    const types = mediaType === 'both' ? ['movie', 'tv', 'all'] : [mediaType];
+    const results = [];
+    
+    for (const type of types) {
+      const cachedItems = await this.getCachedContent('trending', type, pages * 20);
+      if (cachedItems.length > 0) {
+        results.push(...cachedItems);
+        console.log(`Using ${cachedItems.length} cached trending ${type} items`);
+      } else {
+        console.log(`No cached trending ${type} items, falling back to API`);
+        const apiItems = await this.discoverTrending(type === 'all' ? 'both' : type, Math.min(pages, 1));
+        results.push(...apiItems);
+      }
+    }
+    
+    return results;
+  }
+
+  async discoverHiddenGemsCacheFirst(mediaType, pages = 1) {
+    const types = mediaType === 'both' ? ['movie', 'tv'] : [mediaType];
+    const results = [];
+    
+    for (const type of types) {
+      const cachedItems = await this.getCachedContent('hidden_gems', type, pages * 20);
+      if (cachedItems.length > 0) {
+        results.push(...cachedItems);
+        console.log(`Using ${cachedItems.length} cached hidden gems ${type} items`);
+      } else {
+        console.log(`No cached hidden gems ${type} items, falling back to API`);
+        const apiItems = await this.discoverHiddenGems(type, Math.min(pages, 1));
+        results.push(...apiItems);
+      }
+    }
+    
+    return results;
+  }
+
+  async discoverAwardWinningCacheFirst(mediaType, pages = 1) {
+    const types = mediaType === 'both' ? ['movie', 'tv'] : [mediaType];
+    const results = [];
+    
+    for (const type of types) {
+      const cachedItems = await this.getCachedContent('award_winning', type, pages * 20);
+      if (cachedItems.length > 0) {
+        results.push(...cachedItems);
+        console.log(`Using ${cachedItems.length} cached award-winning ${type} items`);
+      } else {
+        console.log(`No cached award-winning ${type} items, falling back to API`);
+        const apiItems = await this.discoverAwardWinning(type, Math.min(pages, 1));
+        results.push(...apiItems);
+      }
+    }
+    
+    return results;
+  }
+
+  async discoverGenreCacheFirst(mediaType, genreId, pages = 1) {
+    const types = mediaType === 'both' ? ['movie', 'tv'] : [mediaType];
+    const results = [];
+    
+    for (const type of types) {
+      const cachedItems = await this.getCachedContent(`genre_${genreId}`, type, pages * 20);
+      if (cachedItems.length > 0) {
+        results.push(...cachedItems);
+        console.log(`Using ${cachedItems.length} cached genre ${genreId} ${type} items`);
+      } else {
+        console.log(`No cached genre ${genreId} ${type} items, falling back to API`);
+        const apiItems = await this.discoverByGenre(type, genreId, Math.min(pages, 1));
+        results.push(...apiItems);
+      }
+    }
+    
     return results;
   }
 

@@ -1,0 +1,16 @@
+{
+  "name": "tmdb-data-fetcher",
+  "version": "1.0.0",
+  "description": "Scheduled TMDB data fetcher for MovieRec recommendations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["tmdb", "scheduled", "data-fetcher", "movierec"],
+  "author": "MovieRec",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.x",
+    "@aws-sdk/lib-dynamodb": "^3.x"
+  }
+}

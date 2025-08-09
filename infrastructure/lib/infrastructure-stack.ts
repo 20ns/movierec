@@ -6,6 +6,8 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Duration } from 'aws-cdk-lib';
 import * as path from 'path';
 
@@ -321,6 +323,74 @@ export class InfrastructureStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
+    // TMDB Data Fetcher Lambda Function (Scheduled)
+    const tmdbDataFetcherFunction = new lambda.Function(this, 'TMDBDataFetcherFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda-functions/TMDBDataFetcher'), {
+        exclude: ['node_modules', '.git', '*.md', 'test', 'tests', '.env*']
+      }),
+      role: lambdaExecutionRole,
+      environment: sharedEnvironment,
+      timeout: Duration.minutes(5), // 5 minutes for data fetching
+      memorySize: 512, // Increased memory for concurrent API calls
+      layers: [awsSdkLayer],
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    // ============================================
+    // EVENTBRIDGE SCHEDULED RULES (Free Tier Optimized)
+    // ============================================
+    
+    // Daily fetch rule (8 AM UTC = optimal TMDB API time)
+    const dailyFetchRule = new events.Rule(this, 'TMDBDailyFetchRule', {
+      ruleName: 'MovieRec-TMDB-Daily-Fetch',
+      description: 'Daily TMDB content fetch for popular and trending content',
+      schedule: events.Schedule.cron({
+        minute: '0',
+        hour: '8',     // 8 AM UTC
+        day: '*',      // Every day
+        month: '*',
+        year: '*'
+      }),
+      enabled: true,
+    });
+
+    // Weekly fetch rule (Sundays at 9 AM UTC)
+    const weeklyFetchRule = new events.Rule(this, 'TMDBWeeklyFetchRule', {
+      ruleName: 'MovieRec-TMDB-Weekly-Fetch', 
+      description: 'Weekly TMDB content fetch for genre-based and specialized content',
+      schedule: events.Schedule.cron({
+        minute: '0',
+        hour: '9',     // 9 AM UTC
+        month: '*',
+        year: '*',
+        weekDay: 'SUN' // Only Sundays (don't specify 'day' when using 'weekDay')
+      }),
+      enabled: true,
+    });
+
+    // Add Lambda targets to EventBridge rules
+    dailyFetchRule.addTarget(new targets.LambdaFunction(tmdbDataFetcherFunction, {
+      event: events.RuleTargetInput.fromObject({
+        source: 'aws.events',
+        detail: {
+          scheduleType: 'daily',
+          triggeredBy: 'eventbridge-daily'
+        }
+      })
+    }));
+
+    weeklyFetchRule.addTarget(new targets.LambdaFunction(tmdbDataFetcherFunction, {
+      event: events.RuleTargetInput.fromObject({
+        source: 'aws.events',
+        detail: {
+          scheduleType: 'weekly', 
+          triggeredBy: 'eventbridge-weekly'
+        }
+      })
+    }));
+
     // ===========================
     // API GATEWAY
     // ===========================
@@ -551,6 +621,22 @@ export class InfrastructureStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'HealthFunctionArn', {
       value: healthFunction.functionArn,
       description: 'Health Check Lambda Function ARN',
+    });
+
+    new cdk.CfnOutput(this, 'TMDBDataFetcherFunctionArn', {
+      value: tmdbDataFetcherFunction.functionArn,
+      description: 'TMDB Data Fetcher Lambda Function ARN',
+    });
+
+    // EventBridge Rule ARNs
+    new cdk.CfnOutput(this, 'TMDBDailyFetchRuleArn', {
+      value: dailyFetchRule.ruleArn,
+      description: 'TMDB Daily Fetch EventBridge Rule ARN',
+    });
+
+    new cdk.CfnOutput(this, 'TMDBWeeklyFetchRuleArn', {
+      value: weeklyFetchRule.ruleArn,
+      description: 'TMDB Weekly Fetch EventBridge Rule ARN',
     });
   }
 }
