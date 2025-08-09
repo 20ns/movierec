@@ -32,6 +32,7 @@
     "test:aws:lambda": "cd tests && npm run test:lambda",
     "test:aws:dynamodb": "cd tests && npm run test:dynamodb",
     "test:aws:parallel": "cd tests && npm run test:parallel",
+    "test:instant": "node scripts/instant-test.js",
     "test:aws:sequential": "cd tests && npm run test:sequential",
     "deploy:infrastructure": "cd infrastructure && npx cdk deploy",
     "deploy:diff": "cd infrastructure && npx cdk diff",
@@ -57,6 +58,7 @@
   "dependencies": {
     "@aws-amplify/auth": "^6.7.0",
     "@aws-amplify/core": "^6.7.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.864.0",
     "@heroicons/react": "^2.1.1",
     "aws-amplify": "^6.7.0",
     "axios": "^1.7.7",
