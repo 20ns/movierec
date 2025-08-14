@@ -100,15 +100,16 @@ jobs:
         fi
       
     - name: Load environment variables
+      env:
+        REACT_APP_TMDB_API_KEY: ${{ secrets.REACT_APP_TMDB_API_KEY }}
+        REACT_APP_FANART_TV_API_KEY: ${{ secrets.REACT_APP_FANART_TV_API_KEY }}
+        REACT_APP_API_GATEWAY_INVOKE_URL: ${{ secrets.REACT_APP_API_GATEWAY_INVOKE_URL }}
       run: |
-        # Source environment variables from .env file for build
-        if [ -f ".env" ]; then
-          export $(cat .env | grep -v '^#' | xargs)
-          echo "REACT_APP_TMDB_API_KEY=${REACT_APP_TMDB_API_KEY}" >> $GITHUB_ENV
-          echo "REACT_APP_FANART_TV_API_KEY=${REACT_APP_FANART_TV_API_KEY}" >> $GITHUB_ENV
-          echo "REACT_APP_API_GATEWAY_INVOKE_URL=${REACT_APP_API_GATEWAY_INVOKE_URL}" >> $GITHUB_ENV
-          echo "✅ Environment variables loaded for build"
-        fi
+        # Load environment variables from GitHub secrets for build
+        echo "REACT_APP_TMDB_API_KEY=${REACT_APP_TMDB_API_KEY}" >> $GITHUB_ENV
+        echo "REACT_APP_FANART_TV_API_KEY=${REACT_APP_FANART_TV_API_KEY}" >> $GITHUB_ENV
+        echo "REACT_APP_API_GATEWAY_INVOKE_URL=${REACT_APP_API_GATEWAY_INVOKE_URL}" >> $GITHUB_ENV
+        echo "✅ Environment variables loaded from GitHub secrets"
       
     - name: Build application
       run: npm run build
@@ -154,17 +155,14 @@ jobs:
       run: cd infrastructure && npm ci
       
     - name: Load environment variables
+      env:
+        REACT_APP_TMDB_API_KEY: ${{ secrets.REACT_APP_TMDB_API_KEY }}
+        ALLOWED_CORS_ORIGINS: ${{ secrets.ALLOWED_CORS_ORIGINS }}
       run: |
-        # Source environment variables from .env file for infrastructure validation
-        if [ -f ".env" ]; then
-          export $(cat .env | grep -v '^#' | xargs)
-          echo "REACT_APP_TMDB_API_KEY=${REACT_APP_TMDB_API_KEY}" >> $GITHUB_ENV
-          echo "ALLOWED_CORS_ORIGINS=${ALLOWED_CORS_ORIGINS}" >> $GITHUB_ENV
-          echo "✅ Environment variables loaded from .env file"
-        else
-          echo "❌ .env file not found"
-          exit 1
-        fi
+        # Load environment variables from GitHub secrets for infrastructure validation
+        echo "REACT_APP_TMDB_API_KEY=${REACT_APP_TMDB_API_KEY}" >> $GITHUB_ENV
+        echo "ALLOWED_CORS_ORIGINS=${ALLOWED_CORS_ORIGINS}" >> $GITHUB_ENV
+        echo "✅ Environment variables loaded from GitHub secrets"
       
     - name: Validate CDK infrastructure
       run: cd infrastructure && npx cdk synth
