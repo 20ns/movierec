@@ -122,3 +122,6 @@ tables-only.yml
 # AWS Generated files
 infrastructure/cdk.out/*
 .github/chatmodes/
+
+# Claude Plans (Internal planning documents)
+claudeplans/
