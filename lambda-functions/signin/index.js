@@ -15,6 +15,12 @@ exports.handler = async (event) => {
   // Handle POST request for signin
   if (event.httpMethod === 'POST') {
     try {
+      // Validate environment variables
+      if (!process.env.COGNITO_CLIENT_ID) {
+        console.error("COGNITO_CLIENT_ID environment variable is not set");
+        return createApiResponse(500, { error: "Server configuration error" }, event);
+      }
+
       let body;
       try {
         body = JSON.parse(event.body || '{}');

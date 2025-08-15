@@ -10,6 +10,12 @@ const {
   const client = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   const ddbClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-north-1' });
   
+  // Validate required environment variables
+  if (!process.env.COGNITO_CLIENT_ID) {
+    console.error("COGNITO_CLIENT_ID environment variable is not set");
+    throw new Error("Server configuration error");
+  }
+  
   const CLIENT_ID = process.env.COGNITO_CLIENT_ID;
   const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
     const generateSecretHash = (username) => {

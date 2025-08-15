@@ -96,6 +96,14 @@ class TMDBDataFetcher {
             throw new Error('REACT_APP_TMDB_API_KEY environment variable not set');
         }
         
+        if (!this.cacheTable) {
+            throw new Error('RECOMMENDATIONS_CACHE_TABLE environment variable not set');
+        }
+        
+        if (!this.embeddingCacheTable) {
+            throw new Error('EMBEDDING_CACHE_TABLE environment variable not set');
+        }
+        
         // Popular genres for focused fetching
         this.popularGenres = [
             28,    // Action
