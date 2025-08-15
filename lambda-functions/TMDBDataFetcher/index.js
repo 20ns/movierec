@@ -1,5 +1,6 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, PutCommand, BatchWriteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const { createApiResponse } = require("/opt/nodejs/shared/response");
 
 // Initialize DynamoDB with retry configuration
 const client = new DynamoDBClient({
@@ -444,6 +445,11 @@ class TMDBDataFetcher {
 // Lambda handler
 exports.handler = async (event) => {
     console.log('TMDB Data Fetcher started:', JSON.stringify(event, null, 2));
+    
+    // Handle CORS preflight OPTIONS method (for test compatibility)
+    if (event.httpMethod === 'OPTIONS') {
+        return createApiResponse(204, null, event);
+    }
     
     try {
         const fetcher = new TMDBDataFetcher();

@@ -13,6 +13,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "overrides": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
@@ -20,6 +24,8 @@
     "babel-jest": "^30.0.5",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.5",
-    "jest-environment-jsdom": "^30.0.5"
+    "jest-environment-jsdom": "^30.0.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
