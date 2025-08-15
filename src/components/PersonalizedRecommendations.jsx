@@ -312,7 +312,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       logMessage('Initial load triggered');
       fetchRecommendations(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isAuthenticated, initialAppLoadComplete, currentState]);
 
   // --- Handle questionnaire completion ---
@@ -327,7 +327,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       // Force fetch recommendations when questionnaire is completed
       fetchRecommendations(true); // Force refresh
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isAuthenticated, initialAppLoadComplete, propHasCompletedQuestionnaire]);
 
   // --- Handle user preferences changes ---
@@ -342,7 +342,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
       // Force fetch recommendations when user preferences are loaded with completed questionnaire
       fetchRecommendations(true); // Force refresh
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isAuthenticated, initialAppLoadComplete, propUserPreferences]);
 
   // --- Auto-retry on certain errors ---

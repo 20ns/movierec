@@ -791,7 +791,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
     return () => {
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [isAuthenticated, userId, initialAppLoadComplete, currentUser, contentTypeFilter, fetchRecommendations, safeSetState]); // Add fetchRecommendations, safeSetState
 
 
@@ -823,7 +823,7 @@ function useRecommendations(currentUser, isAuthenticated, userPreferences, hasCo
         logMessage(`Content type filter changed to: ${contentTypeFilter}, triggering refresh.`);
         refreshRecommendations(); // Refresh uses the current contentTypeFilter from state
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [contentTypeFilter]); // Only run when filter changes
 
 
