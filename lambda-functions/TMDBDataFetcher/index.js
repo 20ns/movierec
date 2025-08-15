@@ -88,21 +88,22 @@ const rateLimiter = {
 // Smart TMDB Data Fetcher Class
 class TMDBDataFetcher {
     constructor() {
-        this.tmdbApiKey = process.env.REACT_APP_TMDB_API_KEY;
-        this.cacheTable = process.env.RECOMMENDATIONS_CACHE_TABLE;
-        this.embeddingCacheTable = process.env.EMBEDDING_CACHE_TABLE;
-        
-        if (!this.tmdbApiKey) {
+        // Validate required environment variables
+        if (!process.env.REACT_APP_TMDB_API_KEY) {
             throw new Error('REACT_APP_TMDB_API_KEY environment variable not set');
         }
         
-        if (!this.cacheTable) {
+        if (!process.env.RECOMMENDATIONS_CACHE_TABLE) {
             throw new Error('RECOMMENDATIONS_CACHE_TABLE environment variable not set');
         }
         
-        if (!this.embeddingCacheTable) {
+        if (!process.env.EMBEDDING_CACHE_TABLE) {
             throw new Error('EMBEDDING_CACHE_TABLE environment variable not set');
         }
+        
+        this.tmdbApiKey = process.env.REACT_APP_TMDB_API_KEY;
+        this.cacheTable = process.env.RECOMMENDATIONS_CACHE_TABLE;
+        this.embeddingCacheTable = process.env.EMBEDDING_CACHE_TABLE;
         
         // Popular genres for focused fetching
         this.popularGenres = [
