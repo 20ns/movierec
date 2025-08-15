@@ -214,6 +214,7 @@ jobs:
         cd infrastructure && npm run deploy:production
       env:
         CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        REACT_APP_TMDB_API_KEY: ${{ secrets.REACT_APP_TMDB_API_KEY }}
         
     - name: Get API Gateway URL
       id: api-url
