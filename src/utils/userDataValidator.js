@@ -161,31 +161,54 @@ export function validateUserPreferences(preferences) {
   );
 
 
+  // Calculate dynamic completion percentage based on actual progress
+  let progressScore = 0;
+  const totalFields = VALIDATION_THRESHOLDS.ESSENTIAL_FIELDS.length + VALIDATION_THRESHOLDS.RECOMMENDED_FIELDS.length;
+  const completedEssential = VALIDATION_THRESHOLDS.ESSENTIAL_FIELDS.length - result.missingEssential.length;
+  const completedRecommended = VALIDATION_THRESHOLDS.RECOMMENDED_FIELDS.length - result.missingRecommended.length;
+  
+  // Essential fields are worth 70% of total score
+  progressScore += (completedEssential / VALIDATION_THRESHOLDS.ESSENTIAL_FIELDS.length) * 70;
+  
+  // Recommended fields are worth 30% of total score  
+  progressScore += (completedRecommended / VALIDATION_THRESHOLDS.RECOMMENDED_FIELDS.length) * 30;
+  
+  // Genre ratings provide additional scoring bonus
+  const genreProgress = Math.min(result.genreRatingCount / 10, 1); // Up to 10 genres for optimal score
+  progressScore = Math.min(100, progressScore + (genreProgress * 20)); // Bonus up to 20 points
+  
+  // Ensure minimum progress if questionnaire is started
+  if (questionnaireCompleted && progressScore < 40) {
+    progressScore = Math.max(40, progressScore);
+  }
+  
   // Determine completion level and confidence
   if (result.missingEssential.length === 0 && result.genreRatingCount >= VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) {
     result.canGenerateRecommendations = true;
     
     if (result.missingRecommended.length === 0) {
       result.completionLevel = 'excellent';
-      result.confidence = 95;
+      result.confidence = Math.max(95, progressScore);
       result.isValid = true;
       result.userGuidance = "Your profile is complete! Enjoy personalized recommendations.";
     } else if (result.missingRecommended.length <= 2) {
       result.completionLevel = 'good';
-      result.confidence = 80;
+      result.confidence = Math.max(75, Math.min(94, progressScore));
       result.isValid = true;
       result.userGuidance = "Great profile! Add more details for even better recommendations.";
     } else {
       result.completionLevel = 'minimal';
-      result.confidence = 60;
+      result.confidence = Math.max(50, Math.min(74, progressScore));
       result.isValid = true;
       result.userGuidance = "Basic profile complete. Consider adding more preferences.";
     }
   } else {
     result.canGenerateRecommendations = false;
+    result.confidence = Math.min(49, progressScore); // Cap at 49% if can't generate recommendations
     
     if (result.genreRatingCount < VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) {
-      result.userGuidance = `Rate at least ${VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS} genres to get recommendations`;
+      const needed = VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS - result.genreRatingCount;
+      result.userGuidance = `Rate ${needed} more genre${needed !== 1 ? 's' : ''} to unlock recommendations`;
     } else if (!questionnaireCompleted) {
       result.userGuidance = "Complete the questionnaire to get personalized recommendations";
     } else {
@@ -240,7 +263,8 @@ export function getUserGuidance(validation) {
     };
     
     guidance.showProgress = true;
-    guidance.progressPercent = Math.max(20, Math.min(100, (validation.genreRatingCount / VALIDATION_THRESHOLDS.MIN_GENRE_RATINGS) * 100));
+    // Use the validation confidence as the main progress indicator
+    guidance.progressPercent = Math.max(5, Math.min(49, validation.confidence));
   }
 
   return guidance;

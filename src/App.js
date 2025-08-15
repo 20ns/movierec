@@ -241,19 +241,52 @@ useEffect(() => {
   };
 
 
-  // --- Effect: Show Preference Prompt Banner ---
+  // --- Effect: Show Preference Prompt Banner (with delay) ---
   useEffect(() => {
+    const userId = currentUser?.attributes?.sub;
+    
+    // Check if user has manually dismissed the prompt
+    let hasUserDismissed = false;
+    let userSessionStartTime = 0;
+    try {
+      if (userId) {
+        hasUserDismissed = localStorage.getItem(`preferences_prompt_dismissed_${userId}`) === 'true';
+        const sessionStart = localStorage.getItem(`session_start_${userId}`);
+        userSessionStartTime = sessionStart ? parseInt(sessionStart) : Date.now();
+        
+        // Set session start time if not already set
+        if (!sessionStart) {
+          localStorage.setItem(`session_start_${userId}`, Date.now().toString());
+          userSessionStartTime = Date.now();
+        }
+      }
+    } catch (e) {
+      logApp('Could not check dismissed prompt state:', e.message);
+    }
+    
+    // Enhanced completion check - don't show for users with high completion or fully completed questionnaires
+    const isHighlyCompleted = completionPercentage >= 80;
+    const shouldHideForCompletion = hasCompletedQuestionnaire || isHighlyCompleted || canGenerateRecommendations;
+    
+    // Time-based logic: Only show the bottom-right alert after user has been on site for 2 minutes
+    // This prevents immediate popup while the main banner is already visible
+    const timeOnSite = Date.now() - userSessionStartTime;
+    const shouldShowBasedOnTime = timeOnSite > (2 * 60 * 1000); // 2 minutes
+    
     const shouldShow =
       initialAppLoadComplete &&
       isAuthenticated &&
       !preferencesLoading &&
-      !hasCompletedQuestionnaire &&
-      location.pathname !== '/onboarding';
+      !shouldHideForCompletion &&
+      !hasUserDismissed &&
+      shouldShowBasedOnTime && // Only show after time delay
+      location.pathname !== '/onboarding' &&
+      completionPercentage < 100; // Additional safeguard
     
     setShowPreferencesPromptBanner(shouldShow);
     
     // When user has no preferences, we still want to show the recommendations section
-    if (shouldShow && justSignedIn) {
+    if (initialAppLoadComplete && isAuthenticated && justSignedIn) {
       logApp('Showing recommendations for user without preferences');
       setShowRecommendations(true);
       setJustSignedIn(false);
@@ -269,9 +302,56 @@ useEffect(() => {
       shouldShow, 
       completionPercentage, 
       hasCompletedQuestionnaire,
+      canGenerateRecommendations,
+      isHighlyCompleted,
+      hasUserDismissed,
+      shouldShowBasedOnTime,
+      timeOnSite: Math.round(timeOnSite / 1000) + 's',
       showRecommendations
     });
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, location.pathname, justSignedIn, showRecommendations]);
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, canGenerateRecommendations, completionPercentage, currentUser?.attributes?.sub, location.pathname, justSignedIn, showRecommendations]);
+
+  // --- Effect: Clear dismissal flag when user makes significant progress ---
+  useEffect(() => {
+    const userId = currentUser?.attributes?.sub;
+    if (!userId || !initialAppLoadComplete || preferencesLoading) return;
+    
+    // Clear dismissal flag if user's completion significantly improves
+    // This allows the prompt to reappear if user starts making progress after dismissing
+    const previousCompletionKey = `last_completion_${userId}`;
+    const dismissalKey = `preferences_prompt_dismissed_${userId}`;
+    const sessionStartKey = `session_start_${userId}`;
+    
+    try {
+      const previousCompletion = parseInt(localStorage.getItem(previousCompletionKey) || '0');
+      const isDismissed = localStorage.getItem(dismissalKey) === 'true';
+      
+      // If user has made significant progress (20% improvement) since dismissing, clear the dismissal
+      if (isDismissed && completionPercentage > previousCompletion + 20) {
+        localStorage.removeItem(dismissalKey);
+        // Reset session timer to allow alert to show again with delay
+        localStorage.setItem(sessionStartKey, Date.now().toString());
+        logApp('Cleared dismissal flag due to significant progress', {
+          previousCompletion,
+          currentCompletion: completionPercentage,
+          improvement: completionPercentage - previousCompletion
+        });
+      }
+      
+      // Clean up session timer if user reaches high completion (no longer needs alerts)
+      if (completionPercentage >= 80 || hasCompletedQuestionnaire || canGenerateRecommendations) {
+        localStorage.removeItem(sessionStartKey);
+        localStorage.removeItem(dismissalKey); // Also clear dismissal since it's no longer relevant
+      }
+      
+      // Always update the last known completion percentage
+      if (completionPercentage !== previousCompletion) {
+        localStorage.setItem(previousCompletionKey, completionPercentage.toString());
+      }
+    } catch (e) {
+      logApp('Could not manage dismissal flag:', e.message);
+    }
+  }, [completionPercentage, hasCompletedQuestionnaire, canGenerateRecommendations, currentUser?.attributes?.sub, initialAppLoadComplete, preferencesLoading]);
 
   // --- Effect: Show recommendations after app load ---
   useEffect(() => {
@@ -532,7 +612,7 @@ useEffect(() => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-            className="fixed bottom-6 right-6 z-50"
+            className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-xs"
             role="alert"
             aria-live="polite"
           >
@@ -545,7 +625,7 @@ useEffect(() => {
               <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-900/80 to-indigo-900/80">
                 <h3 className="text-xs font-medium text-white flex items-center">
                   <SparklesIcon className="h-3.5 w-3.5 text-purple-300 mr-1.5" />
-                  Personalize Your Experience
+                  {completionPercentage > 0 ? 'Improve Your Profile' : 'Personalize Your Experience'}
                 </h3>
                 <button 
                   onClick={() => {
@@ -555,6 +635,9 @@ useEffect(() => {
                       const userId = currentUser?.attributes?.sub;
                       if (userId) {
                         localStorage.setItem(`preferences_prompt_dismissed_${userId}`, 'true');
+                        // Also clean up session start time since alert is no longer needed
+                        localStorage.removeItem(`session_start_${userId}`);
+                        logApp('User dismissed preference prompt', { completionPercentage });
                       }
                     } catch (e) {
                       console.warn('Could not save preference prompt state:', e);
@@ -570,19 +653,38 @@ useEffect(() => {
               </div>
               <div className="p-3">
                 <div className="mb-2 text-xs text-gray-300">
-                  Profile Completion: {completionPercentage}%
+                  Profile Completion: {Math.max(0, Math.min(100, Math.round(completionPercentage)))}%
+                  {userGuidance?.progressPercent && userGuidance.progressPercent !== completionPercentage && (
+                    <span className="ml-1 text-purple-300">
+                      (Updated: {Math.round(userGuidance.progressPercent)}%)
+                    </span>
+                  )}
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-1.5 mb-3">
                   <div 
-                    className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all duration-500" 
-                    style={{ width: `${completionPercentage}%` }}
+                    className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all duration-1000" 
+                    style={{ width: `${Math.max(0, Math.min(100, Math.round(completionPercentage)))}%` }}
                   ></div>
                 </div>
+                {userGuidance?.message && (
+                  <div className="mb-3 text-xs text-gray-400">
+                    {userGuidance.message}
+                  </div>
+                )}
                 <button
-                  onClick={() => setShowQuestionnaireModal(true)}
+                  onClick={() => {
+                    setShowQuestionnaireModal(true);
+                    logApp('User clicked questionnaire button from banner', { 
+                      completionPercentage, 
+                      hasCompletedQuestionnaire,
+                      canGenerateRecommendations 
+                    });
+                  }}
                   className="w-full text-center bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 px-3 py-1.5 rounded text-xs font-medium text-white transition-colors"
                 >
-                  {hasCompletedQuestionnaire ? 'Improve Profile' : 'Complete Questionnaire'}
+                  {canGenerateRecommendations ? 'Improve Recommendations' : 
+                   hasCompletedQuestionnaire ? 'Improve Profile' : 
+                   completionPercentage > 20 ? 'Continue Setup' : 'Start Questionnaire'}
                 </button>
               </div>
             </motion.div>
