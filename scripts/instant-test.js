@@ -23,7 +23,7 @@ const COGNITO_CONFIG = {
 // Built-in test account - no setup required!
 const TEST_ACCOUNT = {
   email: 'test@gmail.com',
-  password: 'TestPass123!'
+  password: 'TestPassword123!'
 };
 
 class InstantTester {
