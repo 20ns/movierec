@@ -379,7 +379,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     setUserPreferences,
     forceRefreshPreferences,
     // Computed properties for convenience
-    completionPercentage: validationResult?.confidence || 0,
+    completionPercentage: userGuidance?.progressPercent || validationResult?.confidence || 0,
     canGenerateRecommendations: validationResult?.canGenerateRecommendations || false,
     hasBasicProfile: validationResult?.hasBasicProfile || false,
     genreRatingCount: validationResult?.genreRatingCount || 0,

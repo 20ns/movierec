@@ -265,7 +265,7 @@ useEffect(() => {
     }
     
     // Enhanced completion check - don't show for users with high completion or fully completed questionnaires
-    const isHighlyCompleted = (userGuidance?.progressPercent || completionPercentage) >= 95;
+    const isHighlyCompleted = completionPercentage >= 95;
     const shouldHideForCompletion = hasCompletedQuestionnaire || isHighlyCompleted || canGenerateRecommendations;
     
     // Time-based logic: Only show the bottom-right alert after user has been on site for 2 minutes
@@ -653,12 +653,12 @@ useEffect(() => {
               </div>
               <div className="p-3">
                 <div className="mb-2 text-xs text-gray-300">
-                  Profile Completion: {Math.max(0, Math.min(100, Math.round(userGuidance?.progressPercent || completionPercentage)))}%
+                  Profile Completion: {Math.max(0, Math.min(100, Math.round(completionPercentage)))}%
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-1.5 mb-3">
                   <div 
                     className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all duration-1000" 
-                    style={{ width: `${Math.max(0, Math.min(100, Math.round(userGuidance?.progressPercent || completionPercentage)))}%` }}
+                    style={{ width: `${Math.max(0, Math.min(100, Math.round(completionPercentage)))}%` }}
                   ></div>
                 </div>
                 {userGuidance?.message && (
