@@ -207,6 +207,9 @@ jobs:
       run: |
         echo "📋 Previewing infrastructure changes..."
         cd infrastructure && npx cdk diff
+      env:
+        CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+        REACT_APP_TMDB_API_KEY: ${{ secrets.REACT_APP_TMDB_API_KEY }}
         
     - name: Deploy production infrastructure
       run: |

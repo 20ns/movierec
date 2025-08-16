@@ -1,5 +1,18 @@
 require('@testing-library/jest-dom');
 
+// Ensure React is available globally for Jest
+const React = require('react');
+global.React = React;
+
+// Polyfill for React's internal state
+if (typeof global.TextEncoder === 'undefined') {
+  global.TextEncoder = require('util').TextEncoder;
+}
+
+if (typeof global.TextDecoder === 'undefined') {
+  global.TextDecoder = require('util').TextDecoder;
+}
+
 // Mock AWS Amplify
 jest.mock('aws-amplify/auth', () => ({
   getCurrentUser: jest.fn(),

@@ -12,9 +12,15 @@ module.exports = {
   },
   transform: {
     '^.+\\.(js|jsx)$': ['babel-jest', {
-      presets: ['@babel/preset-env', '@babel/preset-react']
+      presets: [
+        ['@babel/preset-env', { targets: { node: 'current' } }],
+        ['@babel/preset-react', { runtime: 'classic' }]
+      ]
     }]
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react|react-dom)/)'
+  ],
   collectCoverageFrom: [
     '../../src/**/*.{js,jsx}',
     '!../../src/index.js',
