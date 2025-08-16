@@ -53,6 +53,7 @@ const Header = memo(function Header({
   onSignout,
   onAccountClick,
   hasBasicPreferencesOnly = false,
+  isQuestionnaireFullyComplete = false,
   searchContainerRef // Added new prop for the search container
 }) {
   const navigate = useNavigate(); // Instantiate useNavigate
@@ -234,7 +235,7 @@ const Header = memo(function Header({
       icon: <AdjustmentsHorizontalIcon className="w-5 h-5" />,
       onClick: () => handlePanelToggle('preferences'),
       active: false,
-      show: isAuthenticated
+      show: isAuthenticated && !isQuestionnaireFullyComplete
     },
     {
       name: 'Favorites',
@@ -421,8 +422,9 @@ const Header = memo(function Header({
           {/* Only show these buttons when the user is authenticated */}
           {isAuthenticated && (
             <>
-              {/* Preferences button */}
-              <motion.button 
+              {/* Preferences button - hide when questionnaire fully complete */}
+              {!isQuestionnaireFullyComplete && (
+                <motion.button 
                 variants={iconButtonVariants}
                 initial="initial"
                 whileHover="hover"
@@ -449,6 +451,7 @@ const Header = memo(function Header({
                   </motion.div>
                 )}
               </motion.button>
+              )}
               
               {/* Favorites button */}
               <motion.button

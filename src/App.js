@@ -265,7 +265,7 @@ useEffect(() => {
     }
     
     // Enhanced completion check - don't show for users with high completion or fully completed questionnaires
-    const isHighlyCompleted = completionPercentage >= 80;
+    const isHighlyCompleted = (userGuidance?.progressPercent || completionPercentage) >= 95;
     const shouldHideForCompletion = hasCompletedQuestionnaire || isHighlyCompleted || canGenerateRecommendations;
     
     // Time-based logic: Only show the bottom-right alert after user has been on site for 2 minutes
@@ -653,17 +653,12 @@ useEffect(() => {
               </div>
               <div className="p-3">
                 <div className="mb-2 text-xs text-gray-300">
-                  Profile Completion: {Math.max(0, Math.min(100, Math.round(completionPercentage)))}%
-                  {userGuidance?.progressPercent && userGuidance.progressPercent !== completionPercentage && (
-                    <span className="ml-1 text-purple-300">
-                      (Updated: {Math.round(userGuidance.progressPercent)}%)
-                    </span>
-                  )}
+                  Profile Completion: {Math.max(0, Math.min(100, Math.round(userGuidance?.progressPercent || completionPercentage)))}%
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-1.5 mb-3">
                   <div 
                     className="bg-gradient-to-r from-purple-500 to-indigo-500 h-1.5 rounded-full transition-all duration-1000" 
-                    style={{ width: `${Math.max(0, Math.min(100, Math.round(completionPercentage)))}%` }}
+                    style={{ width: `${Math.max(0, Math.min(100, Math.round(userGuidance?.progressPercent || completionPercentage)))}%` }}
                   ></div>
                 </div>
                 {userGuidance?.message && (
@@ -707,7 +702,7 @@ useEffect(() => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-full max-w-2xl bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
+              className="w-full max-w-4xl h-[85vh] bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
               onMouseDown={(e) => e.stopPropagation()}            >
               <OnboardingQuestionnaire
                 currentUser={currentUser}
@@ -715,11 +710,16 @@ useEffect(() => {
                 onSkip={() => setShowQuestionnaireModal(false)}
                 isModal={true}
                 onClose={() => {
-                  // When modal is closed with X button, save preferences and trigger recalculation
-                  if (personalizedRecommendationsRef.current && userPreferences) {
-                    personalizedRecommendationsRef.current.refreshRecommendations(userPreferences);
-                  }
+                  // When modal is closed, trigger recommendation refresh and save final state
                   setShowQuestionnaireModal(false);
+                  
+                  // Trigger recommendation refresh after a brief delay to ensure preferences are saved
+                  setTimeout(() => {
+                    if (personalizedRecommendationsRef.current && userPreferences) {
+                      console.log('[App] Triggering recommendation refresh after questionnaire close');
+                      personalizedRecommendationsRef.current.refreshRecommendations(userPreferences);
+                    }
+                  }, 500);
                 }}
                 existingPreferences={userPreferences}
                 onPreferencesUpdated={handlePreferencesUpdated}
@@ -796,6 +796,7 @@ useEffect(() => {
             showWatchlist={showWatchlist}
             showSearch={showSearch}
             hasBasicPreferencesOnly={userPreferences?.questionnaireCompleted && !userPreferences?.detailedQuestionsCompleted}
+            isQuestionnaireFullyComplete={isHighlyCompleted || canGenerateRecommendations}
             searchContainerRef={searchAreaRef} // Pass the ref to Header
           />
 

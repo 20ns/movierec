@@ -469,6 +469,53 @@ const OnboardingQuestionnaire = ({
   const [authError, setAuthError] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0); // 0: not saving, 1: saving, 2: saved
 
+  // Helper function to check if a question is answered
+  const isQuestionAnswered = useCallback((question, prefs) => {
+    if (!prefs || !question) return false;
+    
+    switch (question.type) {
+      case 'multiSelect':
+        return prefs[question.id] && Array.isArray(prefs[question.id]) && prefs[question.id].length > 0;
+      case 'singleSelect':
+        return !!prefs[question.id] && prefs[question.id] !== '';
+      case 'textInput':
+        return !!prefs[question.id] && prefs[question.id].trim() !== '';
+      case 'peopleInput':
+        return (prefs.favoritePeople?.actors?.length > 0) || (prefs.favoritePeople?.directors?.length > 0);
+      case 'ratingSliders':
+        return prefs[question.id] && Object.keys(prefs[question.id]).length > 0;
+      default:
+        return false;
+    }
+  }, []);
+
+  // Helper function to find the first unanswered question
+  const findFirstUnansweredQuestion = useCallback((questions, prefs) => {
+    const unansweredIndex = questions.findIndex(q => !isQuestionAnswered(q, prefs));
+    return unansweredIndex === -1 ? questions.length - 1 : unansweredIndex; // If all answered, go to last question
+  }, [isQuestionAnswered]);
+
+  // Helper function to check if all questions are completed
+  const areAllQuestionsCompleted = useCallback((prefs) => {
+    if (!prefs) return false;
+    
+    // Check if all essential questions are answered (minimum requirement)
+    const essentialQuestions = QUESTIONS.filter(q => q.category === 'essential');
+    const allEssentialAnswered = essentialQuestions.every(q => isQuestionAnswered(q, prefs));
+    
+    // For complete questionnaire, check all questions
+    if (isQuickMode) {
+      return allEssentialAnswered;
+    } else if (progressiveMode) {
+      // For progressive mode, check if current stage is complete
+      const currentStageQuestions = QUESTIONS.filter(q => q.category === currentStage);
+      return currentStageQuestions.every(q => isQuestionAnswered(q, prefs));
+    } else {
+      // For complete mode, check all questions
+      return QUESTIONS.every(q => isQuestionAnswered(q, prefs));
+    }
+  }, [isQuestionAnswered, isQuickMode, progressiveMode, currentStage]);
+
   // Load existing preferences if available
   useEffect(() => {
     if (existingPreferences) {
@@ -487,44 +534,22 @@ const OnboardingQuestionnaire = ({
         }));
       }
 
-      // If skipping basic questions is enabled and user has preferences,
-      // find the first unanswered detailed question
-      if (skipBasicQuestions) {
-        const essentialComplete = QUESTIONS
-          .filter(q => q.category === 'essential')
-          .every(q => {
-            if (q.type === 'multiSelect') return existingPreferences[q.id]?.length > 0;
-            if (q.type === 'singleSelect') return !!existingPreferences[q.id];
-            if (q.type === 'textInput') return !!existingPreferences[q.id];
-            return true;
-          });
-
-        if (essentialComplete) {
-          // Find first unanswered non-essential question
-          const firstUnansweredIndex = QUESTIONS.findIndex((q, index) => {
-            if (q.category === 'essential') return false;
-            
-            if (q.type === 'multiSelect') return !existingPreferences[q.id] || existingPreferences[q.id].length === 0;
-            if (q.type === 'singleSelect') return !existingPreferences[q.id];
-            if (q.type === 'textInput') return !existingPreferences[q.id];
-            if (q.type === 'peopleInput') {
-              return !existingPreferences.favoritePeople?.actors?.length && !existingPreferences.favoritePeople?.directors?.length;
-            }
-            if (q.type === 'ratingSliders') {
-              return !existingPreferences[q.id] || Object.keys(existingPreferences[q.id]).length === 0;
-            }
-            return true;
-          });
-
-          if (firstUnansweredIndex !== -1) {
-            setStep(firstUnansweredIndex + 1);
-            setCurrentQuestion(QUESTIONS[firstUnansweredIndex]);
-            setCurrentCategory(QUESTIONS[firstUnansweredIndex].category);
-          }
+      // Always find the first unanswered question, regardless of mode
+      // This ensures we resume from where the user left off
+      const questions = getQuestionsForMode();
+      if (questions.length > 0) {
+        const firstUnansweredIndex = findFirstUnansweredQuestion(questions, existingPreferences);
+        const targetStep = firstUnansweredIndex + 1;
+        
+        // Only set the step if it's different from the current step to avoid loops
+        if (targetStep !== step) {
+          setStep(targetStep);
+          setCurrentQuestion(questions[firstUnansweredIndex]);
+          setCurrentCategory(questions[firstUnansweredIndex]?.category || 'essential');
         }
       }
     }
-  }, [existingPreferences, skipBasicQuestions]);
+  }, [existingPreferences, skipBasicQuestions, getQuestionsForMode, findFirstUnansweredQuestion, step]);
 
   // Update current question when step changes
   useEffect(() => {
@@ -619,7 +644,7 @@ const OnboardingQuestionnaire = ({
   const updatePreference = (field, value) => {
     setPreferences((prev) => {
       const newPreferences = { ...prev, [field]: value };
-      // Auto-save preferences when a question is answered
+      // Auto-save preferences when a question is answered, but don't trigger recommendations
       if (currentUser) {
         savePreferencesToDB(true, newPreferences, false);
       }
@@ -1074,10 +1099,10 @@ const OnboardingQuestionnaire = ({
   const categoryProgress = getCategoryProgress();
 
   return (
-    <div className="w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-      <div className="relative bg-gray-900/60 p-6 rounded-xl">
-        {/* Header section with close button and title */}
-        <div className="flex justify-between items-center mb-8">
+    <div className="w-full h-full flex flex-col">
+      {/* Header section - fixed at top */}
+      <div className="p-6 pb-4 flex-shrink-0 border-b border-gray-700/50">
+        <div className="flex justify-between items-center">
           <h2 className="text-2xl text-white font-bold tracking-tight">Your Preferences</h2>
           {isModal && (
             <div className="flex items-center space-x-2">
@@ -1106,6 +1131,11 @@ const OnboardingQuestionnaire = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-6">
 
         {/* Mode Selection - Show at the beginning */}
         {showModeSelector && (
@@ -1314,6 +1344,7 @@ const OnboardingQuestionnaire = ({
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );
