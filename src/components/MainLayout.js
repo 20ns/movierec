@@ -132,7 +132,7 @@ function MainLayout({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="w-full max-w-2xl bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
+              className="w-full max-w-4xl bg-gray-900 rounded-lg shadow-2xl overflow-hidden"
               onMouseDown={(e) => e.stopPropagation()}
             >
               <OnboardingQuestionnaire

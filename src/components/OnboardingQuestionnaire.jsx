@@ -966,7 +966,7 @@ const OnboardingQuestionnaire = ({
         
       case 'singleSelect':
         return (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-md mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {currentQuestion.options.map((option) => (
               <motion.button
                 key={option.id}
@@ -1180,7 +1180,7 @@ const OnboardingQuestionnaire = ({
             <h3 className="text-xl font-semibold text-white mb-4">Choose Your Experience</h3>
             <p className="text-gray-400 mb-8">How would you like to complete your preferences?</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Quick Mode */}
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}
