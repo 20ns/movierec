@@ -237,21 +237,42 @@ export const loadPreferences = async (currentUser, forceCloudFetch = false) => {
         }
       }
       
-      // Update local storage with corrected cloud data
+      // CRITICAL FIX: Normalize loaded data to ensure validator compatibility
+      const normalizedData = { ...cloudResult.data };
+      
+      // Convert favoriteGenres to genreRatings if needed for consistency
+      if (normalizedData.favoriteGenres && !normalizedData.genreRatings) {
+        normalizedData.genreRatings = {};
+        if (Array.isArray(normalizedData.favoriteGenres)) {
+          normalizedData.favoriteGenres.forEach(genreId => {
+            if (genreId && !isNaN(genreId)) {
+              normalizedData.genreRatings[genreId] = 7; // Default rating for selected genres
+            }
+          });
+        }
+        console.log(`[${context}] Normalized favoriteGenres to genreRatings - count: ${Object.keys(normalizedData.genreRatings).length}`);
+      }
+
+      // Ensure contentType is set for validator compatibility  
+      if (!normalizedData.contentType && !normalizedData.preferredContentType) {
+        normalizedData.contentType = 'both'; // Default value
+      }
+
+      // Update local storage with normalized cloud data
       try {
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}${userId}`, JSON.stringify(cloudResult.data));
-        localStorage.setItem(`${QUESTIONNAIRE_KEY_PREFIX}${userId}`, cloudResult.data.questionnaireCompleted?.toString() || 'false');
-        console.log(`[${context}] Updated localStorage with cloud data - completed: ${cloudResult.data.questionnaireCompleted}`);
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}${userId}`, JSON.stringify(normalizedData));
+        localStorage.setItem(`${QUESTIONNAIRE_KEY_PREFIX}${userId}`, normalizedData.questionnaireCompleted?.toString() || 'false');
+        console.log(`[${context}] Updated localStorage with normalized cloud data - completed: ${normalizedData.questionnaireCompleted}`);
       } catch (localError) {
         console.warn(`[${context}] Could not update local storage:`, localError);
       }
 
       return {
         success: true,
-        data: cloudResult.data,
+        data: normalizedData,
         source: 'cloud',
         message: 'Preferences loaded from cloud',
-        isConsistent: isReallyCompleted || !cloudResult.data.questionnaireCompleted
+        isConsistent: isReallyCompleted || !normalizedData.questionnaireCompleted
       };
     } else {
       // No cloud data found or cloud load failed

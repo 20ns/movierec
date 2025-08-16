@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon, CheckIcon, StarIcon, SparklesIcon } from '@heroicons/react/24/solid';
@@ -739,15 +739,48 @@ const OnboardingQuestionnaire = ({
     // Mark as saving
     setSaveProgress(1);
 
-    const prefsToSave = prefsToUpdate || {
-      ...preferences,
-      questionnaireCompleted: !isPartial || step === totalSteps,
-    };
+    const basePrefs = prefsToUpdate || preferences;
+    const prefsToSave = { ...basePrefs };
 
-    // If this is a final save, make sure it's marked as completed
-    if (!isPartial || step === totalSteps) {
+    // CRITICAL FIX: Ensure proper questionnaire completion logic
+    // Only mark as completed if we're at the final step OR if explicitly completing
+    if (!isPartial && step === totalSteps) {
       prefsToSave.questionnaireCompleted = true;
+    } else if (isPartial) {
+      // For partial saves, preserve existing completion status or set to false
+      prefsToSave.questionnaireCompleted = prefsToSave.questionnaireCompleted || false;
     }
+
+    // CRITICAL FIX: Normalize genre data to ensure validator compatibility
+    // The validator expects genreRatings, but questionnaire might save as favoriteGenres
+    if (prefsToSave.favoriteGenres && !prefsToSave.genreRatings) {
+      // Convert favoriteGenres array to genreRatings object for validator compatibility
+      prefsToSave.genreRatings = {};
+      if (Array.isArray(prefsToSave.favoriteGenres)) {
+        prefsToSave.favoriteGenres.forEach(genreId => {
+          if (genreId && !isNaN(genreId)) {
+            prefsToSave.genreRatings[genreId] = 7; // Default rating for selected genres
+          }
+        });
+      }
+    }
+
+    // Ensure contentType is set for validator compatibility
+    if (!prefsToSave.contentType && !prefsToSave.preferredContentType) {
+      prefsToSave.contentType = 'both'; // Default value
+    }
+
+    console.log('[Questionnaire] Saving preferences:', {
+      isPartial,
+      step,
+      totalSteps,
+      questionnaireCompleted: prefsToSave.questionnaireCompleted,
+      hasGenreRatings: !!prefsToSave.genreRatings,
+      genreRatingCount: prefsToSave.genreRatings ? Object.keys(prefsToSave.genreRatings).length : 0,
+      hasFavoriteGenres: !!prefsToSave.favoriteGenres,
+      favoriteGenresCount: prefsToSave.favoriteGenres ? prefsToSave.favoriteGenres.length : 0,
+      hasContentType: !!(prefsToSave.contentType || prefsToSave.preferredContentType)
+    });
 
     setIsSubmitting(true);
     try {
@@ -859,13 +892,13 @@ const OnboardingQuestionnaire = ({
   };
 
   const skipOnboarding = () => {
-    // Save current progress before skipping
+    // Save current progress before skipping (but don't mark as completed)
     const currentPrefs = {
       ...preferences,
-      questionnaireCompleted: true, // Mark as completed even when skipping
+      // Don't mark as completed when just skipping - let user complete later
     };
     
-    savePreferencesToDB(false, currentPrefs, true);
+    savePreferencesToDB(true, currentPrefs, false); // Mark as partial save
     
     // Call skip handler
     if (onSkip) onSkip();

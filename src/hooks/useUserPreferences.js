@@ -30,11 +30,15 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
   const fetchUserPreferencesRef = useRef(null); // Store function ref
 
   const fetchUserPreferences = useCallback(async (forceRefresh = false) => {
-    const currentUserId = currentUser?.attributes?.sub;
+    // Use getUserId function for AWS Amplify v6 compatibility
+    const { getUserId } = await import('../utils/tokenUtils');
+    const currentUserId = await getUserId(currentUser);
+    
     if (!isAuthenticated || !currentUserId || fetchingPreferencesRef.current) {
       logHook('Fetch Preferences skipped:', {
         isAuthenticated,
         hasUser: !!currentUser,
+        currentUserId,
         isFetching: fetchingPreferencesRef.current,
       });
       if (!isAuthenticated || !currentUserId) {
@@ -178,10 +182,12 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
   }, []);
 
   // Function to handle questionnaire completion with enhanced validation
-  const handleQuestionnaireComplete = useCallback((updatedPreferences, completionData = {}) => {
-    const userId = currentUser?.attributes?.sub;
+  const handleQuestionnaireComplete = useCallback(async (updatedPreferences, completionData = {}) => {
+    // Use v6-compatible getUserId function instead of direct attribute access
+    const { getUserId } = await import('../utils/tokenUtils');
+    const userId = await getUserId(currentUser);
     if (!userId) {
-      logError('No user ID for questionnaire completion.');
+      logError('No user ID for questionnaire completion.', userId);
       return false;
     }
 
@@ -278,11 +284,12 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     }, 500); // Slightly longer delay to ensure save operations complete
     
     return true;
-  }, [currentUser?.attributes?.sub]);
+  }, [currentUser]);
 
   // Function to safely update preferences with validation
-  const updatePreferences = useCallback((newPreferences) => {
-    const userId = currentUser?.attributes?.sub;
+  const updatePreferences = useCallback(async (newPreferences) => {
+    const { getUserId } = await import('../utils/tokenUtils');
+    const userId = await getUserId(currentUser);
     if (!userId) return;
 
     setUserPreferences(newPreferences);
@@ -301,54 +308,59 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     } catch (e) {
       logError('Error updating localStorage:', e);
     }
-  }, [currentUser?.attributes?.sub]);
+  }, [currentUser]);
 
   // Effect: Initial Fetch and User Change Detection with coordination
   useEffect(() => {
-    const currentUserId = currentUser?.attributes?.sub;
+    const handleUserIdCheck = async () => {
+      // Use getUserId function for AWS Amplify v6 compatibility
+      const { getUserId } = await import('../utils/tokenUtils');
+      const currentUserId = await getUserId(currentUser);
 
-    // User changed or logged in (with race condition protection)
-    if (prevUserIdRef.current !== currentUserId && !processingAuthChangeRef.current) {
-      // Set processing flag to prevent concurrent processing
-      processingAuthChangeRef.current = true;
-      
-      logHook(`User changed from ${prevUserIdRef.current} to ${currentUserId}. Resetting state and fetching.`);
-      
-      // Reset all state
-      setUserPreferences(null);
-      setHasCompletedQuestionnaire(false);
-      setValidationResult(null);
-      setUserGuidance(null);
-      setPreferencesLoading(false);
-      fetchingPreferencesRef.current = false;
-      refreshCycleRef.current = 0;
-      prevUserIdRef.current = currentUserId;
+      // User changed or logged in (with race condition protection)
+      if (prevUserIdRef.current !== currentUserId && !processingAuthChangeRef.current) {
+        // Set processing flag to prevent concurrent processing
+        processingAuthChangeRef.current = true;
+        
+        logHook(`User changed from ${prevUserIdRef.current} to ${currentUserId}. Resetting state and fetching.`);
+        
+        // Reset all state
+        setUserPreferences(null);
+        setHasCompletedQuestionnaire(false);
+        setValidationResult(null);
+        setUserGuidance(null);
+        setPreferencesLoading(false);
+        fetchingPreferencesRef.current = false;
+        refreshCycleRef.current = 0;
+        prevUserIdRef.current = currentUserId;
 
-      if (isAuthenticated && currentUserId && initialAppLoadComplete) {
-        fetchUserPreferencesRef.current?.();
-      } else if (!isAuthenticated) {
-         // Explicitly clear state on logout
-         setUserPreferences(null);
-         setHasCompletedQuestionnaire(false);
-         setValidationResult(null);
-         setUserGuidance(null);
-         setPreferencesLoading(false);
+        if (isAuthenticated && currentUserId && initialAppLoadComplete) {
+          fetchUserPreferencesRef.current?.();
+        } else if (!isAuthenticated) {
+           // Explicitly clear state on logout
+           setUserPreferences(null);
+           setHasCompletedQuestionnaire(false);
+           setValidationResult(null);
+           setUserGuidance(null);
+           setPreferencesLoading(false);
+        }
+        
+        // Reset processing flag after a short delay
+        setTimeout(() => {
+          processingAuthChangeRef.current = false;
+        }, 500);
       }
-      
-      // Reset processing flag after a short delay
-      setTimeout(() => {
-        processingAuthChangeRef.current = false;
-      }, 500);
-    }
-    // Initial load fetch for already authenticated user
-    else if (isAuthenticated && currentUserId && initialAppLoadComplete && !fetchingPreferencesRef.current) {
-       // Only fetch if we don't have preferences loaded yet
-       if (!userPreferences) {
-         logHook('Triggering initial preference fetch for existing session.');
-         fetchUserPreferencesRef.current?.();
-       }
-    }
+      // Initial load fetch for already authenticated user
+      else if (isAuthenticated && currentUserId && initialAppLoadComplete && !fetchingPreferencesRef.current) {
+         // Only fetch if we don't have preferences loaded yet
+         if (!userPreferences) {
+           logHook('Triggering initial preference fetch for existing session.');
+           fetchUserPreferencesRef.current?.();
+         }
+      }
+    };
 
+    handleUserIdCheck();
   }, [currentUser, isAuthenticated, initialAppLoadComplete]);
 
   // Effect: Update validation when preferences change
@@ -379,7 +391,7 @@ export default function useUserPreferences(currentUser, isAuthenticated, initial
     setUserPreferences,
     forceRefreshPreferences,
     // Computed properties for convenience
-    completionPercentage: userGuidance?.progressPercent || validationResult?.confidence || 0,
+    completionPercentage: userGuidance?.progressPercent ?? validationResult?.confidence ?? 0,
     canGenerateRecommendations: validationResult?.canGenerateRecommendations || false,
     hasBasicProfile: validationResult?.hasBasicProfile || false,
     genreRatingCount: validationResult?.genreRatingCount || 0,
