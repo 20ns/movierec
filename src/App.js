@@ -309,7 +309,7 @@ useEffect(() => {
       timeOnSite: Math.round(timeOnSite / 1000) + 's',
       showRecommendations
     });
-  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, canGenerateRecommendations, completionPercentage, currentUser?.attributes?.sub, location.pathname, justSignedIn, showRecommendations]);
+  }, [initialAppLoadComplete, isAuthenticated, preferencesLoading, hasCompletedQuestionnaire, canGenerateRecommendations, completionPercentage, userGuidance, currentUser?.attributes?.sub, location.pathname, justSignedIn, showRecommendations]);
 
   // --- Effect: Clear dismissal flag when user makes significant progress ---
   useEffect(() => {
@@ -351,7 +351,7 @@ useEffect(() => {
     } catch (e) {
       logApp('Could not manage dismissal flag:', e.message);
     }
-  }, [completionPercentage, hasCompletedQuestionnaire, canGenerateRecommendations, currentUser?.attributes?.sub, initialAppLoadComplete, preferencesLoading]);
+  }, [completionPercentage, userGuidance, hasCompletedQuestionnaire, canGenerateRecommendations, currentUser?.attributes?.sub, initialAppLoadComplete, preferencesLoading]);
 
   // --- Effect: Show recommendations after app load ---
   useEffect(() => {
