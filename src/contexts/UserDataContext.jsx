@@ -122,7 +122,7 @@ function userDataReducer(state, action) {
         questionnaireCompleted: preferences?.questionnaireCompleted || false,
         validationResult,
         userGuidance,
-        completionPercentage: validationResult?.confidence || 0,
+        completionPercentage: userGuidance?.progressPercent ?? validationResult?.confidence ?? 0,
         canGenerateRecommendations: validationResult?.canGenerateRecommendations || false,
         hasBasicProfile: validationResult?.hasBasicProfile || false
       };
@@ -147,7 +147,7 @@ function userDataReducer(state, action) {
         preferencesLastUpdated: new Date().toISOString(),
         validationResult: newValidation,
         userGuidance: newGuidance,
-        completionPercentage: newValidation?.confidence || 0,
+        completionPercentage: newGuidance?.progressPercent ?? newValidation?.confidence ?? 0,
         canGenerateRecommendations: newValidation?.canGenerateRecommendations || false,
         hasBasicProfile: newValidation?.hasBasicProfile || false,
         questionnaireCompleted: newPreferences?.questionnaireCompleted || false

@@ -241,6 +241,9 @@ useEffect(() => {
   };
 
 
+  // Enhanced completion check - don't show for users with high completion or fully completed questionnaires
+  const isHighlyCompleted = completionPercentage >= 95;
+
   // --- Effect: Show Preference Prompt Banner (with delay) ---
   useEffect(() => {
     const userId = currentUser?.attributes?.sub;
@@ -263,9 +266,6 @@ useEffect(() => {
     } catch (e) {
       logApp('Could not check dismissed prompt state:', e.message);
     }
-    
-    // Enhanced completion check - don't show for users with high completion or fully completed questionnaires
-    const isHighlyCompleted = completionPercentage >= 95;
     const shouldHideForCompletion = hasCompletedQuestionnaire || isHighlyCompleted || canGenerateRecommendations;
     
     // Time-based logic: Only show the bottom-right alert after user has been on site for 2 minutes
@@ -548,6 +548,7 @@ useEffect(() => {
                   isAuthenticated={isAuthenticated}
                   propUserPreferences={userPreferences}
                   propHasCompletedQuestionnaire={hasCompletedQuestionnaire}
+                  propCompletionPercentage={completionPercentage}
                   initialAppLoadComplete={initialAppLoadComplete}
                   onMediaClick={handleMediaClick}
                 />

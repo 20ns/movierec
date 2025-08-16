@@ -43,6 +43,7 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
     isAuthenticated,
     propUserPreferences,
     propHasCompletedQuestionnaire,
+    propCompletionPercentage = 0,
     initialAppLoadComplete = false,
     onMediaClick,
   } = props;
@@ -410,12 +411,12 @@ export const PersonalizedRecommendations = forwardRef((props, ref) => {
           <div className="mb-4">
             <div className="flex justify-between text-sm text-gray-400 mb-1">
               <span>Profile Completion</span>
-              <span>{userGuidance.progressPercent}%</span>
+              <span>{Math.max(0, Math.min(100, Math.round(propCompletionPercentage)))}%</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${userGuidance.progressPercent}%` }}
+                animate={{ width: `${Math.max(0, Math.min(100, Math.round(propCompletionPercentage)))}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
                 className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
               />
