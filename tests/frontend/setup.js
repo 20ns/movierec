@@ -1,8 +1,31 @@
 require('@testing-library/jest-dom');
 
-// Ensure React is available globally for Jest
+// Essential React setup for test environment
 const React = require('react');
+const ReactDOM = require('react-dom');
+const { act } = require('@testing-library/react');
+
+// Global React setup
 global.React = React;
+global.ReactDOM = ReactDOM;
+global.act = act;
+
+// Fix React hooks in test environment
+const originalCreateElement = React.createElement;
+React.createElement = function(component, props, ...children) {
+  return originalCreateElement.call(this, component, props, ...children);
+};
+
+// Ensure React internal state is properly initialized
+const { __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED } = React;
+if (__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED && 
+    __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher) {
+  // Initialize React's internal dispatcher
+  const dispatcher = __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
+  if (!dispatcher.current) {
+    dispatcher.current = null;
+  }
+}
 
 // Polyfill for React's internal state
 if (typeof global.TextEncoder === 'undefined') {

@@ -8,7 +8,11 @@ module.exports = {
   ],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': 'jest-transform-stub'
+    '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': 'jest-transform-stub',
+    '^react$': '<rootDir>/node_modules/react',
+    '^react-dom$': '<rootDir>/node_modules/react-dom',
+    '^react/(.*)$': '<rootDir>/node_modules/react/$1',
+    '^react-dom/(.*)$': '<rootDir>/node_modules/react-dom/$1'
   },
   transform: {
     '^.+\\.(js|jsx)$': ['babel-jest', {
@@ -35,5 +39,6 @@ module.exports = {
       lines: 70,
       statements: 70
     }
-  }
+  },
+  moduleDirectories: ['node_modules', '<rootDir>/../../node_modules']
 };
